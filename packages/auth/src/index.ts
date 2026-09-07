@@ -42,6 +42,15 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
     baseURL: env.baseURL,
     trustedOrigins: buildTrustedOrigins(env),
     database: prismaAdapter(prisma, { provider: "postgresql" }),
+    socialProviders:
+      process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+        ? {
+            google: {
+              clientId: process.env.GOOGLE_CLIENT_ID,
+              clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            },
+          }
+        : {},
     emailAndPassword: {
       enabled: true,
       // Signup policy is mutable deployment state, so the request hook below
