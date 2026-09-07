@@ -422,6 +422,7 @@ export async function createApp(
     c.json({
       passwordReset: Boolean(email),
       resetUrl: email ? new URL("/reset-password", env.webOrigin).href : null,
+      googleSignIn: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     }),
   );
   if (localEmailEmulator && env.nodeEnv === "development") {
