@@ -1,5 +1,6 @@
 import type { VoiceProvider } from "@rakazo/adapter-kit";
 import { CartesiaVoiceProvider } from "./cartesia-voice.js";
+import { KokoroVoiceProvider } from "./kokoro-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
 import { SCRIPTED_VOICE_CATALOG_ENTRY, ScriptedVoiceProvider } from "./scripted-voice.js";
@@ -21,6 +22,12 @@ export const VOICE_CATALOG = [
     id: "cartesia",
     name: "Cartesia",
     description: "Lowest-latency Sonic voices for interruptible calls.",
+    transcribe: false,
+  },
+  {
+    id: "kokoro",
+    name: "Kokoro (Bijou)",
+    description: "Local OpenAI-compatible TTS. No cloud key required — use a placeholder.",
     transcribe: false,
   },
 ] as const;
@@ -58,13 +65,15 @@ export function createVoiceProvider(kind: string): VoiceProvider {
       return new OpenAIVoiceProvider();
     case "cartesia":
       return new CartesiaVoiceProvider();
+    case "kokoro":
+      return new KokoroVoiceProvider();
     case "scripted":
       if (!scriptedVoiceEnabled()) break;
       return new ScriptedVoiceProvider();
     default:
       break;
   }
-  throw new Error(`Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia.`);
+  throw new Error(`Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | kokoro.`);
 }
 
 export class NoVoiceConfigured extends Error {

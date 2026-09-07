@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CartesiaVoiceProvider } from "./cartesia-voice.js";
+import { KokoroVoiceProvider } from "./kokoro-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
 import {
@@ -35,15 +36,23 @@ afterEach(() => {
 describe("createVoiceProvider", () => {
   it("exposes the hosted catalog behind one factory", () => {
     process.env.AGENT_RUNTIME = "pi";
-    expect(VOICE_CATALOG.map((entry) => entry.id)).toEqual(["elevenlabs", "openai", "cartesia"]);
+    expect(VOICE_CATALOG.map((entry) => entry.id)).toEqual([
+      "elevenlabs",
+      "openai",
+      "cartesia",
+      "kokoro",
+    ]);
     expect(listVoiceCatalog().map((entry) => entry.id)).toEqual([
       "elevenlabs",
       "openai",
       "cartesia",
+      "kokoro",
     ]);
     expect(createVoiceProvider("elevenlabs").describe().id).toBe("elevenlabs");
     expect(createVoiceProvider("openai").describe().capabilities.transcribe).toBe(true);
     expect(createVoiceProvider("cartesia").describe().capabilities.transcribe).toBe(false);
+    expect(createVoiceProvider("kokoro").describe().capabilities.transcribe).toBe(false);
+    expect(isVoiceProviderId("kokoro")).toBe(true);
     expect(isVoiceProviderId("elevenlabs")).toBe(true);
     expect(isVoiceProviderId("scripted")).toBe(false);
     expect(isVoiceProviderId("piper")).toBe(false);
@@ -166,11 +175,63 @@ describe("CartesiaVoiceProvider", () => {
   });
 });
 
+
+describe("KokoroVoiceProvider", () => {
+  it("maps voices from { voices } payloads and prefers af_heart", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            voices: [
+              { id: "am_adam", name: "am_adam" },
+              { id: "af_heart", name: "af_heart", overall_grade: "A" },
+            ],
+          }),
+        ),
+      ),
+    );
+    const provider = new KokoroVoiceProvider();
+    const voices = await provider.listVoices("kokoro-local", ctx);
+    expect(voices[0]?.id).toBe("af_heart");
+    expect(voices.some((voice) => voice.id === "am_adam")).toBe(true);
+  });
+
+  it("posts speech to /audio/speech with model kokoro", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new Uint8Array([7, 8]).buffer,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const clip = await new KokoroVoiceProvider().synthesize(
+      { text: "Hi", voiceId: "af_heart", apiKey: "kokoro-local" },
+      ctx,
+    );
+    expect([...clip.bytes]).toEqual([7, 8]);
+    expect(clip.mimeType).toBe("audio/mpeg");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/audio/speech");
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? "{}"));
+    expect(body.model).toBe("kokoro");
+    expect(body.voice).toBe("af_heart");
+    expect(body.response_format).toBe("mp3");
+  });
+
+  it("verifies against /models without requiring a real key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(new KokoroVoiceProvider().verify("kokoro-local", ctx)).resolves.toEqual({
+      ok: true,
+    });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/models");
+  });
+});
+
 describe("hosted voice response limits", () => {
   it.each([
     ["ElevenLabs", () => new ElevenLabsVoiceProvider(), "voice"],
     ["OpenAI", () => new OpenAIVoiceProvider(), "alloy"],
     ["Cartesia", () => new CartesiaVoiceProvider(), "sonic"],
+    ["Kokoro", () => new KokoroVoiceProvider(), "af_heart"],
   ])(
     "rejects an oversized %s speech response before buffering it",
     async (_name, create, voiceId) => {
