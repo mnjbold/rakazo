@@ -19,13 +19,21 @@ import {
 } from "./voice-http.js";
 
 const DEFAULT_BASE = "http://voicestudio:3900/v1";
-const DEFAULT_VOICE = "expr-voice-2-f";
-const TTS_MODEL = "kittentts";
+const DEFAULT_VOICE = "af_heart";
+const TTS_MODEL = "kokoro";
+const DEFAULT_KOKORO_BASE = "https://kokoro.getbijou.xyz/v1";
 const STT_MODEL = "sherpa-whisper-tiny";
 
 export function voiceStudioBaseUrl(): string {
   const raw = (process.env.RAKAZO_VOICESTUDIO_BASE_URL ?? DEFAULT_BASE).trim();
   return raw.replace(/\/+$/, "") || DEFAULT_BASE;
+}
+
+export function voiceStudioKokoroBaseUrl(): string {
+  const raw = (
+    process.env.RAKAZO_KOKORO_BASE_URL ?? DEFAULT_KOKORO_BASE
+  ).trim();
+  return raw.replace(/\/+$/, "") || DEFAULT_KOKORO_BASE;
 }
 
 function headers(apiKey: string): Record<string, string> {
@@ -70,47 +78,17 @@ export class VoiceStudioVoiceProvider implements VoiceProvider {
     }
   }
 
-  async listVoices(
-    apiKey: string,
-    context: AdapterContext,
-  ): Promise<VoiceInfo[]> {
-    const res = await fetch(`${voiceStudioBaseUrl()}/audio/voices`, {
-      headers: headers(apiKey),
-      signal: voiceDeadline(context.signal, 20_000),
-    });
-    const body = await readVoiceJson(res, { requireValid: res.ok });
-    if (!res.ok)
-      throw new Error(
-        voiceHttpError(res.status, "VoiceStudio", "listing voices", body),
-      );
-    const rows = Array.isArray(body)
-      ? body
-      : body &&
-          typeof body === "object" &&
-          Array.isArray((body as { data?: unknown }).data)
-        ? (body as { data: unknown[] }).data
-        : body &&
-            typeof body === "object" &&
-            Array.isArray((body as { voices?: unknown }).voices)
-          ? (body as { voices: unknown[] }).voices
-          : [];
-    const voices = rows
-      .filter((row): row is Record<string, unknown> =>
-        Boolean(row && typeof row === "object"),
-      )
-      .map((row) => ({
-        id: String(row.id ?? row.voice_id ?? row.name ?? ""),
-        label: String(row.name ?? row.label ?? row.id ?? "Voice"),
-        description:
-          typeof row.description === "string" ? row.description : undefined,
-      }))
-      .filter((voice) => voice.id);
-    if (voices.length) return voices;
+  async listVoices(): Promise<VoiceInfo[]> {
     return [
       {
-        id: DEFAULT_VOICE,
-        label: DEFAULT_VOICE,
-        description: "KittenTTS English default",
+        id: "af_heart",
+        label: "af_heart",
+        description: "Fast local Kokoro default",
+      },
+      {
+        id: "am_adam",
+        label: "am_adam",
+        description: "Fast local Kokoro voice",
       },
     ];
   }
@@ -120,12 +98,9 @@ export class VoiceStudioVoiceProvider implements VoiceProvider {
     context: AdapterContext,
   ): Promise<SpeechClip> {
     const signal = voiceDeadline(request.signal ?? context.signal, 60_000);
-    const res = await fetch(`${voiceStudioBaseUrl()}/audio/speech`, {
+    const res = await fetch(`${voiceStudioKokoroBaseUrl()}/audio/speech`, {
       method: "POST",
-      headers: {
-        ...headers(request.apiKey),
-        "content-type": "application/json",
-      },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
         model: TTS_MODEL,
         voice: request.voiceId?.trim() || DEFAULT_VOICE,

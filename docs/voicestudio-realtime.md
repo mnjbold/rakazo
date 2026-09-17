@@ -2,14 +2,15 @@
 
 ## Phase 1: reliable turn mode
 
-Rakazo's existing CallView remains the default. The server-side `voicestudio` voice adapter sends batch STT and TTS to VoiceStudio over the private service network. The VoiceStudio API key stays in Rakazo's encrypted Space voice credential and is never sent to the browser or placed in a URL.
+Rakazo's existing CallView remains the default. The server-side `voicestudio` voice adapter sends STT to VoiceStudio and TTS to the existing Kokoro bridge. Both calls stay server-side. The VoiceStudio API key stays in Rakazo's encrypted Space voice credential and is never sent to the browser or placed in a URL.
 
 Production configuration:
 
 - `RAKAZO_VOICESTUDIO_BASE_URL=http://voicestudio:3900/v1`
-- TTS engine `kittentts`, voice `expr-voice-2-f`
+- TTS service `RAKAZO_KOKORO_BASE_URL`, model `kokoro`, voice `af_heart`
 - STT engine `sherpa-onnx-asr`, model `sherpa-whisper-tiny`
 - one active STT and TTS request per call until CPU benchmarks establish safe concurrency
+- KittenTTS remains an optional later quality path; it is not on the call-critical path
 
 ## Phase 2: streaming mode
 

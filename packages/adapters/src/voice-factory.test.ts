@@ -347,21 +347,27 @@ describe("VoiceStudioVoiceProvider", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("private-key");
   });
 
-  it("uses the pinned KittenTTS voice for speech", async () => {
+  it("uses the local Kokoro bridge for speech", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(new Response(new Uint8Array([1, 2, 3])));
     vi.stubGlobal("fetch", fetchMock);
     const clip = await new VoiceStudioVoiceProvider().synthesize(
-      { text: "Hello", voiceId: "expr-voice-2-f", apiKey: "private-key" },
+      { text: "Hello", voiceId: "af_heart", apiKey: "private-key" },
       ctx,
     );
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body).toMatchObject({
-      model: "kittentts",
-      voice: "expr-voice-2-f",
+      model: "kokoro",
+      voice: "af_heart",
       response_format: "mp3",
     });
+    expect(
+      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).has("authorization"),
+    ).toBe(false);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "kokoro.getbijou.xyz",
+    );
     expect([...clip.bytes]).toEqual([1, 2, 3]);
   });
 
@@ -387,13 +393,11 @@ describe("VoiceStudioVoiceProvider", () => {
   it("surfaces auth failures without echoing the key", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ detail: "API key required" }), {
-            status: 401,
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "API key required" }), {
+          status: 401,
+        }),
+      ),
     );
     await expect(
       new VoiceStudioVoiceProvider().transcribe!(
