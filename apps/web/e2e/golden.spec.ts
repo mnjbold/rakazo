@@ -333,9 +333,13 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
     if (message.type() === "error") browserErrors.push(message.text());
   });
   page.on("requestfailed", (request) => {
-    failedRequests.push(
-      `${request.method()} ${request.url()} ${request.failure()?.errorText ?? ""}`,
-    );
+    const errorText = request.failure()?.errorText ?? "";
+    // Chromium reports in-flight requests as ERR_ABORTED when viewport changes
+    // cause React to replace a capabilities query. The replacement request succeeds.
+    if (request.url().endsWith("/api/auth/capabilities") && errorText === "net::ERR_ABORTED") {
+      return;
+    }
+    failedRequests.push(`${request.method()} ${request.url()} ${errorText}`);
   });
   const stamp = Date.now();
   const email = `shell-${stamp}@rakazo.test`;
