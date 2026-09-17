@@ -3,7 +3,7 @@ CREATE TABLE "execution_secrets" (
   "secretId" TEXT NOT NULL UNIQUE, "status" TEXT NOT NULL DEFAULT 'active', "version" INTEGER NOT NULL DEFAULT 1,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL,
   "revokedAt" TIMESTAMP(3),
-  CONSTRAINT "execution_secrets_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "users"("id") ON DELETE CASCADE,
+  CONSTRAINT "execution_secrets_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "user"("id") ON DELETE CASCADE,
   CONSTRAINT "execution_secrets_secretId_fkey" FOREIGN KEY ("secretId") REFERENCES "secrets"("id") ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX "execution_secrets_ownerUserId_name_key" ON "execution_secrets"("ownerUserId","name");

@@ -102,6 +102,9 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Computer is stopped": "电脑已停止",
   "Configured by deployment": "由部署配置",
   Connect: "连接",
+  Reconnect: "重新连接",
+  "This provider is managed by your server. No API key is needed here.":
+    "此提供商由你的服务器管理，无需在此输入 API 密钥。",
   "Connect a voice provider first.": "请先连接语音提供商。",
   "Connect API key": "连接 API 密钥",
   "Connect apps.": "连接应用。",

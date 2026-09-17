@@ -30,9 +30,7 @@ export function voiceStudioBaseUrl(): string {
 }
 
 export function voiceStudioKokoroBaseUrl(): string {
-  const raw = (
-    process.env.RAKAZO_KOKORO_BASE_URL ?? DEFAULT_KOKORO_BASE
-  ).trim();
+  const raw = (process.env.RAKAZO_KOKORO_BASE_URL ?? DEFAULT_KOKORO_BASE).trim();
   return raw.replace(/\/+$/, "") || DEFAULT_KOKORO_BASE;
 }
 
@@ -50,10 +48,7 @@ export class VoiceStudioVoiceProvider implements VoiceProvider {
     };
   }
 
-  async verify(
-    apiKey: string,
-    context: AdapterContext,
-  ): Promise<VoiceVerifyResult> {
+  async verify(apiKey: string, context: AdapterContext): Promise<VoiceVerifyResult> {
     try {
       const base = voiceStudioBaseUrl().replace(/\/v1$/, "");
       const res = await fetch(`${base}/v1/audio/capabilities`, {
@@ -93,10 +88,7 @@ export class VoiceStudioVoiceProvider implements VoiceProvider {
     ];
   }
 
-  async synthesize(
-    request: VoiceSynthesizeRequest,
-    context: AdapterContext,
-  ): Promise<SpeechClip> {
+  async synthesize(request: VoiceSynthesizeRequest, context: AdapterContext): Promise<SpeechClip> {
     const signal = voiceDeadline(request.signal ?? context.signal, 60_000);
     const res = await fetch(`${voiceStudioKokoroBaseUrl()}/audio/speech`, {
       method: "POST",
@@ -133,10 +125,7 @@ export class VoiceStudioVoiceProvider implements VoiceProvider {
       signal: voiceDeadline(request.signal ?? context.signal, 60_000),
     });
     const body = await readVoiceJson(res, { requireValid: res.ok });
-    if (!res.ok)
-      throw new Error(
-        voiceHttpError(res.status, "VoiceStudio", "transcribing", body),
-      );
+    if (!res.ok) throw new Error(voiceHttpError(res.status, "VoiceStudio", "transcribing", body));
     return {
       text: String((body as { text?: unknown } | null)?.text ?? "").trim(),
     };
