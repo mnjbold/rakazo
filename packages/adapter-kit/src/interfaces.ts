@@ -90,6 +90,7 @@ export interface SandboxProvider {
       homePath: string;
       providerRef?: string;
       providerKind?: ComputerRef["kind"];
+      desiredProviderKind?: ComputerRef["kind"];
     },
     context: AdapterContext,
   ): Promise<ComputerRef>;

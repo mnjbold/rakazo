@@ -23,6 +23,7 @@ model User {
   modelCredentials            UserModelCredential[]
   voiceCredentials            UserVoiceCredential[]
   secrets                     Secret[]
+  executionSecrets            ExecutionSecret[]
   mcpServers                  McpServer[]
   botSections                 BotSection[]
   actionApprovalRules         ActionApprovalRule[]
@@ -183,6 +184,7 @@ model Space {
   actionApprovalRules         ActionApprovalRule[]
   actionAutoReviewPreferences ActionAutoReviewPreference[]
   memoryConfig                SpaceMemoryConfig?
+  secretBindings              SecretBinding[]
   secrets                     Secret[]
   chatGroups                  ChatGroup[]
   botSecrets BotSecret[]
@@ -875,6 +877,7 @@ model Computer {
   homeKey                 String                   @unique
   homeRevision            String                   @default("empty")
   kind                    String
+  desiredProviderKind     String?
   providerRef             String?
   state                   String                   @default("stopped")
   controlHolder           String                   @default("none")
@@ -1003,6 +1006,7 @@ model Secret {
   mcpServers        McpServer[]
   spaceMemoryConfig SpaceMemoryConfig?
   agentSecret       AgentSecret?
+  executionSecret   ExecutionSecret?
 
   @@index([userId, spaceId])
   @@map("secrets")
@@ -1169,6 +1173,80 @@ model AgentConnection {
   @@unique([requesterBotId, targetBotId])
   @@index([targetBotId, status])
   @@map("agent_connections")
+}
+
+
+model ExecutionSecret {
+  id          String        @id @default(cuid())
+  ownerUserId String
+  owner       User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  name        String
+  secretId    String        @unique
+  secret      Secret        @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  status      String        @default("active")
+  version     Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  revokedAt   DateTime?
+  bindings    SecretBinding[]
+
+  @@unique([ownerUserId, name])
+  @@index([ownerUserId, status])
+  @@map("execution_secrets")
+}
+
+model SecretBinding {
+  id                String          @id @default(cuid())
+  executionSecretId String
+  executionSecret   ExecutionSecret @relation(fields: [executionSecretId], references: [id], onDelete: Cascade)
+  spaceId           String
+  space             Space           @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  botId             String?
+  computerId        String?
+  deliveryMode      String
+  destinationOrigin String?
+  allowedExecutable String?
+  expiresAt         DateTime?
+  createdAt         DateTime        @default(now())
+  grants            SecretGrant[]
+
+  @@index([spaceId, botId, computerId])
+  @@map("secret_bindings")
+}
+
+model SecretGrant {
+  id               String        @id @default(cuid())
+  bindingId        String
+  binding          SecretBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  runId            String
+  toolCallId       String
+  providerKind     String
+  status           String        @default("issued")
+  issuedAt         DateTime      @default(now())
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  revokedAt        DateTime?
+
+  @@unique([bindingId, toolCallId])
+  @@index([runId, status, expiresAt])
+  @@map("secret_grants")
+}
+
+model SecretAudit {
+  id           String   @id @default(cuid())
+  secretId     String?
+  actorUserId  String
+  spaceId      String
+  botId        String?
+  computerId   String?
+  action       String
+  reasonCode   String?
+  providerKind String?
+  createdAt    DateTime @default(now())
+
+  @@index([spaceId, createdAt])
+  @@index([secretId, createdAt])
+  @@map("secret_audits")
 }
 
 model BotSecret {

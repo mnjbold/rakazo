@@ -33,6 +33,7 @@ import {
   legacyNetworkOwnedSolelyBy,
   publishedLoopbackControlHostPort,
   resolveComputerControlEndpoint,
+  resolveComputerRuntime,
   resolveScreenNetworkMode,
   resolveScreenPublishTarget,
   resolveTeamScreenLimit,
@@ -185,7 +186,8 @@ app.post("/computers", async (c) => {
           info.Image === desired.Id &&
           (!networkMode || info.HostConfig.NetworkMode === networkMode) &&
           info.Config.User === computerUser &&
-          controlPublishOk
+          controlPublishOk &&
+          (info.HostConfig.Runtime || "runc") === resolveComputerRuntime()
         ) {
           if (!info.State.Running) await existing.start();
           return c.json({

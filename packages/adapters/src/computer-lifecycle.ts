@@ -242,6 +242,7 @@ export async function provisionComputer(
         homePath,
         providerRef: existing.providerRef ?? undefined,
         providerKind: existing.kind as ComputerRef["kind"],
+        desiredProviderKind: (existing.desiredProviderKind ?? existing.kind) as ComputerRef["kind"],
       },
       context,
     );

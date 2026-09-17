@@ -71,3 +71,19 @@ Confirm `sandbox` equals the intended provider (`e2b`, `daytona`, or `box`).
 HTTP 200 alone does not verify a remote provider: a missing API key falls back to `sandbox: "none"`.
 A present but invalid key still reports the selected provider. Open a bot's computer to verify
 provisioning and desktop access.
+
+## gVisor runtime pilot
+
+Local Docker computers can opt into gVisor after `runsc` is installed as a Docker runtime:
+
+```bash
+RAKAZO_COMPUTER_RUNTIME=runsc
+```
+
+The default is `runc`. Rakazo fails closed on any other value and includes the runtime in computer
+replacement checks. Installing `runsc` and restarting Docker is a host maintenance action; test the
+full desktop lifecycle in staging before enabling it for production.
+
+Per-computer provider selection supports `docker` and `box` for idle Private Computers. Docker stays
+the default. A Box selection is unavailable unless the API and worker have the operator-only
+`BOX_API_KEY`; Rakazo never copies that key into a computer.

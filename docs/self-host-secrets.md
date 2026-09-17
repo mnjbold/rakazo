@@ -93,3 +93,15 @@ later" item.
 ## Related
 
 - [Self-hosting](./self-host.md)
+
+## Runtime secret boundaries
+
+`BOX_API_KEY` is an operator credential for Rakazo's API and worker. Never save it as an Agent
+Secret, send it to a bot, or inject it into a computer. Box provisioning uses `noEnv: true` so the
+provider credential stays outside the remote VM.
+
+Prefer `request_secret` and `secret_request` for API credentials: the server binds the value to one
+HTTPS origin and never gives the value to the model. Space Agent Secrets are broader: their names are
+shown to the agent and their values are supplied only to shell processes, with output redaction. Do
+not use Agent Secrets for untrusted workloads. Scoped execution grants are the migration path for
+per-bot and per-computer delivery.

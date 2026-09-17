@@ -13,6 +13,7 @@ import type {
 } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "@rakazo/db";
 import { DesktopSandboxProvider } from "./desktop-sandbox.js";
+import { RoutedSandbox } from "./routed-sandbox.js";
 import { createSandboxProvider, type SandboxProviderOptions } from "./sandbox-factory.js";
 
 export function sandboxKindForBot(envKind: string, computerHost: string | null | undefined) {
@@ -32,8 +33,11 @@ export function createRunSandbox(
   }
   const primary = createSandboxProvider(kind, opts);
   if (kind !== "docker" || !opts.prisma) return primary;
+  const providers = new Map<string, SandboxProvider>([["docker", primary]]);
+  if (opts.boxApiKey?.trim()) providers.set("box", createSandboxProvider("box", opts));
+  const routed = new RoutedSandbox(providers, "docker");
   return new HostAwareSandbox(
-    primary,
+    routed,
     new DesktopSandboxProvider({
       root: opts.dataDir,
       hostRoots: [homedir()],
