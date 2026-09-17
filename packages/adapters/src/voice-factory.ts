@@ -3,19 +3,25 @@ import { CartesiaVoiceProvider } from "./cartesia-voice.js";
 import { KokoroVoiceProvider } from "./kokoro-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
-import { SCRIPTED_VOICE_CATALOG_ENTRY, ScriptedVoiceProvider } from "./scripted-voice.js";
+import { VoiceStudioVoiceProvider } from "./voicestudio-voice.js";
+import {
+  SCRIPTED_VOICE_CATALOG_ENTRY,
+  ScriptedVoiceProvider,
+} from "./scripted-voice.js";
 
 export const VOICE_CATALOG = [
   {
     id: "elevenlabs",
     name: "ElevenLabs",
-    description: "Highest quality and cloning. Flash v2.5 for conversational calls.",
+    description:
+      "Highest quality and cloning. Flash v2.5 for conversational calls.",
     transcribe: true,
   },
   {
     id: "openai",
     name: "OpenAI",
-    description: "Simple TTS plus Whisper-class transcription. Reuse an OpenAI key.",
+    description:
+      "Simple TTS plus Whisper-class transcription. Reuse an OpenAI key.",
     transcribe: true,
   },
   {
@@ -25,9 +31,17 @@ export const VOICE_CATALOG = [
     transcribe: false,
   },
   {
+    id: "voicestudio",
+    name: "VoiceStudio (Bijou)",
+    description:
+      "Private local speech with KittenTTS and multilingual transcription.",
+    transcribe: true,
+  },
+  {
     id: "kokoro",
     name: "Kokoro (Bijou)",
-    description: "Local OpenAI-compatible TTS. No cloud key required — use a placeholder.",
+    description:
+      "Local OpenAI-compatible TTS. No cloud key required — use a placeholder.",
     transcribe: false,
   },
 ] as const;
@@ -48,7 +62,8 @@ export function listVoiceCatalog() {
 }
 
 export function voiceCatalogEntry(id: string) {
-  if (id === SCRIPTED_VOICE_CATALOG_ENTRY.id) return SCRIPTED_VOICE_CATALOG_ENTRY;
+  if (id === SCRIPTED_VOICE_CATALOG_ENTRY.id)
+    return SCRIPTED_VOICE_CATALOG_ENTRY;
   return VOICE_CATALOG.find((entry) => entry.id === id);
 }
 
@@ -65,6 +80,8 @@ export function createVoiceProvider(kind: string): VoiceProvider {
       return new OpenAIVoiceProvider();
     case "cartesia":
       return new CartesiaVoiceProvider();
+    case "voicestudio":
+      return new VoiceStudioVoiceProvider();
     case "kokoro":
       return new KokoroVoiceProvider();
     case "scripted":
@@ -73,7 +90,9 @@ export function createVoiceProvider(kind: string): VoiceProvider {
     default:
       break;
   }
-  throw new Error(`Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | kokoro.`);
+  throw new Error(
+    `Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | voicestudio | kokoro.`,
+  );
 }
 
 export class NoVoiceConfigured extends Error {

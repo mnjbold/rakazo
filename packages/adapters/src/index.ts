@@ -99,6 +99,7 @@ export * from "./teaching-session.js";
 export * from "./team-chat-messaging.js";
 export * from "./third-party-connector-emulator.js";
 export * from "./voice-factory.js";
+export * from "./voicestudio-voice.js";
 export * from "./wakeup.js";
 export * from "./web-limits.js";
 export * from "./web-provider-factory.js";
