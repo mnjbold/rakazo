@@ -58,3 +58,25 @@ export async function ensureComputerRecord(
     update: {},
   });
 }
+
+/** Select a provider for one Private Computer. Team computers stay on the deployment default. */
+export async function selectPrivateComputerProvider(
+  prisma: Pick<PrismaClient, "computer">,
+  input: { computerId: string; spaceId: string; userId: string; providerKind: "docker" | "box" },
+) {
+  const result = await prisma.computer.updateMany({
+    where: {
+      id: input.computerId,
+      spaceId: input.spaceId,
+      userId: input.userId,
+      scope: "dedicated",
+      state: "stopped",
+      executionLeases: { none: { expiresAt: { gt: new Date() } } },
+    },
+    data: { desiredProviderKind: input.providerKind },
+  });
+  if (result.count !== 1) {
+    throw new Error("Provider changes require an idle Private Computer owned by this user");
+  }
+  return { selected: input.providerKind };
+}

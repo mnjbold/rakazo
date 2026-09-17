@@ -2,6 +2,17 @@ import { createHash } from "node:crypto";
 import { MAX_DESKTOP_DISPLAY, screenPorts } from "@rakazo/core/node/desktop-runtime";
 
 export const COMPUTER_IMAGE = process.env.RAKAZO_COMPUTER_IMAGE ?? "rakazo/computer:local";
+
+export type ComputerRuntime = "runc" | "runsc";
+
+export function resolveComputerRuntime(
+  value = process.env.RAKAZO_COMPUTER_RUNTIME,
+): ComputerRuntime {
+  const runtime = value?.trim() || "runc";
+  if (runtime === "runc" || runtime === "runsc") return runtime;
+  throw new Error(`RAKAZO_COMPUTER_RUNTIME must be runc or runsc, received "${runtime}"`);
+}
+
 export const COMPUTER_UID = 1000;
 export const COMPUTER_GID = 1000;
 export const COMPUTER_USER = `${COMPUTER_UID}:${COMPUTER_GID}`;
@@ -158,6 +169,7 @@ export interface ComputerCreateInput {
   controlToken?: string;
   networkMode?: string;
   publishControlPort?: boolean;
+  runtime?: ComputerRuntime;
 }
 
 interface PointerInput {
@@ -204,6 +216,7 @@ export function containerCreateOptions(input: ComputerCreateInput) {
       ReadonlyPaths: ["/usr/share/novnc"],
       AutoRemove: false,
       NetworkMode: input.networkMode ?? "bridge",
+      Runtime: input.runtime ?? resolveComputerRuntime(),
     },
     WorkingDir: "/home/rakazo",
   };

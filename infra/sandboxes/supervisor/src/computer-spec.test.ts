@@ -720,3 +720,16 @@ describe("computer resource limits", () => {
     expect(parseMemoryBytes("X", "1073741824")).toBe(1024 ** 3);
   });
 });
+
+describe("computer OCI runtime", () => {
+  it("defaults to runc and accepts runsc", async () => {
+    const { resolveComputerRuntime } = await import("./computer-spec.js");
+    expect(resolveComputerRuntime(undefined)).toBe("runc");
+    expect(resolveComputerRuntime("runsc")).toBe("runsc");
+  });
+
+  it("fails closed on an unknown runtime", async () => {
+    const { resolveComputerRuntime } = await import("./computer-spec.js");
+    expect(() => resolveComputerRuntime("kata")).toThrow(/runc or runsc/);
+  });
+});

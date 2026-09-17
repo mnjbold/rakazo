@@ -166,3 +166,21 @@ describe("host-aware sandbox", () => {
     await sandbox.destroy(computer, ctx);
   });
 });
+
+it("enables Box routing only when the server has an operator Box key", async () => {
+  const prisma = { deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+  const sandbox = createRunSandbox("docker", {
+    prisma,
+    supervisorUrl: "http://supervisor",
+    supervisorToken: "token",
+    boxApiKey: "operator-key",
+  });
+  expect(sandbox.describe().id).toBe("docker");
+  // Selection is persisted by the owner-only computer policy; no key is passed in the request.
+  await expect(
+    sandbox.provision(
+      { botId: "private", homePath: "/tmp/private", desiredProviderKind: "missing" as never },
+      ctx,
+    ),
+  ).rejects.toThrow(/cannot be selected|not configured/);
+});
