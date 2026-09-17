@@ -17,3 +17,27 @@ describe("Dokploy staging policy", () => {
     );
   });
 });
+
+import { planDokployFullStack } from "./dokploy.js";
+
+describe("Dokploy full-stack plans", () => {
+  it("plans project, database, compose, volumes, and protected environment without executing", () => {
+    const plan = planDokployFullStack({
+      slug: "notes-app",
+      compose: "services:\n  web:\n    image: example/web\n",
+      domain: "notes.staging.getbijou.xyz",
+      environment: { DATABASE_URL: "postgres://db", SESSION_SECRET: "hidden" },
+      volumes: ["uploads"],
+      databases: [{ kind: "postgres", name: "notes-db" }],
+    });
+    expect(plan.map((step) => step.path)).toEqual([
+      "project.create",
+      "environment.create",
+      "postgres.create",
+      "compose.create",
+      "compose.saveEnvironment",
+    ]);
+    expect(plan.at(-1)?.secretFields).toEqual(["SESSION_SECRET"]);
+    expect(plan.every((step) => !step.destructive)).toBe(true);
+  });
+});
