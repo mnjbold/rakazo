@@ -146,7 +146,8 @@ export async function dokployDeploymentHistory(
   serviceId: string,
   signal?: AbortSignal,
 ) {
-  const query = serviceKind === "compose" ? { composeId: serviceId } : { applicationId: serviceId };
+  const query: Record<string, string> =
+    serviceKind === "compose" ? { composeId: serviceId } : { applicationId: serviceId };
   return client.request<unknown[]>(
     { path: `deployment.allBy${serviceKind === "compose" ? "Compose" : "Application"}`, query },
     signal,
