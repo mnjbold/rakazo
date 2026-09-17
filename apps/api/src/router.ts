@@ -127,7 +127,15 @@ import {
   resolveBusyBotName,
   toComputerStatus,
 } from "./computer-status.js";
-import { dokployStatus, operateDokploy, previewDokploy } from "./dokploy.js";
+import {
+  dokployStatus,
+  fullStackPreview,
+  listDokployDeployments,
+  operateDokploy,
+  previewDokploy,
+  readDokployLogs,
+  rollbackDokploy,
+} from "./dokploy.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
 import { buildMcpUpdateMaterial } from "./mcp-material.js";
 import {
@@ -569,6 +577,35 @@ export function createRouter(deps: RouterDeps) {
       preview: authed.dokploy.preview.handler(async ({ context, input }) => {
         if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
         return previewDokploy(input);
+      }),
+      fullStackPreview: authed.dokploy.fullStackPreview.handler(async ({ context, input }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return fullStackPreview(input);
+      }),
+      deployments: authed.dokploy.deployments.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return listDokployDeployments(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input.serviceKind,
+          input.serviceId,
+          signal,
+        );
+      }),
+      logs: authed.dokploy.logs.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return readDokployLogs(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input.deploymentId,
+          signal,
+        );
+      }),
+      rollback: authed.dokploy.rollback.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return rollbackDokploy(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input,
+          signal,
+        );
       }),
       operate: authed.dokploy.operate.handler(async ({ context, input, signal }) => {
         if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
