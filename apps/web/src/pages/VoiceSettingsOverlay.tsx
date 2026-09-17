@@ -72,14 +72,14 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
   );
 
   async function connectKey() {
-    if (!selected || !apiKey.trim()) return;
+    if (!selected || (!selected.managed && !apiKey.trim())) return;
     setError(null);
     setNotice(null);
     setPending("connect");
     try {
       await rpc.voice.connect({
         provider: selected.id,
-        apiKey: apiKey.trim(),
+        ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
         voiceId: voiceId || undefined,
       });
       setApiKey("");
@@ -209,27 +209,41 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
             {notice ? <p className="mb-4 text-sm text-success">{notice}</p> : null}
             {selected ? (
               <>
-                <Field className="mt-5">
-                  <FieldLabel htmlFor={apiKeyId}>
-                    <Trans>API key</Trans>
-                  </FieldLabel>
-                  <Input
-                    id={apiKeyId}
-                    type="password"
-                    autoComplete="new-password"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={credential ? t`Paste a replacement key` : t`Paste your API key`}
-                  />
-                </Field>
+                {selected.managed ? (
+                  <p className="mt-5 text-sm text-muted-foreground">
+                    <Trans>
+                      This provider is managed by your server. No API key is needed here.
+                    </Trans>
+                  </p>
+                ) : (
+                  <Field className="mt-5">
+                    <FieldLabel htmlFor={apiKeyId}>
+                      <Trans>API key</Trans>
+                    </FieldLabel>
+                    <Input
+                      id={apiKeyId}
+                      type="password"
+                      autoComplete="new-password"
+                      value={apiKey}
+                      onChange={(event) => setApiKey(event.target.value)}
+                      placeholder={credential ? t`Paste a replacement key` : t`Paste your API key`}
+                    />
+                  </Field>
+                )}
                 <Button
                   type="button"
                   className="mt-3"
-                  disabled={busy || apiKey.trim().length < 8}
+                  disabled={busy || (!selected.managed && apiKey.trim().length < 8)}
                   onClick={() => void connectKey()}
                 >
                   {pending === "connect" ? (
                     <Trans>Connecting…</Trans>
+                  ) : selected.managed ? (
+                    credential ? (
+                      <Trans>Reconnect</Trans>
+                    ) : (
+                      <Trans>Connect</Trans>
+                    )
                   ) : credential ? (
                     <Trans>Replace key</Trans>
                   ) : (

@@ -420,6 +420,7 @@ export interface RouterDeps {
     defaultProvider: string;
     defaultModel: string;
     deploymentModelKey?: string;
+    voiceStudioApiKey?: string;
     webOrigin: string;
     screenProxySecret: string;
     sandboxProvider: string;
@@ -4242,14 +4243,19 @@ export function createRouter(deps: RouterDeps) {
           });
         });
       }),
-      connect: authed.voice.connect.handler(async ({ context, input }) =>
-        persistVoiceCredential(deps, context.actor, {
+      connect: authed.voice.connect.handler(async ({ context, input }) => {
+        const plaintext = resolveVoiceConnectKey(
+          input.provider,
+          input.apiKey,
+          deps.env.voiceStudioApiKey,
+        );
+        return persistVoiceCredential(deps, context.actor, {
           provider: input.provider,
-          plaintext: input.apiKey,
+          plaintext,
           voiceId: input.voiceId,
           signal: context.signal,
-        }),
-      ),
+        });
+      }),
       setVoice: authed.voice.setVoice.handler(async ({ context, input }) => {
         const cred = await withSerializableRetry(() =>
           deps.prisma.$transaction(
@@ -4300,6 +4306,22 @@ export function createRouter(deps: RouterDeps) {
         prepareVoice(deps, context.actor, input),
       ),
     },
+  });
+}
+
+export function resolveVoiceConnectKey(
+  provider: string,
+  submittedKey: string | undefined,
+  voiceStudioApiKey: string | undefined,
+) {
+  const plaintext =
+    submittedKey?.trim() || (provider === "voicestudio" ? voiceStudioApiKey : undefined);
+  if (plaintext) return plaintext;
+  throw new ORPCError("BAD_REQUEST", {
+    message:
+      provider === "voicestudio"
+        ? "VoiceStudio is not configured on this server."
+        : "Enter an API key.",
   });
 }
 

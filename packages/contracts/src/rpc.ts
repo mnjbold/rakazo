@@ -695,7 +695,7 @@ export const appContract = {
       .input(
         z.object({
           provider: z.string(),
-          apiKey: z.string().min(8),
+          apiKey: z.string().min(8).optional(),
           voiceId: z.string().max(120).optional(),
         }),
       )

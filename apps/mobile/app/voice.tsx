@@ -21,6 +21,7 @@ type VoiceCatalogEntry = {
   name: string;
   description: string;
   transcribe: boolean;
+  managed?: boolean;
 };
 type VoiceCredential = {
   id: string;
@@ -85,13 +86,13 @@ export default function VoiceSettings() {
   const credential = credentials.find((entry) => entry.provider === provider);
 
   async function connect() {
-    if (!selected || apiKey.trim().length < 8) return;
+    if (!selected || (!selected.managed && apiKey.trim().length < 8)) return;
     setPending(true);
     setError(null);
     try {
       await rpc("voice/connect", {
         provider: selected.id,
-        apiKey: apiKey.trim(),
+        ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
         voiceId: voiceId || undefined,
       });
       setApiKey("");
@@ -162,26 +163,43 @@ export default function VoiceSettings() {
         })}
         {selected ? (
           <>
-            <TextInput
-              accessibilityLabel={t("API key")}
-              autoCapitalize="none"
-              autoComplete="off"
-              autoCorrect={false}
-              importantForAutofill="no"
-              value={apiKey}
-              onChangeText={setApiKey}
-              placeholder={credential ? t("Paste a replacement key") : t("Paste your API key")}
-              placeholderTextColor={native.tertiaryLabel}
-              secureTextEntry
-              style={styles.input}
-              textContentType="none"
-            />
+            {selected.managed ? (
+              <Text style={styles.cardMeta}>
+                {t("This provider is managed by your server. No API key is needed here.")}
+              </Text>
+            ) : (
+              <TextInput
+                accessibilityLabel={t("API key")}
+                autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect={false}
+                importantForAutofill="no"
+                value={apiKey}
+                onChangeText={setApiKey}
+                placeholder={credential ? t("Paste a replacement key") : t("Paste your API key")}
+                placeholderTextColor={native.tertiaryLabel}
+                secureTextEntry
+                style={styles.input}
+                textContentType="none"
+              />
+            )}
             <Pressable
-              disabled={pending || apiKey.trim().length < 8}
+              disabled={pending || (!selected.managed && apiKey.trim().length < 8)}
               onPress={() => void connect()}
-              style={[styles.button, (pending || apiKey.trim().length < 8) && styles.disabled]}
+              style={[
+                styles.button,
+                (pending || (!selected.managed && apiKey.trim().length < 8)) && styles.disabled,
+              ]}
             >
-              <Text style={styles.buttonLabel}>{credential ? t("Replace key") : t("Connect")}</Text>
+              <Text style={styles.buttonLabel}>
+                {selected.managed
+                  ? credential
+                    ? t("Reconnect")
+                    : t("Connect")
+                  : credential
+                    ? t("Replace key")
+                    : t("Connect")}
+              </Text>
             </Pressable>
             {voices.length ? (
               <View style={styles.voices}>

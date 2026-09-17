@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CartesiaVoiceProvider } from "./cartesia-voice.js";
-import { KokoroVoiceProvider } from "./kokoro-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
+import { KokoroVoiceProvider } from "./kokoro-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
-import { VoiceStudioVoiceProvider } from "./voicestudio-voice.js";
 import {
   SCRIPTED_MPEG,
   SCRIPTED_TRANSCRIPT,
@@ -17,6 +16,7 @@ import {
   VOICE_CATALOG,
 } from "./voice-factory.js";
 import { MAX_SYNTHESIZED_AUDIO_BYTES } from "./voice-http.js";
+import { VoiceStudioVoiceProvider } from "./voicestudio-voice.js";
 
 const ctx = {
   operationId: "voice",
@@ -52,35 +52,21 @@ describe("createVoiceProvider", () => {
       "kokoro",
     ]);
     expect(createVoiceProvider("elevenlabs").describe().id).toBe("elevenlabs");
-    expect(
-      createVoiceProvider("openai").describe().capabilities.transcribe,
-    ).toBe(true);
-    expect(
-      createVoiceProvider("cartesia").describe().capabilities.transcribe,
-    ).toBe(false);
-    expect(
-      createVoiceProvider("voicestudio").describe().capabilities.transcribe,
-    ).toBe(true);
-    expect(
-      createVoiceProvider("kokoro").describe().capabilities.transcribe,
-    ).toBe(false);
+    expect(createVoiceProvider("openai").describe().capabilities.transcribe).toBe(true);
+    expect(createVoiceProvider("cartesia").describe().capabilities.transcribe).toBe(false);
+    expect(createVoiceProvider("voicestudio").describe().capabilities.transcribe).toBe(true);
+    expect(createVoiceProvider("kokoro").describe().capabilities.transcribe).toBe(false);
     expect(isVoiceProviderId("kokoro")).toBe(true);
     expect(isVoiceProviderId("elevenlabs")).toBe(true);
     expect(isVoiceProviderId("scripted")).toBe(false);
     expect(isVoiceProviderId("piper")).toBe(false);
-    expect(() => createVoiceProvider("piper")).toThrow(
-      /unknown voice provider/i,
-    );
-    expect(() => createVoiceProvider("scripted")).toThrow(
-      /unknown voice provider/i,
-    );
+    expect(() => createVoiceProvider("piper")).toThrow(/unknown voice provider/i);
+    expect(() => createVoiceProvider("scripted")).toThrow(/unknown voice provider/i);
   });
 
   it("adds the scripted fixture only when the agent runtime is scripted", () => {
     process.env.AGENT_RUNTIME = "scripted";
-    expect(listVoiceCatalog().some((entry) => entry.id === "scripted")).toBe(
-      true,
-    );
+    expect(listVoiceCatalog().some((entry) => entry.id === "scripted")).toBe(true);
     expect(isVoiceProviderId("scripted")).toBe(true);
     expect(createVoiceProvider("scripted").describe().id).toBe("scripted");
   });
@@ -113,19 +99,13 @@ describe("ElevenLabsVoiceProvider", () => {
     );
     expect(clip.mimeType).toBe("audio/mpeg");
     expect([...clip.bytes]).toEqual([1, 2, 3]);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      "/text-to-speech/abc",
-    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/text-to-speech/abc");
   });
 
   it("transcribes through Scribe", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ text: "hello there" })),
-        ),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: "hello there" }))),
     );
     const provider = new ElevenLabsVoiceProvider();
     await expect(
@@ -159,9 +139,7 @@ describe("OpenAIVoiceProvider", () => {
   });
 
   it("names Firefox ogg recordings from the mime type", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ text: "hello" })));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: "hello" })));
     vi.stubGlobal("fetch", fetchMock);
     await new OpenAIVoiceProvider().transcribe!(
       {
@@ -184,16 +162,12 @@ describe("CartesiaVoiceProvider", () => {
       vi
         .fn()
         .mockResolvedValue(
-          new Response(
-            JSON.stringify({ data: [{ id: "sonic", name: "Katie" }] }),
-          ),
+          new Response(JSON.stringify({ data: [{ id: "sonic", name: "Katie" }] })),
         ),
     );
     const provider = new CartesiaVoiceProvider();
     const voices = await provider.listVoices("sk-test", ctx);
-    expect(voices).toEqual([
-      { id: "sonic", label: "Katie", description: undefined },
-    ]);
+    expect(voices).toEqual([{ id: "sonic", label: "Katie", description: undefined }]);
   });
 
   it("posts bytes to /tts/bytes", async () => {
@@ -252,13 +226,9 @@ describe("KokoroVoiceProvider", () => {
   });
 
   it("verifies against /models without requiring a real key", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
     vi.stubGlobal("fetch", fetchMock);
-    await expect(
-      new KokoroVoiceProvider().verify("kokoro-local", ctx),
-    ).resolves.toEqual({
+    await expect(new KokoroVoiceProvider().verify("kokoro-local", ctx)).resolves.toEqual({
       ok: true,
     });
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/models");
@@ -301,9 +271,7 @@ describe("ScriptedVoiceProvider", () => {
       ok: false,
       message: "That key is too short.",
     });
-    await expect(
-      provider.verify("fake-scripted-voice-key", ctx),
-    ).resolves.toEqual({ ok: true });
+    await expect(provider.verify("fake-scripted-voice-key", ctx)).resolves.toEqual({ ok: true });
     expect(await provider.listVoices("fake-scripted-voice-key", ctx)).toEqual([
       { id: SCRIPTED_VOICE_ID, label: "Scripted", description: "Test voice" },
     ]);
@@ -334,23 +302,19 @@ describe("VoiceStudioVoiceProvider", () => {
   it("keeps the bearer key server-side for capability verification", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ protocol: "voicestudio.speech.v1" })),
-      );
+      .mockResolvedValue(new Response(JSON.stringify({ protocol: "voicestudio.speech.v1" })));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(
-      new VoiceStudioVoiceProvider().verify("private-key", ctx),
-    ).resolves.toEqual({ ok: true });
-    expect(
-      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("authorization"),
-    ).toBe("Bearer private-key");
+    await expect(new VoiceStudioVoiceProvider().verify("private-key", ctx)).resolves.toEqual({
+      ok: true,
+    });
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("authorization")).toBe(
+      "Bearer private-key",
+    );
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("private-key");
   });
 
   it("uses the local Kokoro bridge for speech", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(new Uint8Array([1, 2, 3])));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3])));
     vi.stubGlobal("fetch", fetchMock);
     const clip = await new VoiceStudioVoiceProvider().synthesize(
       { text: "Hello", voiceId: "af_heart", apiKey: "private-key" },
@@ -362,19 +326,13 @@ describe("VoiceStudioVoiceProvider", () => {
       voice: "af_heart",
       response_format: "mp3",
     });
-    expect(
-      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).has("authorization"),
-    ).toBe(false);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      "kokoro.getbijou.xyz",
-    );
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).has("authorization")).toBe(false);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("kokoro.getbijou.xyz");
     expect([...clip.bytes]).toEqual([1, 2, 3]);
   });
 
   it("uses the pinned multilingual model for batch fallback", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ text: "hello" })));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: "hello" })));
     vi.stubGlobal("fetch", fetchMock);
     await expect(
       new VoiceStudioVoiceProvider().transcribe!(
