@@ -992,6 +992,22 @@ export const DokployPreviewSchema = z.object({
 });
 export type DokployPreview = z.infer<typeof DokployPreviewSchema>;
 
+export const DokployFullStackPreviewSchema = z.object({
+  steps: z.array(
+    z.object({ path: z.string(), destructive: z.boolean(), secretFields: z.array(z.string()) }),
+  ),
+  projectName: z.literal("rakazo-staging"),
+  requiresConfirmation: z.literal(true),
+});
+export type DokployFullStackPreview = z.infer<typeof DokployFullStackPreviewSchema>;
+
+export const DokployDeploymentSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  createdAt: z.string().nullable(),
+});
+export type DokployDeployment = z.infer<typeof DokployDeploymentSchema>;
+
 export const DokployOperationResultSchema = z.object({
   ok: z.boolean(),
   operation: z.enum(["deploy", "redeploy", "rollback"]),

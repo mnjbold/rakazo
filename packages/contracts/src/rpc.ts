@@ -27,6 +27,8 @@ import {
   CreateRoutineInput,
   CreateScratchpadItemInput,
   DeploymentSettingsSchema,
+  DokployDeploymentSchema,
+  DokployFullStackPreviewSchema,
   DokployOperationResultSchema,
   DokployPreviewSchema,
   DokployServiceKindSchema,
@@ -171,6 +173,43 @@ export const appContract = {
         }),
       )
       .output(DokployPreviewSchema),
+    fullStackPreview: oc
+      .input(
+        z.object({
+          slug: z.string().trim().min(1).max(63),
+          compose: z.string().max(256_000),
+          domain: z.string().trim().max(253).nullable().optional(),
+          environmentKeys: z.array(z.string().regex(/^[A-Z_][A-Z0-9_]{0,63}$/)).max(200),
+          volumes: z.array(z.string()).max(20),
+          databases: z
+            .array(
+              z.object({
+                kind: z.enum(["postgres", "mysql", "mariadb", "mongo", "redis"]),
+                name: z.string().trim().min(1).max(64),
+              }),
+            )
+            .max(10),
+        }),
+      )
+      .output(DokployFullStackPreviewSchema),
+    deployments: oc
+      .input(
+        z.object({ serviceKind: DokployServiceKindSchema, serviceId: z.string().min(1).max(200) }),
+      )
+      .output(z.array(DokployDeploymentSchema)),
+    logs: oc
+      .input(z.object({ deploymentId: z.string().min(1).max(200) }))
+      .output(z.object({ logs: z.string().max(20_000) })),
+    rollback: oc
+      .input(
+        z.object({
+          serviceKind: DokployServiceKindSchema,
+          serviceId: z.string().min(1).max(200),
+          deploymentId: z.string().min(1).max(200),
+          confirmed: z.literal(true),
+        }),
+      )
+      .output(DokployOperationResultSchema),
     operate: oc
       .input(
         z.object({
