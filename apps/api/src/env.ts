@@ -82,6 +82,9 @@ export interface AppEnv {
   mcpStdioAllowedCommands: string[];
   port: number;
   gitSha: string | undefined;
+  /** Server-only Dokploy endpoint and API key for owner-controlled staging. */
+  dokployUrl: string | undefined;
+  dokployApiKey: string | undefined;
   /** Private Compose control-network URL for the opt-in updater sidecar. */
   updaterUrl: string | undefined;
   /** Bearer shared with the updater; never sent to the browser. */
@@ -169,6 +172,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
       .filter(Boolean),
     port: Number(source.API_PORT ?? 3100),
     gitSha: optional(source.GIT_SHA) ?? optional(source.RAKAZO_GIT_SHA),
+    dokployUrl: optional(source.DOKPLOY_URL),
+    dokployApiKey: optional(source.DOKPLOY_API_KEY),
     updaterUrl,
     updaterToken,
     imageTag: optional(source.RAKAZO_IMAGE_TAG),

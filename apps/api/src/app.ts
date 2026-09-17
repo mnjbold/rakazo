@@ -398,6 +398,8 @@ export async function createApp(
       screenProxySecret: env.screenProxySecret,
       sandboxProvider: env.sandboxProvider,
       gitSha: env.gitSha,
+      dokployUrl: env.dokployUrl,
+      dokployApiKey: env.dokployApiKey,
       updaterUrl: env.updaterUrl,
       updaterToken: env.updaterToken,
       imageTag: env.imageTag,
