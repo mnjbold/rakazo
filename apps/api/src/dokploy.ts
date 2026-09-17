@@ -1,10 +1,14 @@
 import { ORPCError } from "@orpc/server";
 import {
   DokployClient,
+  dokployDeploymentHistory,
+  dokployDeploymentLogs,
+  planDokployFullStack,
   RAKAZO_STAGING_DOMAIN_SUFFIX,
   RAKAZO_STAGING_LIMITS,
   RAKAZO_STAGING_PROJECT,
   redactDokployLog,
+  rollbackDokployDeployment,
   validateStagingDomain,
 } from "@rakazo/adapters";
 import type { DokployServiceKind } from "@rakazo/contracts";
@@ -78,4 +82,88 @@ export async function operateDokploy(
     logs: redactDokployLog(JSON.stringify(result)),
     rolledBack: false,
   } as const;
+}
+
+export function fullStackPreview(input: {
+  slug: string;
+  compose: string;
+  domain?: string | null;
+  environmentKeys: string[];
+  volumes: string[];
+  databases: Array<{ kind: "postgres" | "mysql" | "mariadb" | "mongo" | "redis"; name: string }>;
+}) {
+  const steps = planDokployFullStack({
+    ...input,
+    environment: Object.fromEntries(input.environmentKeys.map((key) => [key, "[protected]"])),
+  });
+  return {
+    steps: steps.map(({ path, destructive, secretFields }) => ({
+      path,
+      destructive,
+      secretFields,
+    })),
+    projectName: RAKAZO_STAGING_PROJECT,
+    requiresConfirmation: true,
+  } as const;
+}
+
+function configuredClient(config: DokployConfig): DokployClient {
+  if (!config.baseUrl || !config.apiKey)
+    throw new ORPCError("PRECONDITION_FAILED", { message: "Dokploy is not configured" });
+  return new DokployClient({ baseUrl: config.baseUrl, apiKey: config.apiKey });
+}
+
+export async function listDokployDeployments(
+  config: DokployConfig,
+  serviceKind: DokployServiceKind,
+  serviceId: string,
+  signal?: AbortSignal,
+) {
+  const rows = await dokployDeploymentHistory(
+    configuredClient(config),
+    serviceKind,
+    serviceId,
+    signal,
+  );
+  return rows
+    .map((row) => {
+      const record = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+      return {
+        id: String(record.deploymentId ?? record.id ?? ""),
+        status: String(record.status ?? "unknown"),
+        createdAt: typeof record.createdAt === "string" ? record.createdAt : null,
+      };
+    })
+    .filter((row) => row.id);
+}
+
+export async function readDokployLogs(
+  config: DokployConfig,
+  deploymentId: string,
+  signal?: AbortSignal,
+) {
+  return { logs: await dokployDeploymentLogs(configuredClient(config), deploymentId, signal) };
+}
+
+export async function rollbackDokploy(
+  config: DokployConfig,
+  input: { serviceKind: DokployServiceKind; serviceId: string; deploymentId: string },
+  signal?: AbortSignal,
+) {
+  const result = await rollbackDokployDeployment(
+    configuredClient(config),
+    input.serviceKind,
+    input.serviceId,
+    input.deploymentId,
+    signal,
+  );
+  return {
+    ok: true,
+    operation: "rollback" as const,
+    deploymentId: input.deploymentId,
+    status: String(result.status ?? "submitted"),
+    healthUrl: null,
+    logs: redactDokployLog(JSON.stringify(result)),
+    rolledBack: true,
+  };
 }

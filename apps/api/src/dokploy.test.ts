@@ -21,3 +21,21 @@ describe("Dokploy owner surface", () => {
     ).toMatchObject({ domain: "web.staging.getbijou.xyz", requiresConfirmation: true });
   });
 });
+
+import { fullStackPreview } from "./dokploy.js";
+
+it("returns metadata-only protected environment previews", () => {
+  const preview = fullStackPreview({
+    slug: "full-stack",
+    compose: "services:\n  web:\n    image: web\n",
+    environmentKeys: ["DATABASE_URL", "SESSION_SECRET"],
+    volumes: ["uploads"],
+    databases: [{ kind: "postgres", name: "db" }],
+  });
+  expect(preview.steps.at(-1)).toEqual({
+    path: "compose.saveEnvironment",
+    destructive: false,
+    secretFields: ["SESSION_SECRET"],
+  });
+  expect(JSON.stringify(preview)).not.toContain("[protected]");
+});
