@@ -18,6 +18,7 @@ describe("Pi model catalog", () => {
     const providers = new Set(catalog.map((entry) => entry.provider));
     expect(catalog.length).toBeGreaterThan(20);
     expect(providers.has("openrouter")).toBe(true);
+    expect(providers.has("minimax")).toBe(true);
     expect(providers.size).toBeGreaterThan(5);
     expect(
       catalog.some(
@@ -52,6 +53,10 @@ describe("Pi model catalog", () => {
       reasoning: true,
       thinkingLevels: ["low", "medium", "high", "xhigh"],
     });
+    const minimax = catalog.find(
+      (entry) => entry.provider === "minimax" && entry.id === "MiniMax-M3",
+    );
+    expect(minimax).toMatchObject({ reasoning: true, auth: "api-key" });
     const openAiCompatible = catalog.find((entry) => entry.provider === "openai-compatible");
     expect(openAiCompatible).toMatchObject({ id: "custom", placeholder: true });
   });

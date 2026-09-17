@@ -23,6 +23,7 @@ describe("model vision gating for computer tools", () => {
     expect(modelAcceptsImageInput("openrouter", "deepseek/deepseek-v4-flash-vision-exp")).toBe(
       true,
     );
+    expect(modelAcceptsImageInput("minimax", "MiniMax-M3")).toBe(true);
   });
 
   it("resolves the scripted placeholder like Pi before checking vision", () => {

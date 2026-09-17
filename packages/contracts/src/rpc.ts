@@ -27,6 +27,10 @@ import {
   CreateRoutineInput,
   CreateScratchpadItemInput,
   DeploymentSettingsSchema,
+  DokployOperationResultSchema,
+  DokployPreviewSchema,
+  DokployServiceKindSchema,
+  DokployStatusSchema,
   ExportManifestSchema,
   ExternalConversationPolicySchema,
   GroupDetailSchema,
@@ -155,6 +159,30 @@ export const appContract = {
    * to its `/state` `/plan` `/apply` contract. Rollback stays on the sidecar for ops only and is
    * not exposed here. Never git-fetch from the API process.
    */
+  dokploy: {
+    status: oc.output(DokployStatusSchema),
+    preview: oc
+      .input(
+        z.object({
+          operation: z.enum(["create", "deploy", "redeploy", "rollback"]),
+          serviceKind: DokployServiceKindSchema,
+          name: z.string().trim().min(1).max(64),
+          domain: z.string().trim().max(253).nullable().optional(),
+        }),
+      )
+      .output(DokployPreviewSchema),
+    operate: oc
+      .input(
+        z.object({
+          operation: z.enum(["deploy", "redeploy", "rollback"]),
+          serviceKind: DokployServiceKindSchema,
+          serviceId: z.string().trim().min(1).max(200),
+          healthUrl: z.string().url().nullable().optional(),
+          confirmed: z.literal(true),
+        }),
+      )
+      .output(DokployOperationResultSchema),
+  },
   updater: {
     status: oc.output(ServerUpdateStatusSchema),
     check: oc.input(ServerUpdateRequestSchema).output(ServerUpdateCheckSchema),
