@@ -3067,6 +3067,20 @@ export function ShellPage() {
             <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
           </div>
         ) : null}
+        {callOpen && active ? (
+          <Suspense fallback={null}>
+            <CallView
+              botId={active.id}
+              botName={active.name}
+              transcribe={Boolean(voiceStatus?.transcribe)}
+              snapshot={activeSnapshot}
+              onSend={sendMessage}
+              onFollowUp={followUpMessage}
+              onAnswer={answerMessage}
+              onClose={() => setCallOpen(false)}
+            />
+          </Suspense>
+        ) : null}
         <Composer
           key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
           activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
@@ -3765,18 +3779,6 @@ export function ShellPage() {
                 .then(setVoiceStatus)
                 .catch(() => undefined);
             }}
-          />
-        ) : null}
-        {callOpen && active ? (
-          <CallView
-            botId={active.id}
-            botName={active.name}
-            transcribe={Boolean(voiceStatus?.transcribe)}
-            snapshot={activeSnapshot}
-            onSend={sendMessage}
-            onFollowUp={followUpMessage}
-            onAnswer={answerMessage}
-            onClose={() => setCallOpen(false)}
           />
         ) : null}
       </Suspense>
