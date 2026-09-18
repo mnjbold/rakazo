@@ -87,6 +87,10 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
     .getByRole("button", { name: "Voice", exact: true })
     .click();
   await expect(page.getByTestId("call-view")).toBeVisible();
+  await expect(page.getByTestId("composer-bar")).toBeVisible();
+  await expect(page.getByTestId("transcript")).toBeVisible();
+  await expect(page.locator('[data-slot="dialog-overlay"]')).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "voice-inline-live");
   await expect(page.getByRole("button", { name: "Hang up" })).toBeVisible();
   await page.getByRole("button", { name: "Hang up" }).click();
   await expect(page.getByTestId("call-view")).toHaveCount(0);

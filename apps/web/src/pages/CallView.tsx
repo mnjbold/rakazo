@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
 import { isSecretAskBlock, narrateTool, speechFromBlocks, spokenDecision } from "@rakazo/core";
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@rakazo/ui-web";
+import { Button } from "@rakazo/ui-web";
 import { useEffect, useRef, useState } from "react";
 import { dictation } from "../lib/dictation";
 import { speaker } from "../lib/tts";
@@ -225,49 +225,57 @@ export function CallView({
   }, [snapshot]);
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) hangUp();
-      }}
+    <section
+      data-testid="call-view"
+      aria-label={t`Live call with ${botName}`}
+      className="mx-3 mb-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm md:mx-6"
     >
-      <DialogContent
-        data-testid="call-view"
-        showCloseButton={false}
-        className="max-w-[420px] rounded-3xl p-6 text-center sm:max-w-[420px]"
-      >
-        <DialogHeader className="items-center gap-2">
-          <div className="text-[13px] uppercase tracking-[0.12em] text-muted-foreground/80">
-            <Trans>Call</Trans>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="relative flex h-2.5 w-2.5 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <Trans>Live</Trans>
+            </span>
+            <span className="truncate text-[14px] font-medium text-foreground" dir="auto">
+              {botName}
+            </span>
+            <span className="shrink-0 text-[13px] text-foreground/70">
+              {phase === "listening" ? (
+                <Trans>Listening…</Trans>
+              ) : phase === "speaking" ? (
+                <Trans>Speaking…</Trans>
+              ) : (
+                <Trans>Working…</Trans>
+              )}
+            </span>
           </div>
-          <DialogTitle className="text-[22px]">{botName}</DialogTitle>
-        </DialogHeader>
-        <div className="mt-1 text-[15px] text-foreground/75">
-          {phase === "listening" ? (
-            <Trans>Listening…</Trans>
-          ) : phase === "speaking" ? (
-            <Trans>Speaking…</Trans>
-          ) : (
-            <Trans>Working…</Trans>
-          )}
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground" aria-live="polite">
+            {phase === "listening" ? heard || t`Say something. Silence sends it.` : caption}
+          </p>
+          {error ? <p className="mt-1 text-[12px] text-destructive">{error}</p> : null}
         </div>
-        <p className="min-h-[3.2em] text-[14.5px] leading-[1.5] text-muted-foreground">
-          {phase === "listening" ? heard || t`Say something. Silence sends it.` : caption}
-        </p>
-        {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
-        <div className="mt-2 flex justify-center gap-3">
-          <Button variant="outline" className="rounded-full" onClick={interrupt}>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden rounded-full sm:inline-flex"
+            onClick={interrupt}
+          >
             <Trans>Interrupt</Trans>
           </Button>
-          <Button variant="destructive" className="rounded-full" onClick={hangUp}>
+          <Button variant="destructive" size="sm" className="rounded-full" onClick={hangUp}>
             <Trans>Hang up</Trans>
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground/80">
-          <Trans>Space interrupts · Esc hangs up</Trans>
-        </p>
-      </DialogContent>
-    </Dialog>
+      </div>
+      <p className="mt-2 hidden text-center text-[11px] text-muted-foreground/75 sm:block">
+        <Trans>The conversation stays live below · Space interrupts · Esc hangs up</Trans>
+      </p>
+    </section>
   );
 }
 
