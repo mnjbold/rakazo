@@ -27,6 +27,12 @@ import {
   CreateRoutineInput,
   CreateScratchpadItemInput,
   DeploymentSettingsSchema,
+  DokployDeploymentSchema,
+  DokployFullStackPreviewSchema,
+  DokployOperationResultSchema,
+  DokployPreviewSchema,
+  DokployServiceKindSchema,
+  DokployStatusSchema,
   ExportManifestSchema,
   ExternalConversationPolicySchema,
   GroupDetailSchema,
@@ -155,6 +161,67 @@ export const appContract = {
    * to its `/state` `/plan` `/apply` contract. Rollback stays on the sidecar for ops only and is
    * not exposed here. Never git-fetch from the API process.
    */
+  dokploy: {
+    status: oc.output(DokployStatusSchema),
+    preview: oc
+      .input(
+        z.object({
+          operation: z.enum(["create", "deploy", "redeploy", "rollback"]),
+          serviceKind: DokployServiceKindSchema,
+          name: z.string().trim().min(1).max(64),
+          domain: z.string().trim().max(253).nullable().optional(),
+        }),
+      )
+      .output(DokployPreviewSchema),
+    fullStackPreview: oc
+      .input(
+        z.object({
+          slug: z.string().trim().min(1).max(63),
+          compose: z.string().max(256_000),
+          domain: z.string().trim().max(253).nullable().optional(),
+          environmentKeys: z.array(z.string().regex(/^[A-Z_][A-Z0-9_]{0,63}$/)).max(200),
+          volumes: z.array(z.string()).max(20),
+          databases: z
+            .array(
+              z.object({
+                kind: z.enum(["postgres", "mysql", "mariadb", "mongo", "redis"]),
+                name: z.string().trim().min(1).max(64),
+              }),
+            )
+            .max(10),
+        }),
+      )
+      .output(DokployFullStackPreviewSchema),
+    deployments: oc
+      .input(
+        z.object({ serviceKind: DokployServiceKindSchema, serviceId: z.string().min(1).max(200) }),
+      )
+      .output(z.array(DokployDeploymentSchema)),
+    logs: oc
+      .input(z.object({ deploymentId: z.string().min(1).max(200) }))
+      .output(z.object({ logs: z.string().max(20_000) })),
+    rollback: oc
+      .input(
+        z.object({
+          serviceKind: DokployServiceKindSchema,
+          serviceId: z.string().min(1).max(200),
+          deploymentId: z.string().min(1).max(200),
+          confirmed: z.literal(true),
+        }),
+      )
+      .output(DokployOperationResultSchema),
+    operate: oc
+      .input(
+        z.object({
+          operation: z.enum(["deploy", "redeploy", "rollback"]),
+          serviceKind: DokployServiceKindSchema,
+          serviceId: z.string().trim().min(1).max(200),
+          healthUrl: z.string().url().nullable().optional(),
+          confirmed: z.literal(true),
+        }),
+      )
+      .output(DokployOperationResultSchema),
+  },
   updater: {
     status: oc.output(ServerUpdateStatusSchema),
     check: oc.input(ServerUpdateRequestSchema).output(ServerUpdateCheckSchema),

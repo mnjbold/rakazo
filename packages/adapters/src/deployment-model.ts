@@ -12,10 +12,12 @@ export function resolveDeploymentModel(env: NodeJS.ProcessEnv = process.env) {
   const keys: Record<string, string | undefined> = {
     openrouter: env.OPENROUTER_API_KEY,
     anthropic: env.ANTHROPIC_API_KEY,
+    minimax: env.MINIMAX_API_KEY,
   };
   const models: Record<string, string> = {
     openrouter: "deepseek/deepseek-v4-flash-0731",
     anthropic: "claude-sonnet-5",
+    minimax: "MiniMax-M3",
   };
   return {
     provider,

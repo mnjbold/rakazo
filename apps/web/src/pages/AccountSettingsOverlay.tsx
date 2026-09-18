@@ -26,6 +26,7 @@ import {
   ComputersUnavailableHint,
   computersAreUnavailable,
 } from "../components/ComputersUnavailableHint";
+import { DokploySection } from "../components/DokploySection";
 import { SoftwareUpdateSection } from "../components/SoftwareUpdateSection";
 import { authClient } from "../lib/auth";
 import { getActiveUiLocale, setUiLocale } from "../lib/i18n";
@@ -216,6 +217,8 @@ export function AccountSettingsOverlay({
             <Trans>Model spend uses your provider keys.</Trans>
           </p>
         </div>
+
+        <DokploySection isDeploymentOwner={isDeploymentOwner} />
 
         <SoftwareUpdateSection isDeploymentOwner={isDeploymentOwner} />
 

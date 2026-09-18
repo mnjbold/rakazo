@@ -970,6 +970,55 @@ export const VoiceStatusSchema = z.object({
 });
 export type VoiceStatus = z.infer<typeof VoiceStatusSchema>;
 
+export const DokployServiceKindSchema = z.enum(["application", "compose"]);
+export type DokployServiceKind = z.infer<typeof DokployServiceKindSchema>;
+
+export const DokployStatusSchema = z.object({
+  configured: z.boolean(),
+  projectName: z.literal("rakazo-staging"),
+  domainSuffix: z.literal(".staging.getbijou.xyz"),
+  limits: z.object({ cpu: z.literal(2), memoryMb: z.literal(4096), diskGb: z.literal(20) }),
+});
+export type DokployStatus = z.infer<typeof DokployStatusSchema>;
+
+export const DokployPreviewSchema = z.object({
+  operation: z.enum(["create", "deploy", "redeploy", "rollback"]),
+  serviceKind: DokployServiceKindSchema,
+  name: z.string(),
+  domain: z.string().nullable(),
+  projectName: z.literal("rakazo-staging"),
+  limits: z.object({ cpu: z.literal(2), memoryMb: z.literal(4096), diskGb: z.literal(20) }),
+  requiresConfirmation: z.literal(true),
+});
+export type DokployPreview = z.infer<typeof DokployPreviewSchema>;
+
+export const DokployFullStackPreviewSchema = z.object({
+  steps: z.array(
+    z.object({ path: z.string(), destructive: z.boolean(), secretFields: z.array(z.string()) }),
+  ),
+  projectName: z.literal("rakazo-staging"),
+  requiresConfirmation: z.literal(true),
+});
+export type DokployFullStackPreview = z.infer<typeof DokployFullStackPreviewSchema>;
+
+export const DokployDeploymentSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  createdAt: z.string().nullable(),
+});
+export type DokployDeployment = z.infer<typeof DokployDeploymentSchema>;
+
+export const DokployOperationResultSchema = z.object({
+  ok: z.boolean(),
+  operation: z.enum(["deploy", "redeploy", "rollback"]),
+  deploymentId: z.string().nullable(),
+  status: z.string(),
+  healthUrl: z.string().url().nullable(),
+  logs: z.string(),
+  rolledBack: z.boolean(),
+});
+export type DokployOperationResult = z.infer<typeof DokployOperationResultSchema>;
+
 export const DeploymentSettingsSchema = z.object({
   ownerUserId: Id.nullable(),
   signupsEnabled: z.boolean(),

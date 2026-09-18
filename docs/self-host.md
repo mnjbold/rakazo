@@ -30,7 +30,11 @@ Signup and local Docker computers work without an E2B account. Optional remote p
 `SANDBOX_PROVIDER` to `e2b`, `daytona`, or `box` and add the matching API key. The published-images
 Compose stack requires `SANDBOX_SUPERVISOR_TOKEN` for every provider; leave it empty and `compose up` fails closed.
 
-Optional: set `OPENROUTER_API_KEY` or connect a model in the UI after signup.
+Optional: set `OPENROUTER_API_KEY`, or set a MiniMax Token Plan Subscription Key as
+`MINIMAX_API_KEY` with `PI_DEFAULT_PROVIDER=minimax` and `PI_DEFAULT_MODEL=MiniMax-M3`.
+The direct MiniMax provider uses `https://api.minimax.io/anthropic`; the key remains in the API and
+worker processes and is never sent to clients or computer sandboxes. You can instead connect a model
+in the UI after signup.
 
 The example defaults to `edge` (main builds). Every publish is multi-arch (`amd64` + `arm64`), so
 arm64 hosts need no special tag. Do not assume `latest` is present until a stable release exists.
@@ -78,7 +82,10 @@ supervisor at startup naming the variable, rather than surfacing later as a fail
 ## Docker Compose (single machine)
 
 1. Copy `.env.example` to `.env` and set `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`, and `SCREEN_PROXY_SECRET` to independent long random strings (32+ characters; 64 hex for `ENCRYPTION_KEY`). Docker sandboxes also need a dedicated `SANDBOX_SUPERVISOR_TOKEN`. Keep existing `ENCRYPTION_KEY` values so stored credentials stay decryptable.
-2. Set `OPENROUTER_API_KEY` (and `COMPOSIO_API_KEY` if you want Plugins).
+2. Set the key for the deployment model provider: `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or
+   `MINIMAX_API_KEY` for direct MiniMax. For a MiniMax Token Plan, use the Subscription Key from
+   **Billing → Token Plan** and set `PI_DEFAULT_PROVIDER=minimax`, `PI_DEFAULT_MODEL=MiniMax-M3`.
+   Set `COMPOSIO_API_KEY` separately if you want Plugins.
 3. Build the computer image: `pnpm sandbox:build` (Compose also builds it via the `computer` service).
 4. `docker compose --env-file .env -f infra/compose/docker-compose.yml up --build`
 5. Open the web origin (`http://127.0.0.1:5173` by default). The first registered user becomes the deployment owner.

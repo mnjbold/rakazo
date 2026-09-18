@@ -57,6 +57,7 @@ From `.env.images.example` (images installer). Leave blank if unused:
 | Key(s) | When needed |
 | --- | --- |
 | `OPENROUTER_API_KEY` | Deployment-wide OpenRouter models |
+| `MINIMAX_API_KEY` | Deployment-wide direct MiniMax model. For a Token Plan, use its Subscription Key, not a pay-as-you-go API key. |
 | `COMPOSIO_API_KEY` | Composio managed catalog |
 | `E2B_API_KEY` / `DAYTONA_API_KEY` / `BOX_API_KEY` | Remote computers when `SANDBOX_PROVIDER` is not `docker` |
 | `SMTP_URL` / `EMAIL_FROM` | Password-recovery email |

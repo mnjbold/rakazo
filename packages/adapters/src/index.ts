@@ -39,6 +39,7 @@ export * from "./deployment-model.js";
 export * from "./desktop-sandbox.js";
 export * from "./destination-emulator.js";
 export * from "./docker-sandbox.js";
+export * from "./dokploy.js";
 export * from "./e2b-emulator.js";
 export * from "./e2b-sandbox.js";
 export * from "./elevenlabs-voice.js";

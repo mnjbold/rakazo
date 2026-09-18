@@ -127,6 +127,15 @@ import {
   resolveBusyBotName,
   toComputerStatus,
 } from "./computer-status.js";
+import {
+  dokployStatus,
+  fullStackPreview,
+  listDokployDeployments,
+  operateDokploy,
+  previewDokploy,
+  readDokployLogs,
+  rollbackDokploy,
+} from "./dokploy.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
 import { buildMcpUpdateMaterial } from "./mcp-material.js";
 import {
@@ -425,6 +434,8 @@ export interface RouterDeps {
     screenProxySecret: string;
     sandboxProvider: string;
     gitSha?: string;
+    dokployUrl?: string;
+    dokployApiKey?: string;
     updaterUrl?: string;
     updaterToken?: string;
     imageTag?: string;
@@ -556,6 +567,53 @@ export function createRouter(deps: RouterDeps) {
           },
         });
         return deploymentDto(deps.prisma, deps.env.sandboxProvider);
+      }),
+    },
+    dokploy: {
+      status: authed.dokploy.status.handler(async ({ context }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return dokployStatus({ baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey });
+      }),
+      preview: authed.dokploy.preview.handler(async ({ context, input }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return previewDokploy(input);
+      }),
+      fullStackPreview: authed.dokploy.fullStackPreview.handler(async ({ context, input }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return fullStackPreview(input);
+      }),
+      deployments: authed.dokploy.deployments.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return listDokployDeployments(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input.serviceKind,
+          input.serviceId,
+          signal,
+        );
+      }),
+      logs: authed.dokploy.logs.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return readDokployLogs(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input.deploymentId,
+          signal,
+        );
+      }),
+      rollback: authed.dokploy.rollback.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return rollbackDokploy(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input,
+          signal,
+        );
+      }),
+      operate: authed.dokploy.operate.handler(async ({ context, input, signal }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        return operateDokploy(
+          { baseUrl: deps.env.dokployUrl, apiKey: deps.env.dokployApiKey },
+          input,
+          signal,
+        );
       }),
     },
     updater: {
