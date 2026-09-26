@@ -379,7 +379,11 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await composer.fill("Use the newer report and keep the answer short.");
   await page.keyboard.press("Tab");
   await expect(
-    page.getByTestId("composer-bar").getByRole("button", { name: "Voice", exact: true }),
+    page.getByTestId("composer-bar").getByRole("button", { name: "Dictate", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByTestId("composer-bar").getByRole("button", { name: "Live talk", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeFocused();

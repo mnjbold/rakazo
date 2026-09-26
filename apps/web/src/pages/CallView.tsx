@@ -1,47 +1,92 @@
-import { Trans, useLingui } from "@lingui/react/macro";
-import type { ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
-import { isSecretAskBlock, narrateTool, speechFromBlocks, spokenDecision } from "@rakazo/core";
-import { Button } from "@rakazo/ui-web";
-import { useEffect, useRef, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
+import { ChatMarkdown } from "@rakazo/chat-ui/web";
+import type { MessageBlock, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
+import {
+  isNoiseUtterance,
+  isSecretAskBlock,
+  isSilentReply,
+  isUsingComputer,
+  narrateTool,
+  speechFromBlocks,
+  spokenDecision,
+} from "@rakazo/core";
+import { BotAvatar, Button } from "@rakazo/ui-web";
+import { PhoneOff } from "lucide-react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { ArtifactFileCard } from "../components/ArtifactFileCard";
+import type { ArtifactTarget } from "../lib/artifact-open";
+import { startBargeInMonitor } from "../lib/barge-in";
 import { dictation } from "../lib/dictation";
 import { speaker } from "../lib/tts";
+import { ArtifactImage, ChartBlockView } from "./shell/message-cards";
+import "./live-call.css";
 
 type Phase = "listening" | "thinking" | "speaking";
+
+const RUN_ACTIVE = ["running", "queued", "leased"];
+// An ambient assistant narrates sparingly: at most this many progress lines per run.
+const MAX_NARRATIONS_PER_RUN = 2;
 
 export function CallView({
   botId,
   botName,
+  botColor,
   transcribe,
   snapshot,
+  screen,
+  artifactTarget,
   onSend,
   onFollowUp,
   onAnswer,
+  onOpenComputer,
   onClose,
 }: {
   botId: string;
   botName: string;
+  botColor: string;
   transcribe: boolean;
   snapshot: ThreadSnapshot | null;
+  /** The bot's live computer screen, when it is running and embeddable. */
+  screen: { url: string; sandbox?: string } | null;
+  artifactTarget: ArtifactTarget;
   onSend: (text: string) => Promise<void>;
   onFollowUp: (text: string) => Promise<void>;
   onAnswer: (message: ThreadMessage, text: string) => Promise<void>;
+  onOpenComputer: () => void;
   onClose: () => void;
 }) {
   const { t } = useLingui();
   const [phase, setPhase] = useState<Phase>("listening");
   const [caption, setCaption] = useState("");
   const [heard, setHeard] = useState("");
+  const [said, setSaid] = useState("");
   const [error, setError] = useState<string | null>(null);
   const phaseRef = useRef<Phase>("listening");
+  const heardRef = useRef("");
   const spokenMessage = useRef<string | null>(null);
   const narrated = useRef(new Set<string>());
+  const narrationRun = useRef<{ runId: string | null; count: number }>({ runId: null, count: 0 });
   const closing = useRef(false);
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+  const orbRef = useRef<HTMLDivElement>(null);
+  const waveRef = useRef<HTMLDivElement>(null);
   const askPromptRef = useRef(t`Say yes or no, or answer in a sentence.`);
   askPromptRef.current = t`Say yes or no, or answer in a sentence.`;
   const secretPromptRef = useRef(t`Hang up first, then enter the code on screen.`);
   secretPromptRef.current = t`Hang up first, then enter the code on screen.`;
+
+  const runActive = Boolean(snapshot?.run && RUN_ACTIVE.includes(snapshot.run.status));
+  const lastBot = [...(snapshot?.messages ?? [])].reverse().find((m) => m.role === "bot");
+  const media = latestMediaBlock(lastBot);
+  // The live screen appears only while the bot works, so an idle call stays a small card.
+  // A small live preview appears only while the bot is actually driving its browser or desktop.
+  const usingComputer =
+    runActive &&
+    (snapshot?.messages ?? []).some(
+      (message) => message.runId === snapshot?.run?.id && isUsingComputer(message.blocks),
+    );
+  const showScreen = Boolean(screen && usingComputer);
 
   function setCallPhase(next: Phase) {
     phaseRef.current = next;
@@ -63,15 +108,15 @@ export function CallView({
 
   async function listen() {
     if (closing.current) return;
+    setHeard("");
+    heardRef.current = "";
     if (pendingSecretAsk(snapshotRef.current)) {
       dictation.stop("cancel");
       setCallPhase("listening");
-      setHeard("");
       return;
     }
     setCallPhase("listening");
     speaker.stop();
-    setHeard("");
     try {
       await dictation.listen({
         mode: "endpoint",
@@ -84,60 +129,93 @@ export function CallView({
   }
 
   async function handleTranscript(text: string) {
-    if (closing.current || !text.trim()) {
+    const current = snapshotRef.current;
+    const askId = latestAskId(current);
+    // Background noise and fillers are not turns. While the bot waits on an answer, "ok" is one.
+    if (closing.current || (!askId && isNoiseUtterance(text))) {
       void listen();
       return;
     }
     dictation.stop("submit");
-    const current = snapshotRef.current;
     if (pendingSecretAsk(current)) {
       setHeard("");
       setCaption("");
       setError(t`Hang up, then enter the code on screen.`);
       return;
     }
-    setHeard(text);
-    setCallPhase("thinking");
-    const askId = latestAskId(current);
+    setSaid(text);
+    setHeard("");
+    heardRef.current = "";
+    setError(null);
     const askMessage = current?.messages.find((message) => message.id === askId);
     try {
       if (askMessage) {
-        const decision = spokenDecision(text);
-        await onAnswer(askMessage, decision ?? text);
-      } else if (current?.run && ["running", "queued", "leased"].includes(current.run.status)) {
+        await onAnswer(askMessage, spokenDecision(text) ?? text);
+      } else if (current?.run && RUN_ACTIVE.includes(current.run.status)) {
         await onFollowUp(text);
       } else {
         await onSend(text);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t`Could not send that`);
-      void listen();
     }
+    // Keep listening while the bot works, so the conversation never stalls on one turn.
+    void listen();
+  }
+
+  function say(text: string, messageId: string) {
+    dictation.stop("cancel");
+    void speaker.speak(text, { botId, messageId });
   }
 
   useEffect(() => {
     closing.current = false;
-    spokenMessage.current = null;
+    spokenMessage.current = latestBotId(snapshotRef.current);
     narrated.current.clear();
+    // Talking over the bot stops it and hands the turn back to the person.
+    let stopBargeIn: (() => void) | null = null;
+    let bargeInStarting = false;
+    const endBargeIn = () => {
+      stopBargeIn?.();
+      stopBargeIn = null;
+    };
     const unsubSpeech = speaker.subscribe((state) => {
       if (state.status === "speaking") {
         setCallPhase("speaking");
         setCaption(state.caption ?? "");
-      } else if (state.status === "idle" && phaseRef.current !== "listening") {
-        setCaption("");
-        void listen();
+        if (!stopBargeIn && !bargeInStarting) {
+          bargeInStarting = true;
+          void startBargeInMonitor(() => {
+            stopBargeIn = null;
+            if (phaseRef.current === "speaking") interrupt();
+          })
+            .then((stop) => {
+              if (closing.current || phaseRef.current !== "speaking") stop();
+              else stopBargeIn = stop;
+            })
+            .catch(() => undefined)
+            .finally(() => {
+              bargeInStarting = false;
+            });
+        }
+      } else if (state.status === "idle") {
+        endBargeIn();
+        if (phaseRef.current === "speaking") void listen();
       }
       if (state.error) setError(state.error);
     });
     const unsubDictation = dictation.subscribe((state) => {
       if (state.status === "listening") {
-        setHeard(pendingSecretAsk(snapshotRef.current) ? "" : state.transcript);
+        const text = pendingSecretAsk(snapshotRef.current) ? "" : state.transcript;
+        heardRef.current = text;
+        setHeard(text);
       }
       if (state.error) setError(state.error);
     });
     void listen();
     return () => {
       closing.current = true;
+      endBargeIn();
       unsubSpeech();
       unsubDictation();
       dictation.stop("cancel");
@@ -151,7 +229,7 @@ export function CallView({
         event.preventDefault();
         hangUp();
       }
-      if (event.key === " " && phaseRef.current !== "listening") {
+      if (event.key === " " && phaseRef.current === "speaking") {
         event.preventDefault();
         interrupt();
       }
@@ -160,63 +238,56 @@ export function CallView({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Speak each new reply once. Replies are never dropped because the call is listening; they wait
+  // only while the person is mid-sentence (heard is non-empty) and play once they pause.
   useEffect(() => {
-    if (closing.current || phaseRef.current === "listening") return;
-    const messages = snapshot?.messages ?? [];
-    const lastBot = [...messages].reverse().find((message) => message.role === "bot");
+    if (closing.current || heard) return;
     if (lastBot && lastBot.id !== spokenMessage.current) {
       const text = speechFromBlocks(lastBot.blocks);
       const ask = lastBot.blocks.find(
         (block) => block.kind === "ask" && block.status !== "answered",
       );
-      const secretAsk = ask && isSecretAskBlock(ask);
+      if (isSilentReply(text)) {
+        spokenMessage.current = lastBot.id;
+        return;
+      }
       if (text) {
         spokenMessage.current = lastBot.id;
-        dictation.stop("cancel");
-        void speaker.speak(
-          secretAsk
-            ? `${text}. ${secretPromptRef.current}`
+        const suffix =
+          ask && isSecretAskBlock(ask)
+            ? `. ${secretPromptRef.current}`
             : ask
-              ? `${text}. ${askPromptRef.current}`
-              : text,
-          {
-            botId,
-            messageId: lastBot.id,
-          },
-        );
+              ? `. ${askPromptRef.current}`
+              : "";
+        say(`${text}${suffix}`, lastBot.id);
         return;
       }
-      const runActive =
-        snapshot?.run && ["running", "queued", "leased"].includes(snapshot.run.status);
-      if (!runActive) {
-        spokenMessage.current = lastBot.id;
-        void listen();
-        return;
-      }
+      if (!runActive) spokenMessage.current = lastBot.id;
     }
-    if (snapshot?.run && ["running", "queued", "leased"].includes(snapshot.run.status)) {
-      const phrases: string[] = [];
-      let lastKey = "";
-      for (const message of messages) {
-        for (const block of message.blocks) {
-          if (block.kind !== "progress" && block.kind !== "subagent") continue;
-          const key = `${message.id}:${block.kind}:${block.kind === "subagent" ? block.status : block.text}`;
-          if (narrated.current.has(key)) continue;
-          const phrase =
-            block.kind === "subagent"
-              ? narrateTool("run_subagent")
-              : (narrateTool(block.text.split(/\s+/)[0] ?? "") ?? speakableProgress(block.text));
-          if (!phrase) continue;
+    if (!runActive || phaseRef.current === "speaking") return;
+    const runId = snapshot?.run?.id ?? null;
+    if (narrationRun.current.runId !== runId) narrationRun.current = { runId, count: 0 };
+    if (narrationRun.current.count >= MAX_NARRATIONS_PER_RUN) return;
+    for (const message of snapshot?.messages ?? []) {
+      for (const block of message.blocks) {
+        if (block.kind !== "progress" && block.kind !== "subagent") continue;
+        const phrase =
+          block.kind === "subagent"
+            ? narrateTool("run_subagent")
+            : (narrateTool(block.text.split(/\s+/)[0] ?? "") ?? speakableProgress(block.text));
+        const key = `${message.id}:${block.kind}`;
+        if (!phrase || narrated.current.has(key) || narrated.current.has(phrase)) {
           narrated.current.add(key);
-          phrases.push(phrase);
-          lastKey = key;
+          continue;
         }
-      }
-      if (phrases.length) {
-        void speaker.speak(phrases.join(". "), { botId, messageId: `narrate:${lastKey}` });
+        narrated.current.add(key);
+        narrated.current.add(phrase);
+        narrationRun.current.count += 1;
+        say(phrase, `narrate:${key}`);
+        return;
       }
     }
-  }, [snapshot, botId]);
+  }, [snapshot, botId, heard, runActive, lastBot]);
 
   useEffect(() => {
     if (!pendingSecretAsk(snapshot)) return;
@@ -224,59 +295,193 @@ export function CallView({
     setHeard("");
   }, [snapshot]);
 
+  // Drive the orb and wave from the real mic level while listening, and from a soft synthetic
+  // envelope while speaking or working. Writes CSS variables directly; no React re-render.
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let frame = 0;
+    const tick = (now: number) => {
+      const p = phaseRef.current;
+      const level =
+        p === "listening"
+          ? dictation.level
+          : p === "speaking"
+            ? 0.35 + 0.3 * Math.abs(Math.sin(now / 140)) * Math.abs(Math.sin(now / 310))
+            : 0.12 + 0.08 * Math.sin(now / 420);
+      orbRef.current?.style.setProperty("--live-level", level.toFixed(3));
+      const bars = waveRef.current?.children;
+      if (bars) {
+        for (let i = 0; i < bars.length; i += 1) {
+          const wobble = Math.abs(Math.sin(now / (180 + i * 37) + i));
+          const scale = Math.max(0.14, Math.min(1, level * (0.55 + wobble)));
+          (bars[i] as HTMLElement).style.transform = `scaleY(${scale.toFixed(3)})`;
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const colorStyle = { "--live-color": botColor } as CSSProperties;
+  const status =
+    phase === "speaking"
+      ? t`Speaking`
+      : runActive
+        ? t`Working`
+        : heard
+          ? t`Hearing you`
+          : t`Listening`;
+
+  const line =
+    error ??
+    (phase === "speaking" && caption
+      ? caption
+      : heard || said
+        ? `${t`You`}: ${heard || said}`
+        : t`Talk anytime. I stay quiet unless you need me.`);
+  const showMedia = Boolean(media && (runActive || phase === "speaking"));
+
   return (
     <section
       data-testid="call-view"
       aria-label={t`Live call with ${botName}`}
-      className="mx-3 mb-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm md:mx-6"
+      style={colorStyle}
+      className="mx-3 mb-2 overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:mx-6"
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
-        </span>
+      <div className="flex min-w-0 items-center gap-2.5 px-2.5 py-1.5">
+        <button
+          type="button"
+          onClick={interrupt}
+          aria-label={phase === "speaking" ? t`Interrupt` : t`Listen again`}
+          className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <div
+            ref={orbRef}
+            className="live-orb"
+            data-phase={runActive && phase !== "speaking" ? "thinking" : phase}
+          >
+            <div className="live-orb-halo" />
+            <BotAvatar
+              color={botColor}
+              identity={botId}
+              size={32}
+              variant="organic"
+              status={runActive || phase === "speaking" ? "running" : undefined}
+            />
+          </div>
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="shrink-0 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              <Trans>Live</Trans>
-            </span>
-            <span className="truncate text-[14px] font-medium text-foreground" dir="auto">
+            <span className="truncate text-[13px] font-medium text-foreground" dir="auto">
               {botName}
             </span>
-            <span className="shrink-0 text-[13px] text-foreground/70">
-              {phase === "listening" ? (
-                <Trans>Listening…</Trans>
-              ) : phase === "speaking" ? (
-                <Trans>Speaking…</Trans>
-              ) : (
-                <Trans>Working…</Trans>
-              )}
+            <span className="shrink-0 text-[11.5px] text-muted-foreground" aria-live="polite">
+              {status}
             </span>
+            <div ref={waveRef} className="live-wave" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
           </div>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground" aria-live="polite">
-            {phase === "listening" ? heard || t`Say something. Silence sends it.` : caption}
-          </p>
-          {error ? <p className="mt-1 text-[12px] text-destructive">{error}</p> : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden rounded-full sm:inline-flex"
-            onClick={interrupt}
+          <p
+            className={`truncate text-[12.5px] ${error ? "text-destructive" : "text-muted-foreground"}`}
+            dir="auto"
+            aria-live="polite"
           >
-            <Trans>Interrupt</Trans>
-          </Button>
-          <Button variant="destructive" size="sm" className="rounded-full" onClick={hangUp}>
-            <Trans>Hang up</Trans>
-          </Button>
+            {line}
+          </p>
         </div>
+        {showScreen && screen ? (
+          <button
+            type="button"
+            onClick={onOpenComputer}
+            aria-label={t`Open ${botName}'s computer`}
+            title={t`Open ${botName}'s computer`}
+            className="live-stage-enter relative size-16 shrink-0 overflow-hidden rounded-lg border border-border bg-black"
+          >
+            <iframe
+              title={t`${botName}'s screen`}
+              src={screen.url}
+              sandbox={screen.sandbox}
+              tabIndex={-1}
+              className="size-full border-0"
+              style={{ pointerEvents: "none" }}
+            />
+          </button>
+        ) : null}
+        <Button
+          variant="destructive"
+          size="icon"
+          aria-label={t`Hang up`}
+          title={t`Hang up`}
+          className="size-8 shrink-0 rounded-full"
+          onClick={hangUp}
+        >
+          <PhoneOff size={15} strokeWidth={1.9} />
+        </Button>
       </div>
-      <p className="mt-2 hidden text-center text-[11px] text-muted-foreground/75 sm:block">
-        <Trans>The conversation stays live below · Space interrupts · Esc hangs up</Trans>
-      </p>
+      {showMedia && media ? (
+        <div className="live-stage-enter mx-2.5 mb-2 max-h-40 overflow-auto rounded-xl border border-border bg-background p-2">
+          <MediaBlock block={media} target={artifactTarget} />
+        </div>
+      ) : null}
     </section>
   );
+}
+
+type MediaKind = Extract<MessageBlock, { kind: "image" | "file" | "chart" }>;
+
+/** The newest visual result in the bot's reply: a chart, image, file, or table-bearing text. */
+function latestMediaBlock(
+  message: ThreadMessage | undefined,
+): MediaKind | { kind: "table"; text: string } | null {
+  if (!message) return null;
+  for (let i = message.blocks.length - 1; i >= 0; i -= 1) {
+    const block = message.blocks[i];
+    if (!block) continue;
+    if (block.kind === "image" || block.kind === "file" || block.kind === "chart") return block;
+    if (block.kind === "text" && /^\s*\|.+\|\s*$/m.test(block.text)) {
+      return { kind: "table", text: block.text };
+    }
+  }
+  return null;
+}
+
+function MediaBlock({
+  block,
+  target,
+}: {
+  block: MediaKind | { kind: "table"; text: string };
+  target: ArtifactTarget;
+}) {
+  if (block.kind === "table") return <ChatMarkdown>{block.text}</ChatMarkdown>;
+  if (block.kind === "chart") {
+    return <ChartBlockView name={block.name} spec={block.spec} data={block.data} />;
+  }
+  if (block.kind === "image") {
+    return <ArtifactImage target={target} artifactId={block.artifactId} name={block.name} />;
+  }
+  return (
+    <ArtifactFileCard
+      target={target}
+      artifactId={block.artifactId}
+      name={block.name}
+      mimeType={block.mimeType}
+      size={block.size}
+    />
+  );
+}
+
+function latestBotId(snapshot: ThreadSnapshot | null): string | null {
+  const messages = snapshot?.messages ?? [];
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "bot") return messages[i]?.id ?? null;
+  }
+  return null;
 }
 
 function pendingSecretAsk(snapshot: ThreadSnapshot | null) {

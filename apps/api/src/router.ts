@@ -1665,6 +1665,7 @@ export function createRouter(deps: RouterDeps) {
             blocks: [{ kind: "text", text: input.text }],
             prompt: input.text,
             trigger: "follow_up",
+            live: input.live,
           });
           if (sent.taskId && sent.runId) {
             await deps.jobs.enqueue(runContinueJob(sent.runId)).catch((error) => {
@@ -1720,6 +1721,7 @@ export function createRouter(deps: RouterDeps) {
                 userId: context.actor.userId,
                 status: "queued",
                 trigger: "follow_up",
+                live: input.live,
                 sourceMessageId: message.id,
               },
               select: { id: true },
@@ -5105,7 +5107,7 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     computerHost: computerHostFor(setup.settings?.computerHost, deps.env.sandboxProvider),
     canChooseHostComputer: actor.isDeploymentOwner && deps.env.sandboxProvider === "docker",
     sandboxProvider: deps.env.sandboxProvider,
-    avatarStyle: user.avatarStyle === "organic" ? "organic" : "robot",
+    avatarStyle: user.avatarStyle === "robot" ? "robot" : "organic",
   };
 }
 

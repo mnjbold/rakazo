@@ -30,7 +30,7 @@ model User {
   image                       String?
   createdAt                   DateTime                     @default(now())
   updatedAt                   DateTime                     @updatedAt
-  avatarStyle                 String                       @default("robot")
+  avatarStyle                 String                       @default("organic")
   sessions                    Session[]
   accounts                    Account[]
   members                     Member[]
@@ -568,6 +568,8 @@ model Run {
   userId               String
   status               String
   trigger              String
+  /// Started from a live voice call: brief spoken replies, may stay silent.
+  live                 Boolean          @default(false)
   modelProvider        String?
   modelId              String?
   error                String?

@@ -118,6 +118,15 @@ export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
       if (block.kind === "handoff") {
         return `[handoff ${block.fromBotId} -> ${block.toBotId}] ${block.text}`;
       }
+      // Cards the bot showed must stay in its history, or later turns disown the lines around them.
+      if (block.kind === "choice") {
+        const picked = block.options.find((option) => option.id === block.answerId)?.label;
+        const options = block.options.map((option) => option.label).join(" / ");
+        return `[asked: ${block.question} (${options})${picked ? ` → user picked ${picked}` : ""}]`;
+      }
+      if (block.kind === "app_connect") {
+        return `[offered ${block.name} connect card: ${block.status}]`;
+      }
       if ("text" in block && typeof block.text === "string") return block.text;
       return "";
     })

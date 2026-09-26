@@ -82,6 +82,7 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  AudioLines,
   Bell,
   Box,
   ChevronDown,
@@ -109,6 +110,7 @@ import {
   Square,
   TextQuote,
   Trash2,
+  Volume2,
   X,
 } from "lucide-react";
 import {
@@ -134,6 +136,7 @@ import { AppRail } from "../components/AppRail";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
 import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import { ClampedText } from "../components/ClampedText";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
 import {
@@ -167,6 +170,7 @@ import {
   screenIframeSandbox,
 } from "../lib/computer-screen";
 import { desktopBridge } from "../lib/desktop";
+import { dictation } from "../lib/dictation";
 import { scheduleFocusPrompt } from "../lib/focus-prompt";
 import { localTimezone } from "../lib/local-timezone";
 import { copyableMessageText } from "../lib/message-text";
@@ -645,7 +649,8 @@ export function ShellPage() {
   const notifiedBrowserEvents = useRef(new Set<string>());
   const pendingBrowserNotifications = useRef(new Map<string, PendingBrowserNotification>());
   const computerVisible = useRef(false);
-  computerVisible.current = panel === "computer" || computerOpen;
+  // A live call shows the bot's screen inline, so it keeps the screen URL loaded too.
+  computerVisible.current = panel === "computer" || computerOpen || callOpen;
   const autoSpoken = useRef<string | null>(null);
   const autoSpokenBotId = useRef<string | null>(null);
 
@@ -970,6 +975,30 @@ export function ShellPage() {
       fallbackError: t`Could not connect to the computer screen`,
     });
   }
+
+  useEffect(() => {
+    if (callOpen && active) void refreshComputerScreen(active.id).catch(() => undefined);
+  }, [callOpen, active?.id]);
+
+  // When the transcript box shrinks (live call bar, taller composer) while the reader is at the
+  // bottom, keep the newest message in view instead of letting it slide under the fold.
+  useEffect(() => {
+    const element = messageScroll.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    let atEnd = transcriptIsNearEnd(element);
+    const onScroll = () => {
+      atEnd = transcriptIsNearEnd(element);
+    };
+    const observer = new ResizeObserver(() => {
+      if (atEnd) element.scrollTop = element.scrollHeight;
+    });
+    element.addEventListener("scroll", onScroll, { passive: true });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("scroll", onScroll);
+    };
+  }, [active?.id, groupId]);
 
   async function loadOlderMessages() {
     const targetBotId = inGroup ? undefined : active?.id;
@@ -1971,7 +2000,7 @@ export function ShellPage() {
     setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
   }, []);
   const sendMessage = useCallback(
-    async (text: string, mentions: ComposerMention[] = []) => {
+    async (text: string, mentions: ComposerMention[] = [], options?: { live?: boolean }) => {
       const initialBotTarget = activeBotId.current;
       const initialGroupTarget = activeGroupId.current;
       if ((!initialBotTarget && !initialGroupTarget) || sending) return;
@@ -2059,6 +2088,7 @@ export function ShellPage() {
             artifactIds: artifactIds.length ? artifactIds : undefined,
             replyToMessageId: reroutedToGroup ? undefined : activeReplyTarget?.id,
             replyQuote: reroutedToGroup ? undefined : (activeReplyQuote ?? undefined),
+            live: options?.live,
           });
         } else if (botTarget) {
           const sent = await rpc.threads.send({
@@ -2069,6 +2099,7 @@ export function ShellPage() {
             artifactIds: artifactIds.length ? artifactIds : undefined,
             replyToMessageId: activeReplyTarget?.id,
             replyQuote: activeReplyQuote ?? undefined,
+            live: options?.live,
           });
           if (activeBotId.current === botTarget) {
             updateSnapshot((current) =>
@@ -2123,10 +2154,10 @@ export function ShellPage() {
       t,
     ],
   );
-  const followUpMessage = useCallback(async (text: string) => {
+  const followUpMessage = useCallback(async (text: string, live?: boolean) => {
     const id = activeBotId.current;
     if (!id) return;
-    await rpc.threads.followUp({ botId: id, text });
+    await rpc.threads.followUp({ botId: id, text, live });
     await refreshThreadRef.current(id);
   }, []);
   const stopRun = useCallback(async () => {
@@ -3370,11 +3401,22 @@ export function ShellPage() {
             <CallView
               botId={active.id}
               botName={active.name}
+              botColor={active.color}
               transcribe={Boolean(voiceStatus?.transcribe)}
               snapshot={activeSnapshot}
-              onSend={sendMessage}
-              onFollowUp={followUpMessage}
+              screen={
+                computer?.state === "running" &&
+                computer.kind !== "desktop" &&
+                embeddedScreenUrl &&
+                !computerScreenError
+                  ? { url: embeddedScreenUrl, sandbox: screenIframeSandbox(embeddedScreenUrl) }
+                  : null
+              }
+              artifactTarget={transcriptArtifactTarget}
+              onSend={(text) => sendMessage(text, [], { live: true })}
+              onFollowUp={(text) => followUpMessage(text, true)}
               onAnswer={answerMessage}
+              onOpenComputer={() => setPanel("computer")}
               onClose={() => setCallOpen(false)}
             />
           </Suspense>
@@ -3398,7 +3440,7 @@ export function ShellPage() {
             onRemoveAttachment={removeAttachment}
             onSend={sendMessage}
             onStop={stopRun}
-            onVoice={
+            onLive={
               !inGroup && active
                 ? () => {
                     if (!voiceStatus?.ready) {
@@ -3409,6 +3451,8 @@ export function ShellPage() {
                   }
                 : undefined
             }
+            onVoiceSetup={() => openSettings("voice")}
+            transcribe={Boolean(voiceStatus?.transcribe)}
             replyTarget={activeReplyTarget}
             replyQuote={activeReplyQuote}
             replyTargetName={replyTargetName}
@@ -4171,7 +4215,7 @@ export function ShellPage() {
             email={session.data?.user.email}
             usage={usage}
             initialSection={settingsSection}
-            avatarStyle={bootstrapMe?.avatarStyle ?? "robot"}
+            avatarStyle={bootstrapMe?.avatarStyle ?? "organic"}
             isDeploymentOwner={bootstrapMe?.isDeploymentOwner === true}
             sandboxProvider={bootstrapMe?.sandboxProvider}
             messagingEnabled={messagingSurfaceEnabled}
@@ -4373,7 +4417,7 @@ export function ShellPage() {
   );
 
   return (
-    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "robot"}>{shell}</AvatarStyleProvider>
+    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>{shell}</AvatarStyleProvider>
   );
 }
 
@@ -4673,6 +4717,15 @@ const Transcript = memo(function Transcript({
                       side={message.role === "user" ? "start" : "end"}
                       onReply={onReply}
                       onReact={onReact}
+                      onSpeak={
+                        voiceReady &&
+                        message.role === "bot" &&
+                        !message.id.startsWith("progress:") &&
+                        message.blocks.some((block) => block.kind === "text")
+                          ? () => onSpeak(message)
+                          : undefined
+                      }
+                      speaking={speakingMessageId === message.id}
                     />
                   )}
                   <MessageView
@@ -4701,9 +4754,6 @@ const Transcript = memo(function Transcript({
                     onRefresh={onRefresh}
                     onBotChanged={onBotChanged}
                     onAddRoutine={onAddRoutine}
-                    voiceReady={voiceReady}
-                    speaking={speakingMessageId === message.id}
-                    onSpeak={() => onSpeak(message)}
                     onOpenComputer={onOpenComputer}
                   />
                 </div>
@@ -4860,7 +4910,9 @@ const Composer = memo(function Composer({
   onRemoveAttachment,
   onSend,
   onStop,
-  onVoice,
+  onLive,
+  onVoiceSetup,
+  transcribe,
   replyTarget,
   replyQuote,
   replyTargetName,
@@ -4886,7 +4938,11 @@ const Composer = memo(function Composer({
   onRemoveAttachment: (attachment: PendingAttachment) => void;
   onSend: (text: string, mentions?: ComposerMention[]) => Promise<void>;
   onStop: () => Promise<void>;
-  onVoice?: () => void;
+  /** Starts a live call with the active bot. */
+  onLive?: () => void;
+  /** Opens voice settings when this browser can't dictate without a provider. */
+  onVoiceSetup?: () => void;
+  transcribe?: boolean;
   replyTarget?: ThreadMessage | null;
   replyQuote?: string | null;
   replyTargetName?: string;
@@ -4904,6 +4960,10 @@ const Composer = memo(function Composer({
   const [selectedSkill, setSelectedSkill] = useState<AgentSkillCatalogEntry | null>(null);
   const [selectedMentions, setSelectedMentions] = useState<ComposerMention[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [dictating, setDictating] = useState(false);
+  const dictatingRef = useRef(false);
+  const voiceSetupRef = useRef(onVoiceSetup);
+  voiceSetupRef.current = onVoiceSetup;
   const runErrorRef = useRef<HTMLDivElement>(null);
   const presentedRunErrorIdRef = useRef<string | null>(null);
   const mentionListboxId = useId();
@@ -4973,6 +5033,48 @@ const Composer = memo(function Composer({
     observer.observe(el);
     return () => observer.disconnect();
   }, [draft]);
+
+  useEffect(() => {
+    const unsubscribe = dictation.subscribe((state) => {
+      if (!dictatingRef.current || state.status !== "idle") return;
+      dictatingRef.current = false;
+      setDictating(false);
+      if (state.error) voiceSetupRef.current?.();
+    });
+    return () => {
+      unsubscribe();
+      if (dictatingRef.current) dictation.stop("cancel");
+    };
+  }, []);
+
+  // Mic = dictation into the draft (finishes on a pause); tapping again cancels. Live talk is separate.
+  async function toggleDictation() {
+    if (dictatingRef.current) {
+      dictation.stop("cancel");
+      return;
+    }
+    dictatingRef.current = true;
+    setDictating(true);
+    try {
+      await dictation.listen({
+        mode: "endpoint",
+        transcribe,
+        onFinal: (text) => {
+          const spoken = text.trim();
+          const current = textareaRef.current?.value ?? "";
+          if (spoken)
+            updateDraft(
+              current && !/\s$/.test(current) ? `${current} ${spoken}` : current + spoken,
+            );
+          textareaRef.current?.focus();
+        },
+      });
+    } catch {
+      dictatingRef.current = false;
+      setDictating(false);
+      voiceSetupRef.current?.();
+    }
+  }
 
   function updateDraft(value: string) {
     setDraft(value);
@@ -5455,20 +5557,32 @@ const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="max-h-32 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[15.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
+            className="max-h-32 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
           />
         </div>
-        {onVoice ? (
+        <Button
+          variant={dictating ? "default" : "ghost"}
+          size="icon"
+          aria-label={dictating ? t`Stop dictating` : t`Dictate`}
+          aria-pressed={dictating}
+          title={dictating ? t`Stop dictating` : t`Dictate`}
+          disabled={disabled}
+          onClick={() => void toggleDictation()}
+          className="rounded-full text-foreground/75 aria-pressed:text-primary-foreground"
+        >
+          <Mic size={16} strokeWidth={1.8} />
+        </Button>
+        {onLive ? (
           <Button
             variant="outline"
             size="icon"
-            aria-label={t`Voice`}
-            title={t`Voice`}
+            aria-label={t`Live talk`}
+            title={t`Live talk`}
             disabled={disabled}
-            onClick={onVoice}
+            onClick={onLive}
             className="size-8 shrink-0 rounded-full text-foreground/75"
           >
-            <Mic size={16} strokeWidth={1.8} />
+            <AudioLines size={16} strokeWidth={1.8} />
           </Button>
         ) : null}
         {running ? (
@@ -5610,11 +5724,16 @@ function MessageHoverActions({
   side,
   onReply,
   onReact,
+  onSpeak,
+  speaking = false,
 }: {
   message: ThreadMessage;
   side: "start" | "end";
   onReply: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
+  /** Present when this reply can be read aloud. */
+  onSpeak?: () => void;
+  speaking?: boolean;
 }) {
   const { t } = useLingui();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -5635,6 +5754,17 @@ function MessageHoverActions({
   return (
     <MessageHoverMetadata pinned={moreOpen || reactionsOpen} side={side}>
       <div data-testid="message-hover-actions" className="flex items-center gap-0.5">
+        {onSpeak ? (
+          <button
+            type="button"
+            aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
+            aria-pressed={speaking}
+            onClick={onSpeak}
+            className={cn(iconButtonClass, speaking && "text-foreground")}
+          >
+            <Volume2 size={14} strokeWidth={1.7} />
+          </button>
+        ) : null}
         {canReactToThreadMessage(message) ? (
           <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
             <PopoverTrigger
@@ -5773,9 +5903,6 @@ const MessageView = memo(function MessageView({
   onRefresh,
   onBotChanged,
   onAddRoutine,
-  voiceReady,
-  speaking,
-  onSpeak,
   onOpenComputer,
 }: {
   artifactTarget: ArtifactTarget;
@@ -5793,9 +5920,6 @@ const MessageView = memo(function MessageView({
   onRefresh: () => Promise<void>;
   onBotChanged: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
-  voiceReady: boolean;
-  speaking: boolean;
-  onSpeak: () => void;
   onOpenComputer: (botId?: string) => void;
 }) {
   const { t } = useLingui();
@@ -5805,7 +5929,6 @@ const MessageView = memo(function MessageView({
     message.blocks.every(
       (block) => block.kind === "text" || block.kind === "progress" || block.kind === "steps",
     );
-  const isLive = message.id.startsWith("progress:");
   const quoteMessageId = message.id.includes(":") ? undefined : message.id;
   const visibleNarrationBlocks = message.blocks.filter((block) => !isToolActivityBlock(block));
   const parentJumpId = replyPreview?.id ?? replyToMessageId;
@@ -5856,32 +5979,28 @@ const MessageView = memo(function MessageView({
         <div className="flex w-fit max-w-full justify-start">
           <div
             data-testid="message-bot-bubble"
-            className="max-w-full space-y-2.5 rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+            className="max-w-full space-y-2.5 rounded-[18px] bg-muted px-4 py-2.5 text-[14.5px] leading-[1.5] text-foreground/90"
             dir="auto"
           >
-            {visibleNarrationBlocks.map((block, i) => {
-              if (block.kind === "text" || block.kind === "progress") {
-                return (
-                  <div
-                    key={i}
-                    data-quote-message-id={block.kind === "text" ? quoteMessageId : undefined}
-                  >
-                    <ChatMarkdown streaming={block.kind === "progress"}>{block.text}</ChatMarkdown>
-                  </div>
-                );
-              }
-              return null;
-            })}
-            {!isLive && voiceReady && message.blocks.some((block) => block.kind === "text") ? (
-              <button
-                type="button"
-                aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
-                onClick={onSpeak}
-                className="text-[12px] text-muted-foreground hover:text-foreground"
-              >
-                {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
-              </button>
-            ) : null}
+            <ClampedText>
+              <div className="space-y-2.5">
+                {visibleNarrationBlocks.map((block, i) => {
+                  if (block.kind === "text" || block.kind === "progress") {
+                    return (
+                      <div
+                        key={i}
+                        data-quote-message-id={block.kind === "text" ? quoteMessageId : undefined}
+                      >
+                        <ChatMarkdown streaming={block.kind === "progress"}>
+                          {block.text}
+                        </ChatMarkdown>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </ClampedText>
           </div>
         </div>
       </>
@@ -5952,7 +6071,7 @@ const MessageView = memo(function MessageView({
             <div key={i} className="flex w-fit max-w-full justify-start">
               <div
                 data-testid="message-bot-bubble"
-                className="max-w-full rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+                className="max-w-full rounded-[18px] bg-muted px-4 py-2.5 text-[14.5px] leading-[1.5] text-foreground/90"
                 dir="auto"
               >
                 <ChatMarkdown streaming>{block.text}</ChatMarkdown>
@@ -6107,7 +6226,7 @@ const MessageView = memo(function MessageView({
               <div
                 data-testid="message-user-bubble"
                 data-quote-message-id={quoteMessageId}
-                className="max-w-full whitespace-pre-wrap wrap-anywhere rounded-[20px] bg-chat-user px-[18px] py-3 text-[15.5px] leading-[1.45] text-chat-user-foreground"
+                className="max-w-full whitespace-pre-wrap wrap-anywhere rounded-[18px] bg-chat-user px-4 py-2.5 text-[14.5px] leading-[1.45] text-chat-user-foreground"
                 dir="auto"
               >
                 {block.text}
@@ -6120,22 +6239,14 @@ const MessageView = memo(function MessageView({
             <div key={i} className="flex w-fit max-w-full justify-start">
               <div
                 data-testid="message-bot-bubble"
-                className="max-w-full rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+                className="max-w-full rounded-[18px] bg-muted px-4 py-2.5 text-[14.5px] leading-[1.5] text-foreground/90"
                 dir="auto"
               >
-                <div data-quote-message-id={quoteMessageId}>
-                  <ChatMarkdown>{block.text}</ChatMarkdown>
-                </div>
-                {voiceReady ? (
-                  <button
-                    type="button"
-                    aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
-                    onClick={onSpeak}
-                    className="mt-2 text-[12px] text-muted-foreground hover:text-foreground"
-                  >
-                    {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
-                  </button>
-                ) : null}
+                <ClampedText>
+                  <div data-quote-message-id={quoteMessageId}>
+                    <ChatMarkdown>{block.text}</ChatMarkdown>
+                  </div>
+                </ClampedText>
               </div>
             </div>
           );

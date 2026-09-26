@@ -56,7 +56,9 @@ import {
   inferAttachmentMimeType,
   isMessagingChannelRun,
   isOneShotRoutineCrons,
+  isSilentReply,
   isTerminal,
+  liveCallInstruction,
   messagingChannelId,
   messagingChannelPrivacyBlock,
   messagingDmSurfaceNote,
@@ -1365,7 +1367,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
           peerMessage?.repliesToRequest,
         );
         const allowSilentEmptyRun =
-          allowSilentPeerMessage || messagingChannelRun || runAllowsSilentEmpty(run.trigger);
+          allowSilentPeerMessage ||
+          messagingChannelRun ||
+          runAllowsSilentEmpty(run.trigger) ||
+          run.live;
         const emptyResponseText = peerMessage
           ? peerMessage.intent === "result" ||
             peerMessage.intent === "status" ||
@@ -1714,7 +1719,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           const narration = clampUserProgressMessage(redactSecrets(extracted.text, runSecrets));
           messageSegments = extracted.remaining;
           currentTextSegment = "";
-          if (!narration) return;
+          if (!narration || (run.live && isSilentReply(narration))) return;
           assembled = "";
           hasStreamedText = false;
           pendingProgress = "";
@@ -3750,7 +3755,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 pluginLine,
                 agentSkillsLine,
                 taughtSkillsLine,
-                replyGuidance: runReplyGuidance(run.trigger),
+                replyGuidance: [runReplyGuidance(run.trigger), liveCallInstruction(run.live)]
+                  .filter(Boolean)
+                  .join("\n\n"),
               })
                 .filter((instruction): instruction is string => Boolean(instruction))
                 .join("\n\n"),
@@ -4228,11 +4235,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
           terminalCheckpointComplete = true;
 
           flushPendingTools();
-          // Only routine runs are instructed to emit NO_RESPONSE. Other
+          // Routine and live-call runs are instructed to emit NO_RESPONSE. Other
           // allowSilentEmpty wakes (FYI, messaging) may finish truly empty.
-          const silentReply = runAllowsSilentEmpty(run.trigger)
-            ? stripNoResponseReply(assembled, messageSegments)
-            : { assembled, blocks: messageSegments };
+          const silentReply =
+            runAllowsSilentEmpty(run.trigger) || run.live
+              ? stripNoResponseReply(assembled, messageSegments)
+              : { assembled, blocks: messageSegments };
           let completionBlocks = silentReply.blocks;
           if (!silentReply.assembled) {
             // Mid-turn progress already posted durable chat messages; skip the empty

@@ -135,6 +135,8 @@ const threadSendInput = threadTarget
     replyToMessageId: Id.optional(),
     replyQuote: z.string().trim().min(1).max(REPLY_QUOTE_MAX_LENGTH).optional(),
     clientNonce: z.string().min(1).max(200).optional(),
+    /** Sent from a live voice call: the bot answers briefly aloud or stays silent. */
+    live: z.boolean().optional(),
   })
   .superRefine((input, ctx) => {
     const text = input.text?.trim() ?? "";
@@ -393,7 +395,13 @@ export const appContract = {
       .output(z.object({ ok: z.literal(true) })),
     stop: oc.input(threadTarget).output(z.object({ ok: z.literal(true) })),
     followUp: oc
-      .input(threadTarget.safeExtend({ text: z.string().min(1) }))
+      .input(
+        threadTarget.safeExtend({
+          text: z.string().min(1),
+          /** Same as `threads.send` `live`. */
+          live: z.boolean().optional(),
+        }),
+      )
       .output(z.object({ ok: z.literal(true) })),
     clear: oc.input(threadTarget).output(z.object({ ok: z.literal(true) })),
     answer: oc

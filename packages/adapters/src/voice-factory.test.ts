@@ -3,6 +3,7 @@ import { CartesiaVoiceProvider } from "./cartesia-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 import { FishAudioVoiceProvider } from "./fish-audio-voice.js";
 import { KokoroVoiceProvider } from "./kokoro-voice.js";
+import { MiniMaxVoiceProvider } from "./minimax-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
 import {
   SCRIPTED_MPEG,
@@ -10,6 +11,7 @@ import {
   SCRIPTED_VOICE_ID,
   ScriptedVoiceProvider,
 } from "./scripted-voice.js";
+import { TelnyxVoiceProvider } from "./telnyx-voice.js";
 import {
   createVoiceProvider,
   isVoiceProviderId,
@@ -46,6 +48,8 @@ describe("createVoiceProvider", () => {
       "voicestudio",
       "kokoro",
       "fish-audio",
+      "minimax",
+      "telnyx",
     ]);
     expect(listVoiceCatalog().map((entry) => entry.id)).toEqual([
       "elevenlabs",
@@ -54,12 +58,16 @@ describe("createVoiceProvider", () => {
       "voicestudio",
       "kokoro",
       "fish-audio",
+      "minimax",
+      "telnyx",
     ]);
     expect(createVoiceProvider("elevenlabs").describe().id).toBe("elevenlabs");
     expect(createVoiceProvider("openai").describe().capabilities.transcribe).toBe(true);
     expect(createVoiceProvider("cartesia").describe().capabilities.transcribe).toBe(false);
     expect(createVoiceProvider("voicestudio").describe().capabilities.transcribe).toBe(true);
     expect(createVoiceProvider("kokoro").describe().capabilities.transcribe).toBe(false);
+    expect(createVoiceProvider("minimax").describe().capabilities.transcribe).toBe(false);
+    expect(createVoiceProvider("telnyx").describe().capabilities.transcribe).toBe(true);
     expect(isVoiceProviderId("kokoro")).toBe(true);
     expect(createVoiceProvider("fish-audio").describe().capabilities.transcribe).toBe(true);
     expect(isVoiceProviderId("elevenlabs")).toBe(true);
@@ -502,6 +510,124 @@ describe("KokoroVoiceProvider", () => {
   });
 });
 
+describe("MiniMaxVoiceProvider", () => {
+  const minimaxOk = (extra: object) =>
+    new Response(
+      JSON.stringify({ base_resp: { status_code: 0, status_msg: "success" }, ...extra }),
+    );
+
+  it("lists system voices from get_voice", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      minimaxOk({
+        system_voice: [
+          {
+            voice_id: "English_expressive_narrator",
+            voice_name: "Narrator",
+            description: ["Warm"],
+          },
+          { voice_name: "no id" },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const voices = await new MiniMaxVoiceProvider().listVoices("mm-key", ctx);
+    expect(voices).toEqual([
+      { id: "English_expressive_narrator", label: "Narrator", description: "Warm" },
+    ]);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/get_voice");
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      voice_type: "system",
+    });
+  });
+
+  it("decodes hex audio from t2a_v2", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(minimaxOk({ data: { audio: "0a0bff" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const clip = await new MiniMaxVoiceProvider().synthesize(
+      { text: "Hi", voiceId: "English_expressive_narrator", apiKey: "mm-key" },
+      ctx,
+    );
+    expect([...clip.bytes]).toEqual([10, 11, 255]);
+    expect(clip.mimeType).toBe("audio/mpeg");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/t2a_v2");
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.output_format).toBe("hex");
+    expect(body.voice_setting.voice_id).toBe("English_expressive_narrator");
+  });
+
+  it("treats an HTTP 200 with a failing base_resp as an error", async () => {
+    const failing = () =>
+      new Response(JSON.stringify({ base_resp: { status_code: 1004, status_msg: "login fail" } }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => failing()),
+    );
+    await expect(new MiniMaxVoiceProvider().verify("bad", ctx)).resolves.toEqual({
+      ok: false,
+      message: "MiniMax rejected that key. Check the key and that it has speech permissions.",
+    });
+    await expect(
+      new MiniMaxVoiceProvider().synthesize({ text: "Hi", voiceId: "v", apiKey: "bad" }, ctx),
+    ).rejects.toThrow(/rejected that key/);
+  });
+
+  it("rejects a response with no audio", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(minimaxOk({ data: { audio: "" } })));
+    await expect(
+      new MiniMaxVoiceProvider().synthesize({ text: "Hi", voiceId: "v", apiKey: "k" }, ctx),
+    ).rejects.toThrow("MiniMax returned no audio.");
+  });
+});
+
+describe("TelnyxVoiceProvider", () => {
+  it("verifies against /balance", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(new TelnyxVoiceProvider().verify("KEY_test", ctx)).resolves.toEqual({ ok: true });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.telnyx.com/v2/balance");
+  });
+
+  it("offers dot-separated provider voice ids without a network round trip", async () => {
+    const voices = await new TelnyxVoiceProvider().listVoices("KEY_test", ctx);
+    expect(voices.every((voice) => voice.id.split(".").length >= 2)).toBe(true);
+  });
+
+  it("posts binary speech to /text-to-speech/speech", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(new Uint8Array([3, 4]), { headers: { "content-type": "audio/mpeg" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const clip = await new TelnyxVoiceProvider().synthesize(
+      { text: "Hi", voiceId: "Telnyx.KokoroTTS.af", apiKey: "KEY_test" },
+      ctx,
+    );
+    expect([...clip.bytes]).toEqual([3, 4]);
+    expect(clip.mimeType).toBe("audio/mpeg");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/text-to-speech/speech");
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toEqual({
+      text: "Hi",
+      voice: "Telnyx.KokoroTTS.af",
+      output_type: "binary_output",
+    });
+  });
+
+  it("transcribes through /ai/audio/transcriptions", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ text: " hi " })));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      new TelnyxVoiceProvider().transcribe!(
+        { audio: new Uint8Array([1]), mimeType: "audio/webm", apiKey: "KEY_test" },
+        ctx,
+      ),
+    ).resolves.toEqual({ text: "hi" });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/ai/audio/transcriptions");
+    const form = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+    expect(form.get("model")).toBe("openai/whisper-large-v3-turbo");
+  });
+});
 
 describe("hosted voice response limits", () => {
   it.each([
@@ -510,6 +636,8 @@ describe("hosted voice response limits", () => {
     ["Cartesia", () => new CartesiaVoiceProvider(), "sonic"],
     ["Kokoro", () => new KokoroVoiceProvider(), "af_heart"],
     ["Fish Audio", () => new FishAudioVoiceProvider(), "voice"],
+    ["MiniMax", () => new MiniMaxVoiceProvider(), "English_expressive_narrator"],
+    ["Telnyx", () => new TelnyxVoiceProvider(), "Telnyx.KokoroTTS.af"],
   ])(
     "rejects an oversized %s speech response before buffering it",
     async (_name, create, voiceId) => {

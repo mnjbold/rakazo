@@ -125,3 +125,35 @@ describe("peer message history", () => {
     ).toBe("[to Analyst] chart it");
   });
 });
+
+describe("card history", () => {
+  it("keeps choice and app-connect cards so the bot recognizes its own onboarding turns", () => {
+    expect(
+      blocksToAgentHistoryText([
+        {
+          kind: "choice",
+          question: "What do you want me on first?",
+          options: [
+            { id: "day", letter: "A", label: "Day-to-day work" },
+            { id: "inbox", letter: "B", label: "Inbox & email" },
+          ],
+          answerId: "inbox",
+        },
+      ]),
+    ).toBe(
+      "[asked: What do you want me on first? (Day-to-day work / Inbox & email) → user picked Inbox & email]",
+    );
+    expect(
+      blocksToAgentHistoryText([
+        {
+          kind: "app_connect",
+          provider: "slack",
+          name: "Slack",
+          description: "Messages",
+          logo: null,
+          status: "pending",
+        },
+      ]),
+    ).toBe("[offered Slack connect card: pending]");
+  });
+});

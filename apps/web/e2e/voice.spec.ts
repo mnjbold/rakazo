@@ -9,16 +9,19 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
 
   await expect(page.getByRole("button", { name: "Call", exact: true })).toHaveCount(0);
   await expect(
-    page.getByTestId("composer-bar").getByRole("button", { name: "Voice", exact: true }),
+    page.getByTestId("composer-bar").getByRole("button", { name: "Live talk", exact: true }),
+  ).toHaveCount(1);
+  // The mic is a separate dictation control; Live talk opens settings until voice is set up.
+  await expect(
+    page.getByTestId("composer-bar").getByRole("button", { name: "Dictate", exact: true }),
   ).toHaveCount(1);
   await captureScreenshot(page, testInfo, "voice-composer");
   await page
     .getByTestId("composer-bar")
-    .getByRole("button", { name: "Voice", exact: true })
+    .getByRole("button", { name: "Live talk", exact: true })
     .click();
   await expect(page.getByTestId("voice-settings")).toBeVisible();
   await expect(page.getByLabel("API key", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Dictate", exact: true })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "voice-settings");
   await page.getByRole("button", { name: "Close voice settings" }).click();
   await expect(page.getByTestId("voice-settings")).toHaveCount(0);
@@ -60,11 +63,12 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   const composer = page.getByPlaceholder(/Message/);
   await composer.fill("say hello");
   await page.keyboard.press("Enter");
-  // A reply can render more than one text bubble; speak the latest one.
+  // Speak is a small icon beside the bubble; hover the latest reply to reveal it on desktop.
+  const lastReply = page.getByTestId("message-bot-bubble").last();
+  await expect(lastReply).toBeVisible({ timeout: 30_000 });
+  await lastReply.hover();
   const speakReply = page.getByRole("button", { name: "Speak this reply" }).last();
-  await expect(speakReply).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(speakReply).toBeVisible();
 
   const replySpoken = page.waitForResponse(
     (response) => response.url().includes("/api/voice/speak") && response.ok(),
@@ -79,13 +83,20 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
 
   await page
     .getByTestId("composer-bar")
-    .getByRole("button", { name: "Voice", exact: true })
+    .getByRole("button", { name: "Live talk", exact: true })
     .click();
   await expect(page.getByTestId("call-view")).toBeVisible();
   await expect(page.getByTestId("composer-bar")).toBeVisible();
   await expect(page.getByTestId("transcript")).toBeVisible();
   await expect(page.locator('[data-slot="dialog-overlay"]')).toHaveCount(0);
+  // The call bar must never hide the newest reply.
+  const newestReply = page.getByTestId("message-bot-bubble").last();
+  await expect(newestReply).toBeInViewport({ ratio: 1 });
   await captureScreenshot(page, testInfo, "voice-inline-live");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId("call-view")).toBeInViewport();
+  await expect(newestReply).toBeInViewport({ ratio: 1 });
+  await captureScreenshot(page, testInfo, "voice-inline-live-mobile");
   await expect(page.getByRole("button", { name: "Hang up" })).toBeVisible();
   await page.getByRole("button", { name: "Hang up" }).click();
   await expect(page.getByTestId("call-view")).toHaveCount(0);

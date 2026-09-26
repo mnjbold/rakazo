@@ -1,4 +1,5 @@
 import type { MessageBlock } from "@rakazo/contracts";
+import { isSilentReply } from "./live-call.js";
 
 type PresentableMessage = {
   runId?: string;
@@ -41,6 +42,7 @@ export function userVisibleMessages<T extends PresentableMessage>(
   const includePeerReceipts = options.includePeerReceipts === true;
 
   return messages.filter((message) => {
+    if (isSilentOnly(message.blocks)) return false;
     if (isPeerReceiptBlocks(message.blocks)) return includePeerReceipts;
     if (!message.runId || !peerRunIds.has(message.runId)) return true;
     // Keep peer-run ask cards, and (unless the caller opts out) the bot's own text reply.
@@ -49,4 +51,14 @@ export function userVisibleMessages<T extends PresentableMessage>(
       (block) => block.kind === "ask" || (includeText && block.kind === "text"),
     );
   });
+}
+
+/** A live-call reply that chose silence, including while it is still streaming as progress. */
+function isSilentOnly(blocks: readonly MessageBlock[]): boolean {
+  return (
+    blocks.length > 0 &&
+    blocks.every(
+      (block) => (block.kind === "text" || block.kind === "progress") && isSilentReply(block.text),
+    )
+  );
 }
