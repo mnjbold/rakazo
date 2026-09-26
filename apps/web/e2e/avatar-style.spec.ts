@@ -15,7 +15,9 @@ test("account settings avatar style previews differ for robot and organic", asyn
   const organic = settings.getByTestId("avatar-style-organic");
   await expect(robot).toBeVisible();
   await expect(organic).toBeVisible();
-  await expect(robot).toHaveAttribute("aria-pressed", "true");
+  // New accounts start with the living (organic) avatar.
+  await expect(organic).toHaveAttribute("aria-pressed", "true");
+  await expect(robot).toHaveAttribute("aria-pressed", "false");
   await expect(robot.locator(".rakazo-bot-avatar")).toBeVisible();
   await expect(organic.locator(".rakazo-organic-avatar")).toBeVisible();
   await expect(robot.locator(".rakazo-organic-avatar")).toHaveCount(0);
