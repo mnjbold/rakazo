@@ -93,10 +93,12 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   const newestReply = page.getByTestId("message-bot-bubble").last();
   await expect(newestReply).toBeInViewport({ ratio: 1 });
   await captureScreenshot(page, testInfo, "voice-inline-live");
+  const desktopViewport = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId("call-view")).toBeInViewport();
   await expect(newestReply).toBeInViewport({ ratio: 1 });
   await captureScreenshot(page, testInfo, "voice-inline-live-mobile");
+  if (desktopViewport) await page.setViewportSize(desktopViewport);
   await expect(page.getByRole("button", { name: "Hang up" })).toBeVisible();
   await page.getByRole("button", { name: "Hang up" }).click();
   await expect(page.getByTestId("call-view")).toHaveCount(0);

@@ -160,7 +160,7 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
     page.waitForRequest(
       (request) => request.url().includes("/api/voice/speak") && request.method() === "POST",
     ),
-    researcherSpeak.click(),
+    researcherReply.getByRole("button", { name: "Speak this reply" }).click(),
   ]);
   expect(speechRequest.postDataJSON()).toMatchObject({ botId: researcherId });
   await captureScreenshot(page, testInfo, "group-transcript");
