@@ -4,8 +4,8 @@
     "slug": "rakazo",
     "owner": "inbox-zero",
     "scheme": "rakazo",
-    "version": "1.0.2",
-    "orientation": "portrait",
+    "version": "1.0.3",
+    "orientation": "default",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
     "plugins": [
@@ -39,7 +39,8 @@
         }
       ],
       "expo-sharing",
-      "./plugins/with-worklets-headers"
+      "./plugins/with-worklets-headers",
+      "./plugins/with-scene-lifecycle"
     ],
     "ios": {
       "bundleIdentifier": "com.rakazo.app",

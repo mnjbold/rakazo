@@ -20,6 +20,7 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await page.getByTestId("create-menu-trigger").click();
   const picker = page.getByTestId("bot-create-picker");
   await expect(picker).toBeVisible();
+  await expect(picker.getByPlaceholder("Search")).toBeVisible();
   await expect(picker.getByTestId("create-new-bot")).toBeVisible();
   await expect(picker.getByText("Chief", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "plus-picker-bots");
@@ -48,7 +49,16 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
   const edge = page.getByTestId("bots-sidebar-edge");
   await expect(edge).toBeVisible();
+  const restore = page.getByTestId("restore-bots-sidebar");
+  await expect(restore).toBeVisible();
   await captureScreenshot(page, testInfo, "bots-sidebar-collapsed");
+
+  await restore.click();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
+  await expect(restore).toHaveCount(0);
+
+  await page.getByTestId("minimize-bots-sidebar").click();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
 
   const box = await edge.boundingBox();
   expect(box).toBeTruthy();
@@ -58,6 +68,45 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await page.mouse.up();
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
   await captureScreenshot(page, testInfo, "bots-sidebar-expanded");
+});
+
+test("picker rows explain groups and spaces", async ({ page }, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `picker-info-${stamp}@rakazo.test`, "password12", "Picker Info");
+  await completeOnboarding(page);
+  await page.goto("/app");
+  await page.waitForURL(/\/app\/[^/]+$/);
+
+  await page.getByTestId("create-menu-trigger").click();
+  const picker = page.getByTestId("bot-create-picker");
+  await expect(picker).toBeVisible();
+
+  await picker.getByTestId("create-new-group").hover();
+  const groupInfo = picker.getByTestId("picker-info-group");
+  await expect.poll(() => groupInfo.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+  await captureScreenshot(page, testInfo, "picker-group-info-hover");
+  await groupInfo.click();
+  const dialog = page.getByTestId("picker-info-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Groups", { exact: true })).toBeVisible();
+  await expect(dialog).toContainText("same thread");
+  await expect(page.getByTestId("side-panel")).not.toHaveAttribute("data-panel", "create-group");
+  await captureScreenshot(page, testInfo, "picker-group-info-dialog");
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByTestId("create-menu-trigger").click();
+  const spaceInfo = picker.getByTestId("picker-info-space");
+  await expect.poll(() => spaceInfo.evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
+  await picker.getByTestId("create-new-space").hover();
+  await expect.poll(() => spaceInfo.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+  await spaceInfo.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Spaces", { exact: true })).toBeVisible();
+  await expect(dialog).toContainText("own bots and groups");
+  await captureScreenshot(page, testInfo, "picker-space-info-dialog");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 });
 
 test("later bot waits before showing the focus card; sending cancels it", async ({ page }) => {
@@ -81,7 +130,20 @@ test("later bot waits before showing the focus card; sending cancels it", async 
   await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
   const composer = page.getByPlaceholder(/Message/);
   await composer.fill("I'll set this up myself");
+  // Send must finish before the delay is advanced: cancel runs after a successful
+  // RPC, and promptFocus will still post if the clock fires while send is in flight.
+  const sent = page.waitForResponse(
+    (response) => response.url().includes("/rpc/threads/send") && response.ok(),
+  );
   await page.keyboard.press("Enter");
+  await sent;
+  // Scope to the user bubble: the assistant reply can echo this phrase as a substring.
+  await expect(
+    page
+      .getByTestId("transcript")
+      .getByTestId("message-user-bubble")
+      .getByText("I'll set this up myself", { exact: true }),
+  ).toBeVisible();
   await page.clock.fastForward(12_000);
   await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
 });

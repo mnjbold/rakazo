@@ -1,23 +1,28 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type Docker from "dockerode";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  assertVolumeSubpathSupport,
   COMPUTER_IMAGE,
+  computerHomeStorage,
   computerNetworkNameFor,
   computerNetworkNamesForCleanup,
   containerCreateOptions,
   containerNameFor,
   controlPortPublicationMatches,
+  homeVolumeMatches,
   hostComputerUser,
   legacyNetworkOwnedSolelyBy,
   parseMemoryBytes,
@@ -25,6 +30,7 @@ import {
   resolveComputerControlEndpoint,
   resolveScreenNetworkMode,
   resolveScreenPublishTarget,
+  resolveSpaceComputerLimit,
   resolveTeamScreenLimit,
   screenPorts,
   screenUrlFor,
@@ -46,6 +52,18 @@ describe("graphical computer spec", () => {
     expect(resolveTeamScreenLimit("4")).toBe(4);
     for (const value of ["-1", "1.5", "not-a-number"])
       expect(() => resolveTeamScreenLimit(value)).toThrow(/positive integer/);
+  });
+
+  it("validates space computer limit", () => {
+    expect(resolveSpaceComputerLimit(undefined)).toBe(0);
+    expect(resolveSpaceComputerLimit("")).toBe(0);
+    expect(resolveSpaceComputerLimit("0")).toBe(0);
+    expect(resolveSpaceComputerLimit("unlimited")).toBe(0);
+    expect(resolveSpaceComputerLimit("none")).toBe(0);
+    expect(resolveSpaceComputerLimit("10")).toBe(10);
+    expect(resolveSpaceComputerLimit("1")).toBe(1);
+    for (const value of ["-1", "1.5", "not-a-number"])
+      expect(() => resolveSpaceComputerLimit(value)).toThrow(/positive integer/);
   });
 
   it("creates a VNC desktop, not an alpine sleep fallback", () => {
@@ -193,6 +211,7 @@ describe("graphical computer spec", () => {
 
       try {
         expect(run(":1")).toContain(`--user-data-dir=${home}/.browser-profiles/chromium`);
+        expect(run(":1")).toContain("--restore-last-session");
         expect(run(":1").some((arg) => arg.startsWith("--remote-debugging-port="))).toBe(true);
         expect(run(":2")).toContain(`--user-data-dir=${home}/.browser-profiles/chromium-screen-2`);
         expect(run(":2")).toContain("--remote-debugging-port=9223");
@@ -205,6 +224,7 @@ describe("graphical computer spec", () => {
         }
         const explicit = run(":3", [`--user-data-dir=${home}/custom-profile`]);
         expect(explicit).toContain(`--user-data-dir=${home}/custom-profile`);
+        expect(explicit).toContain("--restore-last-session");
         expect(explicit).not.toContain(
           `--user-data-dir=${home}/.browser-profiles/chromium-screen-3`,
         );
@@ -266,19 +286,160 @@ describe("graphical computer spec", () => {
         expect(updatedLocalState).not.toMatch(/"exited_cleanly"\s*:\s*false/);
 
         writeFileSync(prefsPath, '{\n  "profile": {\n    "exit_type": "Crashed"\n  }\n}\n');
-        symlinkSync("testhost-12345", path.join(profile, "SingletonLock"));
-        const skipped = spawnSync("bash", [path.join(root, "rakazo-browser")], {
-          env: {
-            ...process.env,
-            DISPLAY: ":1",
-            HOME: home,
-            PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
-            RAKAZO_TEST_ARGS: capture,
-          },
-          encoding: "utf8",
+        const sleeper = path.join(bin, "sleeper");
+        writeFileSync(sleeper, "#!/bin/sh\nsleep 120\n");
+        chmodSync(sleeper, 0o755);
+        const liveBrowser = spawn(sleeper, [`--user-data-dir=${profile}`], {
+          stdio: "ignore",
+          detached: true,
         });
-        expect(skipped.status, skipped.error?.message ?? skipped.stderr).toBe(0);
-        expect(readFileSync(prefsPath, "utf8")).toContain("Crashed");
+        const liveLock = path.join(profile, "SingletonLock");
+        const launch = () =>
+          spawnSync("bash", [path.join(root, "rakazo-browser")], {
+            env: {
+              ...process.env,
+              DISPLAY: ":1",
+              HOME: home,
+              PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
+              RAKAZO_TEST_ARGS: capture,
+            },
+            encoding: "utf8",
+          });
+        try {
+          symlinkSync(`testhost-${liveBrowser.pid}`, liveLock);
+          const skipped = launch();
+          expect(skipped.status, skipped.error?.message ?? skipped.stderr).toBe(0);
+          expect(readFileSync(prefsPath, "utf8")).toContain("Crashed");
+          expect(readlinkSync(liveLock)).toBe(`testhost-${liveBrowser.pid}`);
+
+          if (process.platform === "linux") {
+            const renderer = spawn(sleeper, ["--type=renderer", `--user-data-dir=${profile}`], {
+              stdio: "ignore",
+              detached: true,
+            });
+            try {
+              writeFileSync(prefsPath, '{\n  "profile": {\n    "exit_type": "Crashed"\n  }\n}\n');
+              rmSync(liveLock);
+              symlinkSync(`testhost-${process.pid}`, liveLock);
+              const reused = launch();
+              expect(reused.status, reused.error?.message ?? reused.stderr).toBe(0);
+              expect(readFileSync(prefsPath, "utf8")).toContain('"exit_type":"Normal"');
+
+              writeFileSync(prefsPath, '{\n  "profile": {\n    "exit_type": "Crashed"\n  }\n}\n');
+              symlinkSync(`testhost-${renderer.pid}`, liveLock);
+              const childLock = launch();
+              expect(childLock.status, childLock.error?.message ?? childLock.stderr).toBe(0);
+              expect(readFileSync(prefsPath, "utf8")).toContain('"exit_type":"Normal"');
+
+              const joiner = path.join(bin, "join-cmdline.py");
+              writeFileSync(
+                joiner,
+                [
+                  "import os, time",
+                  'raw = open("/proc/self/cmdline", "rb").read().rstrip(b"\\0")',
+                  'joined = raw.replace(b"\\0", b" ")',
+                  "start = end = None",
+                  'for line in open("/proc/self/maps"):',
+                  '    if "[stack]" in line:',
+                  '        a, b = line.split()[0].split("-")',
+                  "        start, end = int(a, 16), int(b, 16)",
+                  "        break",
+                  'mem = os.open("/proc/self/mem", os.O_RDWR)',
+                  "pos = end",
+                  "found = None",
+                  "while pos > start:",
+                  "    size = min(1024 * 1024, pos - start)",
+                  "    pos -= size",
+                  "    os.lseek(mem, pos, os.SEEK_SET)",
+                  "    data = os.read(mem, size + len(raw))",
+                  "    idx = data.find(raw)",
+                  "    if idx != -1:",
+                  "        found = pos + idx",
+                  "        break",
+                  "if found is None:",
+                  '    raise SystemExit("cmdline not found")',
+                  "os.lseek(mem, found, os.SEEK_SET)",
+                  "os.write(mem, joined)",
+                  "os.close(mem)",
+                  'open(os.environ["JOINED_READY"], "w").write("ready\\n")',
+                  "time.sleep(120)",
+                  "",
+                ].join("\n"),
+              );
+              const ready = path.join(temp, "joined-ready");
+              const python = spawnSync("python3", ["-c", "import sys; print(sys.executable)"], {
+                encoding: "utf8",
+              }).stdout.trim();
+              const spacedHome = path.join(temp, "home --type=renderer dir");
+              const spacedProfile = path.join(spacedHome, ".browser-profiles/chromium");
+              const spacedPrefs = path.join(spacedProfile, "Default", "Preferences");
+              mkdirSync(path.dirname(spacedPrefs), { recursive: true });
+              writeFileSync(spacedPrefs, '{\n  "profile": {\n    "exit_type": "Crashed"\n  }\n}\n');
+              const joined = spawn(python, [joiner, `--user-data-dir=${spacedProfile}`], {
+                stdio: "ignore",
+                detached: true,
+                env: { ...process.env, JOINED_READY: ready },
+              });
+              try {
+                const deadline = Date.now() + 2_000;
+                while (spawnSync("test", ["-s", ready]).status !== 0) {
+                  if (Date.now() > deadline)
+                    throw new Error("space-joined command line was not published");
+                  spawnSync("sleep", ["0.02"]);
+                }
+                const spacedLock = path.join(spacedProfile, "SingletonLock");
+                symlinkSync(`testhost-${joined.pid}`, spacedLock);
+                const kept = spawnSync("bash", [path.join(root, "rakazo-browser")], {
+                  env: {
+                    ...process.env,
+                    DISPLAY: ":1",
+                    HOME: spacedHome,
+                    PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
+                    RAKAZO_TEST_ARGS: capture,
+                  },
+                  encoding: "utf8",
+                });
+                expect(kept.status, kept.error?.message ?? kept.stderr).toBe(0);
+                expect(readFileSync(spacedPrefs, "utf8")).toContain("Crashed");
+                expect(readlinkSync(spacedLock)).toBe(`testhost-${joined.pid}`);
+              } finally {
+                if (joined.pid) {
+                  try {
+                    process.kill(-joined.pid, "SIGKILL");
+                  } catch {
+                    joined.kill("SIGKILL");
+                  }
+                }
+              }
+            } finally {
+              if (renderer.pid) {
+                try {
+                  process.kill(-renderer.pid, "SIGKILL");
+                } catch {
+                  renderer.kill("SIGKILL");
+                }
+              }
+            }
+          }
+
+          writeFileSync(prefsPath, '{\n  "profile": {\n    "exit_type": "Crashed"\n  }\n}\n');
+          const gone = spawnSync("/bin/sleep", ["0"]);
+          expect(gone.status).toBe(0);
+          expect(spawnSync("kill", ["-0", String(gone.pid)]).status).not.toBe(0);
+          rmSync(liveLock, { force: true });
+          symlinkSync(`testhost-${gone.pid}`, liveLock);
+          const cleared = launch();
+          expect(cleared.status, cleared.error?.message ?? cleared.stderr).toBe(0);
+          expect(readFileSync(prefsPath, "utf8")).toContain('"exit_type":"Normal"');
+        } finally {
+          if (liveBrowser.pid) {
+            try {
+              process.kill(-liveBrowser.pid, "SIGKILL");
+            } catch {
+              liveBrowser.kill("SIGKILL");
+            }
+          }
+        }
       } finally {
         rmSync(temp, { recursive: true, force: true });
       }
@@ -652,6 +813,17 @@ describe("computer resource limits", () => {
     expect(HostConfig.PidsLimit).toBe(2048);
   });
 
+  it("falls back to the defaults when a variable is blank", () => {
+    // .env.example ships these keys blank; a blank value must read as "unset".
+    process.env.RAKAZO_COMPUTER_MEMORY = "";
+    process.env.RAKAZO_COMPUTER_CPUS = "  ";
+    process.env.RAKAZO_COMPUTER_PIDS_LIMIT = "";
+    const { HostConfig } = containerCreateOptions(createInput);
+    expect(HostConfig.Memory).toBe(2 * 1024 ** 3);
+    expect(HostConfig.NanoCpus).toBe(2e9);
+    expect(HostConfig.PidsLimit).toBe(2048);
+  });
+
   it("pins MemorySwap to Memory so the ceiling cannot be swapped past", () => {
     process.env.RAKAZO_COMPUTER_MEMORY = "1536m";
     const { HostConfig } = containerCreateOptions(createInput);
@@ -731,5 +903,96 @@ describe("computer OCI runtime", () => {
   it("fails closed on an unknown runtime", async () => {
     const { resolveComputerRuntime } = await import("./computer-spec.js");
     expect(() => resolveComputerRuntime("kata")).toThrow(/runc or runsc/);
+  });
+});
+
+describe("computer home storage", () => {
+  const runtime = (mount: object) => ({ Mounts: [mount] }) as Docker.ContainerInspectInfo;
+  it("keeps named volumes native and exposes only the bot subdirectory", () => {
+    const storage = computerHomeStorage(
+      "/data/homes/bot",
+      "/data",
+      runtime({
+        Type: "volume",
+        Name: "example_appdata",
+        Source: "/var/lib/docker/volumes/example_appdata/_data",
+        Destination: "/data",
+      }),
+    );
+    const options = containerCreateOptions({
+      name: "bot",
+      image: "computer",
+      botId: "bot",
+      spaceId: "space",
+      ...storage,
+    });
+    expect(options.HostConfig.Binds).toBeUndefined();
+    expect(options.HostConfig.Mounts).toEqual([
+      {
+        Type: "volume",
+        Source: "example_appdata",
+        Target: "/home/rakazo",
+        VolumeOptions: { NoCopy: true, Subpath: "homes/bot" },
+      },
+    ]);
+    expect(homeVolumeMatches(options.HostConfig.Mounts, storage.homeVolume!)).toBe(true);
+    expect(homeVolumeMatches(undefined, storage.homeVolume!)).toBe(false);
+    expect(
+      homeVolumeMatches(options.HostConfig.Mounts, {
+        name: "example_appdata",
+        subpath: "homes/other",
+      }),
+    ).toBe(false);
+  });
+  it("preserves native host paths and translates supervisor bind mounts", () => {
+    expect(computerHomeStorage("/data/homes/bot", "/data", undefined)).toEqual({
+      homePath: "/data/homes/bot",
+    });
+    expect(
+      computerHomeStorage(
+        "/data/homes/bot",
+        "/data",
+        runtime({ Type: "bind", Source: "/srv/data", Destination: "/data" }),
+      ),
+    ).toEqual({ homePath: "/srv/data/homes/bot" });
+  });
+  it("rejects paths outside the volume and missing volume names", () => {
+    for (const home of ["/data", "/other", "/data/../other"])
+      expect(() => computerHomeStorage(home, "/data", undefined)).toThrow();
+    expect(() =>
+      computerHomeStorage(
+        "/data/homes/bot",
+        "/data",
+        runtime({ Type: "volume", Destination: "/data" }),
+      ),
+    ).toThrow(/no name/);
+  });
+  it("fails closed on daemons that could ignore volume subpaths", () => {
+    for (const version of ["1.44", "", "invalid", "0.99"])
+      expect(() => assertVolumeSubpathSupport(version)).toThrow(/Docker Engine 26/);
+    for (const version of ["1.45", "1.46", "2.0"])
+      expect(() => assertVolumeSubpathSupport(version)).not.toThrow();
+  });
+
+  it("stops promptly when Docker sends SIGTERM to the start script", () => {
+    const root = path.resolve(import.meta.dirname, "../../computer");
+    const start = readFileSync(path.join(root, "start.sh"), "utf8");
+    expect(start).toMatch(/trap shutdown TERM INT/);
+    expect(start).toMatch(/kill -TERM "\$XVFB_PID"/);
+    expect(start).not.toMatch(/while kill -0 "\$XVFB_PID"/);
+    // The handler must be in place before the first child process starts, so a stop that
+    // arrives during startup is honoured instead of waiting for Docker's grace period.
+    const trapAt = start.indexOf("trap shutdown TERM INT");
+    const firstChildAt = start.search(/^[^#\n]*&\s*$/m);
+    expect(trapAt).toBeGreaterThan(-1);
+    expect(firstChildAt).toBeGreaterThan(-1);
+    expect(trapAt).toBeLessThan(firstChildAt);
+    // A stop before Xvfb exists must not try to signal or wait on an empty PID.
+    expect(start).toMatch(/^XVFB_PID=""$/m);
+    expect(start.match(/if \[\[ -n "\$XVFB_PID" \]\]; then/g)?.length ?? 0).toBeGreaterThanOrEqual(
+      2,
+    );
+    // Steady state waits on Xvfb instead of polling, so the trap runs immediately.
+    expect(start).toMatch(/^wait "\$XVFB_PID"$/m);
   });
 });

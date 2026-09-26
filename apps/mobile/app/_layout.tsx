@@ -1,10 +1,12 @@
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { AvatarStyleProvider } from "../components/avatar-style";
+import { ComputerUpdateProgress } from "../components/computer-update-progress";
 import { currentApiBase, loadApiBase, loadSessionToken, selectedSpaceId } from "../lib/api";
 import { loadAppearancePreference, mobileTokens } from "../lib/appearance";
 import { bootstrapI18n, useI18n } from "../lib/i18n";
@@ -13,10 +15,17 @@ import {
   resumeLiveNotifications,
 } from "../lib/live-notifications";
 import { native, useResolvedAppearance } from "../lib/native";
+import { loadResponseStreamingPreference } from "../lib/response-streaming";
 
 configureForegroundNotifications();
 
 export default function Layout() {
+  useEffect(() => {
+    // The app is portrait-only; the computer screen unlocks rotation while it is open.
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+      () => undefined,
+    );
+  }, []);
   const { t } = useI18n();
   const [ready, setReady] = useState(false);
   const resolved = useResolvedAppearance();
@@ -39,7 +48,7 @@ export default function Layout() {
 
   useEffect(() => {
     void Promise.all([
-      Promise.all([loadApiBase(), loadAppearancePreference()])
+      Promise.all([loadApiBase(), loadAppearancePreference(), loadResponseStreamingPreference()])
         .then(async () =>
           resumeLiveNotifications(
             currentApiBase(),
@@ -70,6 +79,11 @@ export default function Layout() {
               >
                 <Stack.Screen name="index" options={{ headerShown: false, title: "Rakazo" }} />
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="integration-setup"
+                  options={{ title: t("Server integrations") }}
+                />
+                <Stack.Screen name="ai-data-sharing" options={{ title: "AI data sharing" }} />
                 <Stack.Screen name="account" options={{ title: t("Account") }} />
                 <Stack.Screen
                   name="change-password"
@@ -116,6 +130,7 @@ export default function Layout() {
                 <Stack.Screen name="routine" options={{ title: t("Routine") }} />
                 <Stack.Screen name="computer" options={{ title: t("Computer") }} />
               </Stack>
+              <ComputerUpdateProgress />
             </ThemeProvider>
           </AvatarStyleProvider>
         ) : (

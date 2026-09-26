@@ -67,7 +67,9 @@ export function ChoiceCard({
             <X size={16} strokeWidth={1.8} />
           </Button>
         ) : null}
-        <div className="pe-8 text-[15.5px] text-foreground/90">{block.question}</div>
+        <div className="pe-8 text-[15.5px] text-foreground/90">
+          <OnboardingFocusQuestion question={block.question} />
+        </div>
         {block.subtitle ? (
           <div className="mt-0.5 text-[13px] text-foreground/75">{block.subtitle}</div>
         ) : null}
@@ -88,7 +90,11 @@ export function ChoiceCard({
                 <span
                   className={`flex-1 text-[15px] leading-[1.35] ${block.answerId ? "text-foreground/75" : "text-foreground"}`}
                 >
-                  {option.label}
+                  <OnboardingFocusOptionLabel
+                    id={option.id}
+                    label={option.label}
+                    question={block.question}
+                  />
                 </span>
                 {block.answerId === option.id ? (
                   <span className="mt-0.5 text-foreground/75">✓</span>
@@ -100,6 +106,38 @@ export function ChoiceCard({
       </div>
     </div>
   );
+}
+
+/** First-run Chief focus card: API stores English; UI locale catalogs translate it. */
+function OnboardingFocusQuestion({ question }: { question: string }) {
+  if (question === "What do you want me on first?") {
+    return <Trans>What do you want me on first?</Trans>;
+  }
+  return question;
+}
+
+function OnboardingFocusOptionLabel({
+  id,
+  label,
+  question,
+}: {
+  id: string;
+  label: string;
+  question: string;
+}) {
+  if (question !== "What do you want me on first?") return label;
+  switch (id) {
+    case "day":
+      return <Trans>Day-to-day work</Trans>;
+    case "inbox":
+      return <Trans>Inbox & email</Trans>;
+    case "research":
+      return <Trans>Research & writing</Trans>;
+    case "everything":
+      return <Trans>A bit of everything</Trans>;
+    default:
+      return label;
+  }
 }
 
 export function AppConnectCard({
@@ -125,6 +163,7 @@ export function AppConnectCard({
     setError(null);
     try {
       const started = await rpc.connections.begin({
+        connectorId: block.connectorId,
         provider: block.provider,
         displayName: block.name,
       });
@@ -140,7 +179,7 @@ export function AppConnectCard({
           if (controller.signal.aborted) return;
           setLocalStatus("connected");
           await rpc.onboarding
-            .appConnected({ botId, provider: block.provider })
+            .appConnected({ botId, provider: block.provider, connectorId: block.connectorId })
             .catch(() => undefined);
           return;
         }
@@ -346,7 +385,7 @@ export function McpApprovalCard({
         <>
           <p className="mt-2 text-[13px] leading-[1.5] text-foreground/75">
             {needsOAuth
-              ? t`This server uses browser sign-in. Authorize it to let your agents use its tools. A popup will open.`
+              ? t`Authorize this server so agents can use its tools. A popup opens.`
               : t`Approve this server to let your agent use its tools.`}
           </p>
           {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}

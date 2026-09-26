@@ -11,11 +11,16 @@ import type {
   SandboxProvider,
   TransactionalEmailProvider,
 } from "@rakazo/adapter-kit";
+import type {
+  ComposioProvider,
+  ConnectorRegistry,
+  DestinationEmulator,
+  RemoteConnectorDependencies,
+} from "@rakazo/adapters";
 import {
   applyMessagingOutboundStatus,
   ChatSdkMessagingSurface,
-  type ComposioProvider,
-  type ConnectorRegistry,
+  ComposioConnector,
   createBackgroundJobHandlers,
   createCloudAgentConnection,
   createConnectorStack,
@@ -26,7 +31,6 @@ import {
   createRunSandbox,
   createRunSecretWriter,
   createWebProvider,
-  type DestinationEmulator,
   destroyBot,
   EmailEmulator,
   EncryptedSecretStore,
@@ -35,6 +39,7 @@ import {
   InMemoryJobQueue,
   InMemoryRealtimeFanout,
   InstalledConnectorProvider,
+  IntegrationProviderSettings,
   isComposioEnabled,
   isMessagingSurfaceEnabled,
   isPipedreamEnabled,
@@ -48,36 +53,43 @@ import {
   PipedreamConnector,
   PostgresRealtimeFanout,
   pipedreamConfigFromEnv,
+  piSessionsRoot,
   pushTokenPath,
-  type RemoteConnectorDependencies,
   reconcileCloudAgents,
+  reconcileComputerUpdates,
+  removePiUserSessions,
   ScriptedAgentRuntime,
   SmtpEmailProvider,
   SpaceMemoryProviderResolver,
+  sandboxProviderOptionsFromEnv,
   toTeamChatInbound,
 } from "@rakazo/adapters";
 import { blockedAuthPaths, createAuth } from "@rakazo/auth";
 import { signupPolicyFromEnv } from "@rakazo/core";
+import type { Pool, PrismaClient } from "@rakazo/db";
 import {
   createDb,
+  createPool,
   createThreadEvents,
-  type PrismaClient,
+  parsePositiveInteger,
   provisionMessagingIdentity,
   requireMembership,
 } from "@rakazo/db";
+import type { Logger } from "@rakazo/logging";
 import {
   createServiceLogger,
   enrichLogContext,
   getLogger,
   installLogger,
-  type Logger,
   SERVICE_NAMES,
 } from "@rakazo/logging";
 import { requestLogging } from "@rakazo/logging/hono";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { type AppEnv, loadEnv } from "./env.js";
+import type { AppEnv } from "./env.js";
+import { loadEnv } from "./env.js";
+import { mountLocalSettings } from "./local-settings.js";
 import {
   createMessagingInboundHandler,
   teamChatSenderCanWakeMessageRoutines,
@@ -86,6 +98,7 @@ import {
 import { mountMessagingWebhookRoutes } from "./messaging-webhook.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
+import { mountScreenTarget } from "./screen-proxy.js";
 import { isDeferredReservationLost, TeamChatBridge } from "./team-chat-bridge.js";
 import { ModelTeamChatEngagementJudge } from "./team-chat-judge.js";
 import {
@@ -142,9 +155,11 @@ export async function createApp(
   installLogger(logger);
   const created = prismaOverride
     ? { prisma: prismaOverride, pool: undefined }
-    : createDb(env.databaseUrl);
+    : createDb(env.databaseUrl, {
+        poolMax: parsePositiveInteger(process.env.DB_POOL_MAX, 4),
+        applicationName: "rakazo-api",
+      });
   const { prisma } = created;
-  created.pool?.on("error", () => undefined);
   const realtime =
     realtimeOverride ??
     (created.pool
@@ -184,10 +199,29 @@ export async function createApp(
 
   const jobKind = env.wakeupDriver;
   const inMemoryJobs = jobKind === "memory" ? new InMemoryJobQueue() : undefined;
-  const jobs = inMemoryJobs ?? new GraphileJobPublisher(env.databaseUrl);
+  // prismaOverride skips createDb, so there is no shared pool. The previous
+  // GraphileJobPublisher(databaseUrl) path opened its own connections; keep a
+  // bounded pool for that override path instead of passing undefined.
+  let ownedJobPool: Pool | undefined;
+  if (!inMemoryJobs && !created.pool) {
+    ownedJobPool = createPool(env.databaseUrl, {
+      poolMax: parsePositiveInteger(process.env.DB_POOL_MAX, 4),
+      applicationName: "rakazo-api-jobs",
+    });
+  }
+  const jobPool = created.pool ?? ownedJobPool;
+  const jobs = inMemoryJobs
+    ? inMemoryJobs
+    : new GraphileJobPublisher(
+        jobPool ??
+          (() => {
+            throw new Error("Graphile job publisher requires a PostgreSQL pool");
+          })(),
+      );
   const sandbox: SandboxProvider =
     sandboxOverride ??
     createRunSandbox(env.sandboxProvider, {
+      ...sandboxProviderOptionsFromEnv(),
       supervisorUrl: env.sandboxSupervisorUrl,
       supervisorToken: env.sandboxSupervisorToken,
       e2bApiKey: env.e2bApiKey,
@@ -199,7 +233,12 @@ export async function createApp(
       dataDir: env.dataDir,
       prisma,
     });
-  const mcpOAuth = new McpOAuthBroker(prisma, secrets, remoteConnectors);
+  const mcpOAuth = new McpOAuthBroker(
+    prisma,
+    secrets,
+    remoteConnectors,
+    env.mcpAllowPrivateEndpoint,
+  );
   const memoryProviders = new SpaceMemoryProviderResolver(prisma, secrets);
   const oauthLogins = new PiOAuthLogins();
   const home = new LocalAgentHomeStore(env.dataDir);
@@ -212,6 +251,8 @@ export async function createApp(
       stdioEnabled: env.mcpStdioEnabled,
       allowedCommands: env.mcpStdioAllowedCommands,
       network: remoteConnectors,
+      events,
+      allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
     },
     mcpOAuth,
   );
@@ -249,17 +290,30 @@ export async function createApp(
       ? new SmtpEmailProvider({ url: env.smtpUrl, from: env.emailFrom ?? "" })
       : localEmailEmulator);
   const installed = new InstalledConnectorProvider(prisma, secrets, remoteConnectors);
-  const stack = createConnectorStack(isComposioEnabled(env.composioApiKey), composioOverride, [
+  const integrationSettings = new IntegrationProviderSettings(prisma, secrets, env.encryptionKey, {
+    composio:
+      composioOverride ??
+      (isComposioEnabled(env.composioApiKey)
+        ? new ComposioConnector(env.composioApiKey)
+        : undefined),
+    pipedream,
+  });
+  const stack = createConnectorStack(false, composioOverride, [
     installed,
-    ...(pipedream ? [pipedream] : []),
+    ...integrationSettings
+      .providers()
+      .filter((provider) => !composioOverride || provider.describe().id !== "composio"),
     mcp,
   ]);
   const connector = stack.destination;
   await connector.start();
-  void stack.composio?.warmDirectory().catch(() => undefined);
-  void pipedream?.warmDirectory?.().catch(() => undefined);
+  integrationSettings.warmDirectories();
   const runtime =
-    env.agentRuntime === "scripted" ? new ScriptedAgentRuntime() : new PiAgentRuntime();
+    env.agentRuntime === "scripted"
+      ? new ScriptedAgentRuntime()
+      : new PiAgentRuntime({
+          sessionRoot: env.piSessionRecording ? piSessionsRoot(env.dataDir) : undefined,
+        });
   const notifications = new ExpoPushProvider(env.dataDir);
   const auth = createAuth(prisma, {
     secret: env.authSecret,
@@ -281,7 +335,7 @@ export async function createApp(
     beforeDeleteUser: async (userId) => {
       const bots = await prisma.bot.findMany({
         where: { userId },
-        select: { id: true, spaceId: true, name: true, archivedAt: true },
+        select: { id: true, userId: true, spaceId: true, name: true, archivedAt: true },
       });
       await Promise.all(
         bots.map((bot) =>
@@ -300,6 +354,7 @@ export async function createApp(
           ),
         ),
       );
+      await removePiUserSessions(env.dataDir, userId);
       await rm(pushTokenPath(env.dataDir, userId), { force: true }).catch(() => undefined);
     },
   });
@@ -320,14 +375,26 @@ export async function createApp(
     artifacts,
     connector: stack.connector,
     connectors: stack.connector,
-    listConnectedPluginSlugs: stack.composio?.listConnectedSlugs.bind(stack.composio),
+    listConnectedPluginSlugs: async (userId) => {
+      const provider = await integrationSettings.resolve("composio");
+      if (!provider) return [];
+      return provider.listConnectedExternalIds({
+        userId,
+        spaceId: "",
+        operationId: "connections.sync",
+        traceId: "connections.sync",
+        signal: AbortSignal.timeout(15_000),
+      });
+    },
     secrets: [
       env.deploymentModelKey ?? "",
       env.composioApiKey ?? "",
       env.cursorApiKey ?? "",
+      process.env.TYPESAFE_API_KEY ?? "",
     ].filter(Boolean),
     secretStore: secrets,
     secretHttp: remoteConnectors,
+    mcpAllowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
     deploymentModelKey: env.deploymentModelKey,
     dataDir: env.dataDir,
     notifications,
@@ -362,11 +429,13 @@ export async function createApp(
         prisma,
         jobs,
         reconcileCloudAgents: () => reconcileCloudAgents({ prisma, jobs, cloudAgent }),
+        reconcileComputerUpdates: () => reconcileComputerUpdates({ prisma, jobs }),
       })
     : undefined;
   reconciler?.start();
 
   const router = createRouter({
+    cloudAgent,
     prisma,
     events,
     auth,
@@ -377,6 +446,7 @@ export async function createApp(
     home,
     secrets,
     oauthLogins,
+    integrationSettings,
     mcpOAuth,
     composio: stack.composio,
     connectors: stack.connector,
@@ -392,9 +462,12 @@ export async function createApp(
       agentRuntime: env.agentRuntime,
       defaultProvider: env.defaultProvider,
       defaultModel: env.defaultModel,
+      teamChatJudgeProvider: env.teamChatJudgeProvider,
+      teamChatJudgeModel: env.teamChatJudgeModel,
       deploymentModelKey: env.deploymentModelKey,
       voiceStudioApiKey: env.voiceStudioApiKey,
       webOrigin: env.webOrigin,
+      privacyPolicyUrl: env.privacyPolicyUrl,
       screenProxySecret: env.screenProxySecret,
       sandboxProvider: env.sandboxProvider,
       gitSha: env.gitSha,
@@ -404,6 +477,7 @@ export async function createApp(
       updaterToken: env.updaterToken,
       imageTag: env.imageTag,
       integrationsCatalogUrl: env.integrationsCatalogUrl,
+      mcpAllowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
     },
   });
   const rpc = new RPCHandler(router, {
@@ -438,6 +512,7 @@ export async function createApp(
     );
   }
   mountApiRequestBodyLimits(app);
+  mountScreenTarget(app, prisma, env.screenProxySecret);
   app.on(["GET", "POST"], "/api/auth/*", async (c) => {
     const path = new URL(c.req.url).pathname.replace("/api/auth", "");
     if (blockedAuthPaths.some((blocked) => path.startsWith(blocked))) {
@@ -445,6 +520,7 @@ export async function createApp(
     }
     return auth.handler(c.req.raw);
   });
+  mountLocalSettings(app, { token: env.desktopStackToken, prisma, rpc });
   app.use("/rpc/*", async (c, next) => {
     const session = await auth.api.getSession({ headers: sessionHeaders(c.req.raw) });
     const requestedSpaceId = c.req.header("x-rakazo-space-id");
@@ -795,6 +871,7 @@ export async function createApp(
       await mcp.close();
       await prisma.$disconnect().catch(() => undefined);
       await created.pool?.end().catch(() => undefined);
+      await ownedJobPool?.end().catch(() => undefined);
       await logger.flush({ timeoutMs: 2_000 });
     },
   };

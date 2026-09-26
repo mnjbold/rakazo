@@ -1,7 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { LOCAL_SETTINGS_PAGE } from "@rakazo/contracts";
 import { Button, Skeleton } from "@rakazo/ui-web";
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { LoadingState } from "./components/ai/primitives";
 import { authClient } from "./lib/auth";
 import { markAfterPaint, markOnce } from "./lib/performance";
@@ -11,6 +12,8 @@ import {
   sessionRetryDelayMs,
   showSessionUnavailable,
 } from "./lib/session-gate";
+import { IntegrationSetupPage } from "./pages/IntegrationSetup";
+import { LocalSettingsPage } from "./pages/LocalSettings";
 import { McpOAuthCallbackPage } from "./pages/McpOAuthCallback";
 import { ShellPage } from "./pages/Shell";
 
@@ -26,8 +29,19 @@ const OnboardingPage = lazy(() =>
 const WelcomePage = lazy(() =>
   import("./pages/Welcome").then((module) => ({ default: module.WelcomePage })),
 );
+const ArtifactsPage = lazy(() =>
+  import("./pages/Artifacts").then((module) => ({ default: module.ArtifactsPage })),
+);
 
 export function App() {
+  if (window.location.pathname === LOCAL_SETTINGS_PAGE) return <LocalSettingsPage />;
+  return <SessionApp />;
+}
+
+function SessionApp() {
+  const [searchParams] = useSearchParams();
+  const signInDestination =
+    searchParams.get("next") === "/integrations/setup" ? "/integrations/setup" : "/app";
   const session = authClient.useSession();
   const gate = sessionGate(session);
   const [holdingUnreachable, setHoldingUnreachable] = useState(false);
@@ -64,7 +78,9 @@ export function App() {
           <Route path="/" element={user ? <Navigate to="/app" replace /> : <WelcomePage />} />
           <Route
             path="/sign-in"
-            element={user ? <Navigate to="/app" replace /> : <AuthPage key="in" mode="in" />}
+            element={
+              user ? <Navigate to={signInDestination} replace /> : <AuthPage key="in" mode="in" />
+            }
           />
           <Route
             path="/sign-up"
@@ -85,10 +101,28 @@ export function App() {
             path="/mcp/oauth/callback"
             element={user ? <McpOAuthCallbackPage /> : <Navigate to="/sign-in" replace />}
           />
+          <Route
+            path="/integrations/setup"
+            element={
+              user ? (
+                <IntegrationSetupPage />
+              ) : (
+                <Navigate to="/sign-in?next=/integrations/setup" replace />
+              )
+            }
+          />
           <Route path="/app" element={user ? <ShellPage /> : <Navigate to="/sign-in" replace />} />
           <Route
             path="/app/g/:groupId"
             element={user ? <ShellPage /> : <Navigate to="/sign-in" replace />}
+          />
+          <Route
+            path="/app/artifacts"
+            element={user ? <ArtifactsPage /> : <Navigate to="/sign-in" replace />}
+          />
+          <Route
+            path="/app/artifacts/:artifactId"
+            element={user ? <ArtifactsPage /> : <Navigate to="/sign-in" replace />}
           />
           <Route
             path="/app/:botId"

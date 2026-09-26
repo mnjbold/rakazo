@@ -1,40 +1,52 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { implement, ORPCError } from "@orpc/server";
+import type {
+  AdapterContext,
+  AgentHomeStore,
+  ArtifactStore,
+  ConnectorCatalogItem,
+  JobPublisher,
+  MemoryStore,
+  SandboxProvider,
+} from "@rakazo/adapter-kit";
 import {
-  type AdapterContext,
-  type AgentHomeStore,
-  type ArtifactStore,
-  type ConnectorCatalogItem,
   computerControlExpireJobKey,
-  type JobPublisher,
-  type MemoryStore,
   messagingDeliverJob,
   routineJobKey,
   routineWakeupJob,
   runContinueJob,
   runJobKey,
-  type SandboxProvider,
 } from "@rakazo/adapter-kit";
+import type {
+  CloudAgentConnection,
+  ComposioProvider,
+  ComputerExecutionLease,
+  ConnectorRegistry,
+  EncryptedSecretStore,
+  IntegrationProviderSettings,
+  MemoryProviderResolver,
+  PiOAuthLogins,
+  RemoteConnectorDependencies,
+} from "@rakazo/adapters";
 import {
   acquireComputerExecutionLease,
   applyTeachingDesktopInput,
   archiveBot,
+  assertSafeRemoteUrl,
   buildMcpCredentialBlob,
   buildModelConnectPlaintext,
-  type ComposioProvider,
   ComputerBusyError,
-  type ComputerExecutionLease,
-  type ConnectorRegistry,
   cancelComputerRunWork,
   checkpointAndRecordComputerWorkspace,
   clearInactiveUserComputerControl,
   computerSupportsUpdate,
+  computerUpdateView,
   createVoiceProvider,
+  defaultCatalogModelId,
   deletePushToken,
   deploymentAutoReviewDefault,
   destroyBot,
   displayBotWorkspacePath,
-  type EncryptedSecretStore,
   enqueueTakeoverContinuation,
   expireComputerControl,
   hasActiveComputerControl,
@@ -45,16 +57,15 @@ import {
   listPiCatalog,
   listScratchpadItems,
   McpOAuthBroker,
-  type MemoryProviderResolver,
   mapScratchpadItem,
   modelCredentialDto,
-  type PiOAuthLogins,
+  pickReusableConnection,
   planLiveConnectionSync,
   prepareApiInstall,
   prepareGraphqlInstall,
   probeOpenAiCompatibleModels,
   provisionComputer,
-  type RemoteConnectorDependencies,
+  queueComputerUpdate,
   releaseComputerExecutionLease,
   replaceComputer,
   resolveAutoReviewChecker,
@@ -72,14 +83,12 @@ import {
   verifyMcpInstall,
 } from "@rakazo/adapters";
 import type { Auth } from "@rakazo/auth";
+import type { Actor, Bot, ComputerStatus, McpServer, Me, SpaceNavigation } from "@rakazo/contracts";
 import {
-  type Actor,
   appContract,
-  type ComputerStatus,
-  type McpServer,
-  type Me,
+  IntegrationProviderIdSchema,
   OPENAI_COMPATIBLE_PROVIDER_ID,
-  type SpaceNavigation,
+  usableModelId,
 } from "@rakazo/contracts";
 import {
   ACTIVE_RUN_STATUSES,
@@ -90,13 +99,21 @@ import {
   isOneShotRoutineCrons,
   nextCronDateAcrossStrict,
 } from "@rakazo/core";
+import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  BotSectionNameConflictError,
+  CannotDeleteDefaultSpaceError,
+  CannotDeleteLastSpaceError,
+  CannotDeleteSpaceAsNonOwnerError,
+  ComputerLimitError,
+  claimEmptySpaceDeletionForMember,
   createExternalConversationRepos,
   createGroupRepos,
   createRepos,
   createSpaceForMember,
   createThreadMessageInTransaction,
+  deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
   findDefaultModelCredential,
   findDefaultVoiceCredential,
@@ -110,18 +127,34 @@ import {
   newestModelCredentialOrder,
   newestVoiceCredentialOrder,
   Prisma,
-  type PrismaClient,
   parseComputerMode,
+  releaseSpaceDeletionClaim,
+  renewSpaceDeletionClaim,
+  restoreBotUnderComputerQuota,
+  SPACE_DELETION_CLAIM_TIMEOUT_MS,
+  SpaceDeletionInProgressError,
   SpaceLimitError,
+  SpaceNotEmptyError,
+  SpaceNotFoundError,
   selectSpaceModelPreference,
   selectSpaceVoicePreference,
-  type ThreadEvents,
   touchGroupUpdatedAt,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "./agent-secrets.js";
 import { createAgentSkillsService } from "./agent-skills.js";
-import { createOwnedArtifact, getOwnedArtifact, getSpaceArtifact } from "./artifacts.js";
+import { aiConsentStatus, allowAiConsent } from "./ai-consent.js";
+import {
+  ArtifactListCursorError,
+  createOwnedArtifact,
+  deleteArtifactFamily,
+  getOwnedArtifact,
+  getSpaceArtifact,
+  getSpaceArtifactById,
+  listArtifactVersions,
+  listSpaceArtifacts,
+} from "./artifacts.js";
+import { botProfileLabelsChanged, commitBotUpdate } from "./bot-update.js";
 import {
   executionBlocksUserTakeover,
   resolveBusyBotName,
@@ -155,11 +188,11 @@ import { listSpaceRuns } from "./runs.js";
 import { addScreenProxyCapability } from "./screen-proxy.js";
 import { querySpaceSearch } from "./search.js";
 import { withSerializableRetry } from "./serializable-retry.js";
+import type { UpdaterProxyConfig } from "./server-update.js";
 import {
   applyServerUpdate,
   checkServerUpdate,
   readServerUpdateStatus,
-  type UpdaterProxyConfig,
   UpdaterProxyError,
 } from "./server-update.js";
 import { assertTeachingSendAllowed, createTaughtSkillsService } from "./taught-skills.js";
@@ -179,6 +212,7 @@ import {
   threadSnapshot,
 } from "./thread-target.js";
 import {
+  disconnectVoiceCredential,
   listVoiceCatalog,
   loadDefaultVoiceCredential,
   loadVoiceCredential,
@@ -383,6 +417,23 @@ function connectionContext(
   };
 }
 
+async function assertMcpRemoteEndpoint(
+  endpoint: string | null | undefined,
+  actor: Actor,
+  deps: Pick<RouterDeps, "remoteConnectors" | "env">,
+): Promise<void> {
+  if (!endpoint) return;
+  try {
+    await assertSafeRemoteUrl(endpoint, deps.remoteConnectors?.resolveHostname, {
+      allowPrivateEndpoint: actor.isDeploymentOwner || deps.env.mcpAllowPrivateEndpoint === true,
+    });
+  } catch (error) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: error instanceof Error ? error.message : "MCP endpoint is invalid",
+    });
+  }
+}
+
 function mcpAssignmentDto(row: {
   id: string;
   botId: string;
@@ -406,6 +457,7 @@ function mcpAssignmentDto(row: {
 }
 
 export interface RouterDeps {
+  cloudAgent?: CloudAgentConnection | null;
   prisma: PrismaClient;
   events: ThreadEvents;
   auth: Auth;
@@ -416,6 +468,7 @@ export interface RouterDeps {
   home: AgentHomeStore;
   secrets: EncryptedSecretStore;
   oauthLogins: PiOAuthLogins;
+  integrationSettings?: IntegrationProviderSettings;
   composio?: ComposioProvider;
   mcpOAuth?: McpOAuthBroker;
   connectors: ConnectorRegistry;
@@ -426,11 +479,14 @@ export interface RouterDeps {
   messaging?: { enabled: boolean; providers: string[]; openSignup: boolean };
   env: {
     agentRuntime: string;
+    teamChatJudgeProvider?: string;
+    teamChatJudgeModel?: string;
     defaultProvider: string;
     defaultModel: string;
     deploymentModelKey?: string;
     voiceStudioApiKey?: string;
     webOrigin: string;
+    privacyPolicyUrl?: string;
     screenProxySecret: string;
     sandboxProvider: string;
     gitSha?: string;
@@ -440,12 +496,80 @@ export interface RouterDeps {
     updaterToken?: string;
     imageTag?: string;
     integrationsCatalogUrl?: string;
+    mcpAllowPrivateEndpoint?: boolean;
   };
+}
+
+/** Bound for one provider sandbox destroy during Space deletion. Providers may
+ * ignore the request abort signal, so without a deadline a hung destroy would
+ * keep the deletion claim renewed forever and block stale-claim recovery. */
+const SPACE_TEARDOWN_TIMEOUT_MS = 120_000;
+
+function spaceTeardownTimeoutMs(): number {
+  const override = Number(process.env.SPACE_TEARDOWN_TIMEOUT_MS ?? "");
+  return Number.isFinite(override) && override > 0 ? override : SPACE_TEARDOWN_TIMEOUT_MS;
+}
+
+/** Surface a Space deletion race as a retryable conflict instead of a generic failure. */
+function mapSpaceLifecycleError(error: unknown): unknown {
+  if (error instanceof SpaceDeletionInProgressError) {
+    return new ORPCError("CONFLICT", { message: error.message });
+  }
+  if (error instanceof ComputerLimitError) {
+    return new ORPCError("BAD_REQUEST", { message: error.message });
+  }
+  return error;
+}
+
+const BOT_INTRO_PROMPT =
+  "You were just created. In one reply, say what you understood your role to be from your title, description and instructions, and ask for anything you need to get started.";
+
+/**
+ * A freshly created bot otherwise sits silent until someone hands it real work,
+ * so a misunderstood role goes unnoticed until it costs a run. Queue one
+ * invisible-prompt turn (like a routine or skill test run) so its first
+ * message states how it read its own instructions. The executor gives the
+ * "created" trigger no tools (see executor.ts), so this turn can only speak.
+ */
+export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bot): Promise<void> {
+  const threadId = bot.threadId;
+  if (!threadId) return;
+  // Scripted is the deterministic test/eval runtime, not a real deployment: an
+  // extra automatic run there competes with whatever response a test or eval
+  // harness queued next, for a bot it doesn't otherwise get to opt out of.
+  if (deps.env.agentRuntime === "scripted") return;
+  if ((await modelSetup(deps, actor)).needsModel) return;
+  const run = await deps.prisma.$transaction(async (tx) => {
+    const task = await tx.task.create({
+      data: {
+        spaceId: actor.spaceId,
+        botId: bot.id,
+        threadId,
+        userId: actor.userId,
+        prompt: BOT_INTRO_PROMPT,
+        status: "queued",
+      },
+    });
+    return tx.run.create({
+      data: {
+        spaceId: actor.spaceId,
+        botId: bot.id,
+        threadId,
+        taskId: task.id,
+        userId: actor.userId,
+        status: "queued",
+        trigger: "created",
+      },
+      select: { id: true },
+    });
+  });
+  await deps.jobs.enqueue(runContinueJob(run.id));
 }
 
 export function createRouter(deps: RouterDeps) {
   const os = implement(appContract).$context<{ actor: Actor | null; signal?: AbortSignal }>();
   const repos = createRepos(deps.prisma);
+  const onboardingDeps = { prisma: deps.prisma, events: deps.events, connectors: deps.connectors };
   const mcpOAuth = deps.mcpOAuth ?? new McpOAuthBroker(deps.prisma, deps.secrets);
   const groupRepos = createGroupRepos(deps.prisma);
   const taughtSkills = createTaughtSkillsService({
@@ -464,6 +588,24 @@ export function createRouter(deps: RouterDeps) {
   });
 
   return os.router({
+    aiConsent: {
+      status: authed.aiConsent.status.handler(({ context, input }) =>
+        aiConsentStatus(deps, context.actor, input),
+      ),
+      allow: authed.aiConsent.allow.handler(({ context, input }) =>
+        allowAiConsent(deps, context.actor, input),
+      ),
+      revoke: authed.aiConsent.revoke.handler(async ({ context, input }) => {
+        await deps.prisma.aiDataConsent.deleteMany({
+          where: {
+            userId: context.actor.userId,
+            spaceId: context.actor.spaceId,
+            recipientKey: input.key ?? undefined,
+          },
+        });
+        return aiConsentStatus(deps, context.actor);
+      }),
+    },
     health: os.health.handler(async () => ({ ok: true as const, version: "0.1.0" })),
     me: authed.me.handler(async ({ context }): Promise<Me> => meDto(deps, context.actor)),
     preferences: {
@@ -497,11 +639,137 @@ export function createRouter(deps: RouterDeps) {
           id: space.id,
           name: space.name,
           isDefault: false,
+          hasContent: false,
+          canDelete: true,
           bots: [],
           groups: [],
           externalConversations: [],
           botSections: [],
         };
+      }),
+      remove: authed.spaces.remove.handler(async ({ context, input }) => {
+        let claimId: string | null = null;
+        let claimActive = false;
+        let claimHealthy = true;
+        let claimReleasable = false;
+        let claimRenewal: ReturnType<typeof setInterval> | null = null;
+        const deleteInput = {
+          currentSpaceId: context.actor.spaceId,
+          userId: context.actor.userId,
+          spaceId: input.spaceId,
+        };
+        try {
+          // Claim emptiness before external teardown. Bot and group creation
+          // take the same lifecycle lock and reject the Space until deletion
+          // finishes or this claim is released.
+          const claim = await claimEmptySpaceDeletionForMember(deps.prisma, deleteInput);
+          claimId = claim.claimId;
+          claimActive = true;
+          // A recovered worker can safely finish deletion, but cannot know
+          // whether the previous worker still has provider teardown in flight.
+          // Keep the Space claimed on failure so content cannot reuse it.
+          claimReleasable = !claim.recovered;
+          const claimedInput = { ...deleteInput, claimId };
+          const assertClaim = async () => {
+            if (!claimHealthy) throw new SpaceDeletionInProgressError();
+            try {
+              const renewed = await renewSpaceDeletionClaim(deps.prisma, claimedInput);
+              if (!renewed) {
+                claimHealthy = false;
+                claimReleasable = false;
+                throw new SpaceDeletionInProgressError();
+              }
+            } catch (error) {
+              claimHealthy = false;
+              claimReleasable = false;
+              throw error;
+            }
+          };
+          claimRenewal = setInterval(() => {
+            void assertClaim().catch((renewalError) => {
+              if (claimActive) {
+                getLogger().error("space deletion claim renewal failed", renewalError);
+              }
+            });
+          }, SPACE_DELETION_CLAIM_TIMEOUT_MS / 5);
+          const adapterContext = connectionContext(context.actor, "spaces.remove", context.signal);
+          for (const computer of claim.computers) {
+            await assertClaim();
+            // Provider errors are ambiguous: teardown may have reached the
+            // remote service. From this point, only successful deletion may
+            // unblock content creation; a stale recovery must finish it.
+            claimReleasable = false;
+            let teardownTimer: ReturnType<typeof setTimeout> | undefined;
+            try {
+              await Promise.race([
+                deps.sandbox.destroy(toComputerRef(computer), {
+                  ...adapterContext,
+                  botId: computer.homeKey,
+                }),
+                new Promise<never>((_, reject) => {
+                  teardownTimer = setTimeout(() => {
+                    // Stop renewal so the claim goes stale and a later
+                    // worker can recover; never release after teardown
+                    // started, since the hung destroy may still complete.
+                    claimHealthy = false;
+                    claimReleasable = false;
+                    reject(new Error("Space sandbox teardown timed out"));
+                  }, spaceTeardownTimeoutMs());
+                }),
+              ]);
+            } finally {
+              if (teardownTimer !== undefined) clearTimeout(teardownTimer);
+            }
+            // Never clear a provider handle after this worker loses its claim.
+            await assertClaim();
+            await deps.prisma.computer.updateMany({
+              where: {
+                spaceId: input.spaceId,
+                homeKey: computer.homeKey,
+                providerRef: computer.providerRef,
+                space: { deletionClaimId: claimId },
+              },
+              data: { state: "stopped", providerRef: null },
+            });
+          }
+          await assertClaim();
+          claimActive = false;
+          if (claimRenewal) {
+            clearInterval(claimRenewal);
+            claimRenewal = null;
+          }
+          const fallback = await deleteEmptySpaceForMember(deps.prisma, claimedInput);
+          return { ok: true as const, activeSpaceId: fallback.id };
+        } catch (error) {
+          if (context.signal?.aborted) claimReleasable = false;
+          if (claimId && claimReleasable) {
+            await releaseSpaceDeletionClaim(deps.prisma, { ...deleteInput, claimId }).catch(
+              (releaseError) => {
+                getLogger().error("space deletion claim release failed", releaseError);
+              },
+            );
+          }
+          if (error instanceof SpaceNotFoundError) {
+            throw new ORPCError("NOT_FOUND", { message: error.message });
+          }
+          if (error instanceof CannotDeleteSpaceAsNonOwnerError) {
+            throw new ORPCError("FORBIDDEN", { message: error.message });
+          }
+          if (error instanceof SpaceDeletionInProgressError) {
+            throw new ORPCError("CONFLICT", { message: error.message });
+          }
+          if (
+            error instanceof CannotDeleteDefaultSpaceError ||
+            error instanceof CannotDeleteLastSpaceError ||
+            error instanceof SpaceNotEmptyError
+          ) {
+            throw new ORPCError("BAD_REQUEST", { message: error.message });
+          }
+          throw error;
+        } finally {
+          claimActive = false;
+          if (claimRenewal) clearInterval(claimRenewal);
+        }
       }),
     },
     bootstrap: authed.bootstrap.handler(async ({ context, input }) => {
@@ -650,11 +918,10 @@ export function createRouter(deps: RouterDeps) {
           },
           orderBy: newestModelCredentialOrder,
         });
-        const compatibleRows = rows.filter((row) => row.provider === OPENAI_COMPATIBLE_PROVIDER_ID);
-        const secrets = compatibleRows.length
+        const secrets = rows.length
           ? await deps.prisma.secret.findMany({
               where: {
-                id: { in: compatibleRows.map((row) => row.secretId) },
+                id: { in: rows.map((row) => row.secretId) },
                 userId: context.actor.userId,
                 spaceId: null,
               },
@@ -682,22 +949,32 @@ export function createRouter(deps: RouterDeps) {
         let plaintext: string;
         try {
           let previousPlaintext: string | undefined;
-          if (input.provider === OPENAI_COMPATIBLE_PROVIDER_ID && input.apiKey === undefined) {
-            const credential = await findModelCredential(
-              deps.prisma,
-              context.actor,
-              input.provider,
-            );
-            if (credential) {
-              const secret = await deps.prisma.secret.findFirst({
-                where: { id: credential.secretId, userId: context.actor.userId, spaceId: null },
-                select: { ciphertext: true },
-              });
-              if (secret)
+          let omitVisionModelIds = false;
+          const credential = await findModelCredential(deps.prisma, context.actor, input.provider);
+          if (credential) {
+            const secret = await deps.prisma.secret.findFirst({
+              where: { id: credential.secretId, userId: context.actor.userId, spaceId: null },
+              select: { ciphertext: true },
+            });
+            if (secret) {
+              try {
                 previousPlaintext = deps.secrets.load(secret.ciphertext, credential.secretId);
+              } catch (error) {
+                // Explicit key replacement must still succeed when the prior
+                // ciphertext is unreadable. For OpenAI-compatible connections,
+                // omit visionModelIds so a partial one-model list does not wipe
+                // other enabled models; DB supportsImages + defaultModel remain
+                // the legacy fallback.
+                if (input.apiKey === undefined) throw error;
+                if (input.provider === OPENAI_COMPATIBLE_PROVIDER_ID) {
+                  omitVisionModelIds = true;
+                }
+              }
             }
           }
-          plaintext = buildModelConnectPlaintext(input, previousPlaintext);
+          plaintext = buildModelConnectPlaintext(input, previousPlaintext, {
+            omitVisionModelIds,
+          });
         } catch (error) {
           throw new ORPCError("BAD_REQUEST", {
             message: error instanceof Error ? error.message : "Invalid model connection",
@@ -708,13 +985,14 @@ export function createRouter(deps: RouterDeps) {
           plaintext,
           label: input.label,
           modelId: input.modelId,
+          supportsImages: input.supportsImages,
           signal: context.signal,
         });
       }),
       probeOpenAiCompatible: authed.models.probeOpenAiCompatible.handler(
         async ({ context, input }) => {
           try {
-            const models = await probeOpenAiCompatibleModels(input, fetch, context.signal);
+            const models = await probeOpenAiCompatibleModels(input, undefined, context.signal);
             return { models };
           } catch (error) {
             throw new ORPCError("BAD_REQUEST", {
@@ -801,23 +1079,36 @@ export function createRouter(deps: RouterDeps) {
         if (!found) throw new IsolationError();
         return found;
       }),
-      create: authed.bots.create.handler(async ({ context, input }) =>
-        repos.createBot(context.actor, input),
-      ),
+      create: authed.bots.create.handler(async ({ context, input }) => {
+        let bot: Bot;
+        try {
+          bot = await repos.createBot(context.actor, input);
+        } catch (error) {
+          throw mapSpaceLifecycleError(error);
+        }
+        await enqueueBotIntroRun(deps, context.actor, bot).catch((error) => {
+          getLogger().error("bot intro run enqueue", error);
+        });
+        return bot;
+      }),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);
-        const duplicate = await repos.createBot(context.actor, {
-          name: duplicateBotName(source.name),
-          title: source.title,
-          description: source.description,
-          instructions: source.instructions,
-          notifyOnFinish: source.notifyOnFinish,
-          color: source.color,
-          computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
-          modelProvider: source.modelProvider,
-          modelId: source.modelId,
-          thinkingLevel: source.thinkingLevel,
-        });
+        const duplicate = await repos
+          .createBot(context.actor, {
+            name: duplicateBotName(source.name),
+            title: source.title,
+            description: source.description,
+            instructions: source.instructions,
+            notifyOnFinish: source.notifyOnFinish,
+            color: source.color,
+            computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
+            modelProvider: source.modelProvider,
+            modelId: source.modelId,
+            thinkingLevel: source.thinkingLevel,
+          })
+          .catch((error: unknown) => {
+            throw mapSpaceLifecycleError(error);
+          });
         const assignments = await deps.prisma.botMcpServer.findMany({
           where: {
             botId: source.id,
@@ -918,8 +1209,14 @@ export function createRouter(deps: RouterDeps) {
             }
           }
         }
-        await deps.prisma.bot.update({
-          where: { id: input.botId },
+        if (!existing.thread) throw new IsolationError();
+        await commitBotUpdate({
+          prisma: deps.prisma,
+          notify: (threadId, seq) => deps.events.notify(threadId, seq),
+          spaceId: context.actor.spaceId,
+          threadId: existing.thread.id,
+          botId: input.botId,
+          emitBotUpdated: botProfileLabelsChanged(input),
           data: {
             name: input.name,
             title: input.title,
@@ -952,11 +1249,18 @@ export function createRouter(deps: RouterDeps) {
         if (!bot.computer) throw new IsolationError();
         const currentMode = bot.computer.scope === "dedicated" ? "dedicated" : "team";
         if (currentMode === input.mode) {
-          return repos.setBotComputer(context.actor, bot.id, input.mode);
+          try {
+            return await repos.setBotComputer(context.actor, bot.id, input.mode);
+          } catch (error) {
+            throw mapSpaceLifecycleError(error);
+          }
         }
-        const claimed = await deps.prisma.bot.updateMany({
-          where: { id: bot.id, computerSwitching: false },
-          data: { computerSwitching: true },
+        const claimed = await deps.prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT id FROM computers WHERE id = ${bot.computerId} FOR UPDATE`;
+          return tx.bot.updateMany({
+            where: { id: bot.id, computerSwitching: false, computer: { maintenanceId: null } },
+            data: { computerSwitching: true },
+          });
         });
         if (claimed.count !== 1) throw new ORPCError("CONFLICT");
         try {
@@ -996,6 +1300,8 @@ export function createRouter(deps: RouterDeps) {
             });
           }
           return await repos.setBotComputer(context.actor, bot.id, input.mode);
+        } catch (error) {
+          throw mapSpaceLifecycleError(error);
         } finally {
           await deps.prisma.bot.updateMany({
             where: { id: bot.id },
@@ -1022,7 +1328,19 @@ export function createRouter(deps: RouterDeps) {
       restore: authed.bots.restore.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId, { includeArchived: true });
         if (!bot.archivedAt) return { ok: true as const };
-        await deps.prisma.bot.update({ where: { id: bot.id }, data: { archivedAt: null } });
+        try {
+          if (bot.computer) {
+            await restoreBotUnderComputerQuota(deps.prisma, {
+              userId: context.actor.userId,
+              botId: bot.id,
+              computerId: bot.computer.id,
+            });
+          } else {
+            await deps.prisma.bot.update({ where: { id: bot.id }, data: { archivedAt: null } });
+          }
+        } catch (error) {
+          throw mapSpaceLifecycleError(error);
+        }
         return { ok: true as const };
       }),
       remove: authed.bots.remove.handler(async ({ context, input }) => {
@@ -1092,9 +1410,13 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     groups: {
-      create: authed.groups.create.handler(async ({ context, input }) =>
-        groupRepos.createGroup(context.actor, input),
-      ),
+      create: authed.groups.create.handler(async ({ context, input }) => {
+        try {
+          return await groupRepos.createGroup(context.actor, input);
+        } catch (error) {
+          throw mapSpaceLifecycleError(error);
+        }
+      }),
       list: authed.groups.list.handler(async ({ context }) => groupRepos.listGroups(context.actor)),
       listArchived: authed.groups.listArchived.handler(async ({ context }) =>
         groupRepos.listGroups(context.actor, { archived: true }),
@@ -1115,10 +1437,14 @@ export function createRouter(deps: RouterDeps) {
       }),
       duplicate: authed.groups.duplicate.handler(async ({ context, input }) => {
         const source = await groupRepos.getGroup(context.actor, input.groupId);
-        return groupRepos.createGroup(context.actor, {
-          name: duplicateBotName(source.name),
-          botIds: source.members.map((member) => member.bot.id),
-        });
+        try {
+          return await groupRepos.createGroup(context.actor, {
+            name: duplicateBotName(source.name),
+            botIds: source.members.map((member) => member.bot.id),
+          });
+        } catch (error) {
+          throw mapSpaceLifecycleError(error);
+        }
       }),
       update: authed.groups.update.handler(async ({ context, input }) => {
         if (input.sectionId) {
@@ -1207,6 +1533,16 @@ export function createRouter(deps: RouterDeps) {
       create: authed.botSections.create.handler(async ({ context, input }) =>
         repos.createBotSection(context.actor, input),
       ),
+      update: authed.botSections.update.handler(async ({ context, input }) => {
+        try {
+          return await repos.updateBotSection(context.actor, input);
+        } catch (error) {
+          if (error instanceof BotSectionNameConflictError) {
+            throw new ORPCError("CONFLICT", { message: error.message });
+          }
+          throw error;
+        }
+      }),
     },
     threads: {
       head: authed.threads.head.handler(async ({ context, input }) => {
@@ -1255,21 +1591,10 @@ export function createRouter(deps: RouterDeps) {
       }),
       react: authed.threads.react.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        const result = await reactToThreadMessage(
-          deps,
-          context.actor,
-          target,
-          input.messageId,
-          input.thumbsUp,
-        );
+        const result = await reactToThreadMessage(deps, context.actor, target, input);
         if (result.eventSeq != null) {
           await deps.events.notify(target.threadId, result.eventSeq).catch((error) => {
             getLogger().error("thread reaction realtime notification", error);
-          });
-        }
-        if (result.runId) {
-          await deps.jobs.enqueue(runContinueJob(result.runId)).catch((error) => {
-            getLogger().error("thread reaction enqueue", error);
           });
         }
         return { ok: true as const };
@@ -1441,6 +1766,7 @@ export function createRouter(deps: RouterDeps) {
           messageId: input.messageId,
           answeredByUserId: context.actor.userId,
           answer: input.answer,
+          username: input.username,
         });
         if (!answered) {
           throw new ORPCError("CONFLICT", {
@@ -1515,6 +1841,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: bot.computer.id,
             state: { not: "suspending" },
+            maintenanceId: null,
             executionLeases: {
               none: { botId: { not: bot.id }, expiresAt: { gt: now } },
             },
@@ -1578,15 +1905,101 @@ export function createRouter(deps: RouterDeps) {
         );
         return computerStatus(deps, context.actor, input.botId);
       }),
-      recover: authed.computer.recover.handler(async ({ context, input }) =>
-        runComputerReplace(deps, context, input.botId, "recover", "recover"),
-      ),
+      recover: authed.computer.recover.handler(async ({ context, input }) => {
+        const bot = await repos.getBot(context.actor, input.botId);
+        if (!bot.computer) throw new IsolationError();
+        try {
+          return await queueComputerUpdate(deps, bot.computer.id, bot.id, "recover");
+        } catch (error) {
+          if (error instanceof ComputerBusyError)
+            throw new ORPCError("CONFLICT", { message: "Computer is busy" });
+          throw error;
+        }
+      }),
       reset: authed.computer.reset.handler(async ({ context, input }) =>
         runComputerReplace(deps, context, input.botId, "reset", "reset"),
       ),
-      update: authed.computer.update.handler(async ({ context, input }) =>
-        runComputerReplace(deps, context, input.botId, "update", "update"),
-      ),
+      update: authed.computer.update.handler(async ({ context, input }) => {
+        const bot = await repos.getBot(context.actor, input.botId);
+        if (!bot.computer) throw new IsolationError();
+        if (!computerSupportsUpdate(bot.computer.kind))
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Computer update is not available on this device",
+          });
+        try {
+          return await queueComputerUpdate(deps, bot.computer.id, bot.id);
+        } catch (error) {
+          if (error instanceof ComputerBusyError)
+            throw new ORPCError("CONFLICT", { message: "Computer is busy" });
+          throw error;
+        }
+      }),
+      updates: authed.computer.updates.handler(async ({ context }) => {
+        const rows = await deps.prisma.computerUpdate.findMany({
+          where: {
+            status: { in: ["queued", "running", "interrupted", "failed"] },
+            computer: {
+              spaceId: context.actor.spaceId,
+              bots: { some: { userId: context.actor.userId, archivedAt: null } },
+            },
+          },
+          include: {
+            computer: {
+              include: {
+                bots: {
+                  where: { userId: context.actor.userId, archivedAt: null },
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        return rows.map((row) => computerUpdateView(row, context.actor.isDeploymentOwner));
+      }),
+      releaseInterrupted: authed.computer.releaseInterrupted.handler(async ({ context, input }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        // This is an attended lock release, never a heartbeat-based takeover.
+        // The contract requires the operator's explicit workersStopped assertion.
+        await deps.prisma.$transaction(async (tx) => {
+          const update = await tx.computerUpdate.findFirst({
+            where: {
+              id: input.id,
+              status: "interrupted",
+              computer: {
+                spaceId: context.actor.spaceId,
+                bots: { some: { userId: context.actor.userId, archivedAt: null } },
+              },
+            },
+          });
+          if (!update) throw new ORPCError("CONFLICT");
+          const failed = await tx.computerUpdate.updateMany({
+            where: { id: update.id, status: "interrupted" },
+            data: { status: "failed" },
+          });
+          if (failed.count !== 1) throw new ORPCError("CONFLICT");
+          const released = await tx.computer.updateMany({
+            where: { id: update.computerId, maintenanceId: update.id },
+            data: { maintenanceId: null, state: "error" },
+          });
+          if (released.count !== 1) throw new ORPCError("CONFLICT");
+        });
+        return { ok: true as const };
+      }),
+      dismissUpdate: authed.computer.dismissUpdate.handler(async ({ context, input }) => {
+        await deps.prisma.computerUpdate.updateMany({
+          where: {
+            id: input.id,
+            status: "failed",
+            computer: {
+              spaceId: context.actor.spaceId,
+              bots: { some: { userId: context.actor.userId, archivedAt: null } },
+            },
+          },
+          data: { status: "dismissed" },
+        });
+        return { ok: true as const };
+      }),
       takeover: authed.computer.takeover.handler(async ({ context, input }) => {
         let bot = await repos.getBot(context.actor, input.botId);
         if (!bot.computer?.providerRef || bot.computer.state !== "running") {
@@ -1649,12 +2062,15 @@ export function createRouter(deps: RouterDeps) {
             })
           : null;
         const waitingForTakeover =
-          executionRun?.botId === bot.id && executionRun.status === "waiting_takeover";
+          executionRun?.botId === bot.id &&
+          (executionRun.status === "waiting_takeover" ||
+            bot.computer.controlRunId === executionLease?.runId);
         if (
           executionBlocksUserTakeover({
             hasLease: Boolean(executionLease),
             leaseExpiresAt: executionLease?.expiresAt,
             runStatus: executionRun?.status,
+            takeoverRequested: waitingForTakeover,
           })
         ) {
           throw new ORPCError("CONFLICT", { message: "Stop the bot first" });
@@ -1668,6 +2084,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: bot.computer.id,
             state: "running",
+            maintenanceId: null,
             controlHolder: { not: "user" },
             controlLeaseId: null,
           },
@@ -1936,13 +2353,13 @@ export function createRouter(deps: RouterDeps) {
           !(hasActiveComputerControl(bot.computer) && bot.computer.controlBotId === bot.id),
         );
         return {
-          url: addScreenProxyCapability(
-            viewUrl,
-            deps.env.screenProxySecret,
-            deps.env.webOrigin,
-            undefined,
-            { proxyExternal: bot.computer.kind === "box" },
-          ),
+          url: addScreenProxyCapability(viewUrl, deps.env.screenProxySecret, deps.env.webOrigin, {
+            botId: bot.id,
+            computerId: computer.id,
+            botGeneration: bot.screenGeneration,
+            computerGeneration: computer.screenGeneration,
+            controlLeaseId: computer.controlLeaseId,
+          }),
         };
       }),
       heartbeat: authed.computer.heartbeat.handler(async ({ context, input }) => {
@@ -2427,7 +2844,9 @@ export function createRouter(deps: RouterDeps) {
         }));
       }),
       catalogSearch: authed.capabilities.catalogSearch.handler(async ({ context, input }) => {
-        const baseUrl = deps.env.integrationsCatalogUrl;
+        const baseUrl =
+          deps.env.integrationsCatalogUrl ??
+          (input.usePublicCatalog ? "https://integrations.sh" : undefined);
         if (!baseUrl) return { enabled: false, results: [] };
         try {
           const results = await searchIntegrationCatalog({
@@ -2621,6 +3040,11 @@ export function createRouter(deps: RouterDeps) {
           );
         }),
         create: authed.mcp.servers.create.handler(async ({ context, input }) => {
+          await assertMcpRemoteEndpoint(
+            "endpoint" in input ? input.endpoint : null,
+            context.actor,
+            deps,
+          );
           const secretPayload = buildMcpCredentialBlob(input);
           const stored = secretPayload
             ? await deps.secrets.put(
@@ -2665,7 +3089,6 @@ export function createRouter(deps: RouterDeps) {
           return mcpServerDto(row, await mcpOAuth.statusFor(row, context.actor));
         }),
         update: authed.mcp.servers.update.handler(async ({ context, input }) => {
-          const config = input.config;
           const row = await deps.prisma.$transaction(async (tx) => {
             // Share the OAuth broker's per-server lock so a stale authorization
             // snapshot cannot overwrite a simultaneous credential edit.
@@ -2699,7 +3122,26 @@ export function createRouter(deps: RouterDeps) {
                 /* Existing malformed secrets are replaced only when new credentials are supplied. */
               }
             }
+            const config =
+              "config" in input
+                ? input.config
+                : {
+                    slug: existing.slug,
+                    name: existing.name,
+                    description: existing.description,
+                    enabled: existing.enabled,
+                    transport: existing.transport as "streamable_http" | "sse",
+                    endpoint: existing.endpoint!,
+                    headers: (existingMaterial.headers ?? {}) as Record<string, string>,
+                    secret: input.secret,
+                  };
+            if (!("config" in input) && existing.transport === "stdio") {
+              throw new ORPCError("BAD_REQUEST", { message: "A remote MCP server is required" });
+            }
             const nextEndpoint = "endpoint" in config ? config.endpoint : null;
+            if (existing.endpoint !== nextEndpoint) {
+              await assertMcpRemoteEndpoint(nextEndpoint, context.actor, deps);
+            }
             const update = buildMcpUpdateMaterial(existingMaterial, config, {
               clearOAuth: existing.endpoint !== nextEndpoint,
             });
@@ -2711,6 +3153,17 @@ export function createRouter(deps: RouterDeps) {
                   )
                 : null;
             const clearing = update.action === "store" && Object.keys(update.material).length === 0;
+            if (stored) {
+              await tx.secret.create({
+                data: {
+                  id: stored.id,
+                  userId: context.actor.userId,
+                  spaceId: context.actor.spaceId,
+                  kind: "mcp",
+                  ciphertext: stored.ciphertext,
+                },
+              });
+            }
             const updated = await tx.mcpServer.update({
               where: { id: existing.id },
               data: {
@@ -2733,15 +3186,6 @@ export function createRouter(deps: RouterDeps) {
               },
             });
             if (stored) {
-              await tx.secret.create({
-                data: {
-                  id: stored.id,
-                  userId: context.actor.userId,
-                  spaceId: context.actor.spaceId,
-                  kind: "mcp",
-                  ciphertext: stored.ciphertext,
-                },
-              });
               if (existing.secretId)
                 await tx.secret.deleteMany({
                   where: {
@@ -2954,45 +3398,65 @@ export function createRouter(deps: RouterDeps) {
     },
     onboarding: {
       start: authed.onboarding.start.handler(async ({ context, input }) => {
-        await startOnboarding(
-          { prisma: deps.prisma, events: deps.events, composio: deps.composio },
-          context.actor,
-          input.botId,
-        );
+        await startOnboarding(onboardingDeps, context.actor, input.botId);
         return { ok: true as const };
       }),
       promptFocus: authed.onboarding.promptFocus.handler(async ({ context, input }) => {
-        await promptFocus(
-          { prisma: deps.prisma, events: deps.events, composio: deps.composio },
-          context.actor,
-          input.botId,
-        );
+        await promptFocus(onboardingDeps, context.actor, input.botId);
         return { ok: true as const };
       }),
       choose: authed.onboarding.choose.handler(async ({ context, input }) => {
-        await chooseFocus(
-          { prisma: deps.prisma, events: deps.events, composio: deps.composio },
-          context.actor,
-          input.botId,
-          input.optionId,
-        );
+        await chooseFocus(onboardingDeps, context.actor, input.botId, input.optionId);
         return { ok: true as const };
       }),
       dismissFocus: authed.onboarding.dismissFocus.handler(async ({ context, input }) => {
-        await dismissFocus(
-          { prisma: deps.prisma, events: deps.events, composio: deps.composio },
-          context.actor,
-          input.botId,
-        );
+        await dismissFocus(onboardingDeps, context.actor, input.botId);
         return { ok: true as const };
       }),
       appConnected: authed.onboarding.appConnected.handler(async ({ context, input }) => {
         await markAppConnected(
-          { prisma: deps.prisma, events: deps.events, composio: deps.composio },
+          onboardingDeps,
           context.actor,
           input.botId,
           input.provider,
+          input.connectorId,
         );
+        return { ok: true as const };
+      }),
+    },
+    integrationSetup: {
+      get: authed.integrationSetup.get.handler(async ({ context }) => {
+        const canConfigure = context.actor.isDeploymentOwner;
+        const providers = canConfigure
+          ? await Promise.all(
+              IntegrationProviderIdSchema.options.map(async (id) => ({
+                id,
+                configured: deps.integrationSettings
+                  ? await deps.integrationSettings.configured(id)
+                  : Boolean(deps.connectors.managed(id)),
+              })),
+            )
+          : [];
+        return {
+          canConfigure,
+          needsSetup: canConfigure && !providers.some((provider) => provider.configured),
+          webUrl: new URL("/integrations/setup", deps.env.webOrigin).toString(),
+          providers,
+        };
+      }),
+      save: authed.integrationSetup.save.handler(async ({ context, input }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        if (!deps.integrationSettings) throw new ORPCError("NOT_IMPLEMENTED");
+        try {
+          await deps.integrationSettings.save(
+            input,
+            connectionContext(context.actor, "integrationSetup.save", context.signal),
+          );
+        } catch {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Could not verify or save these credentials",
+          });
+        }
         return { ok: true as const };
       }),
     },
@@ -3049,7 +3513,11 @@ export function createRouter(deps: RouterDeps) {
         }));
       }),
       begin: authed.connections.begin.handler(async ({ context, input }) => {
-        const connector = deps.connectors.managed(input.connectorId);
+        const connector =
+          deps.integrationSettings &&
+          (input.connectorId === "composio" || input.connectorId === "pipedream")
+            ? await deps.integrationSettings.resolve(input.connectorId)
+            : deps.connectors.managed(input.connectorId);
         if (!connector) {
           throw new ORPCError("BAD_REQUEST", {
             message: `Connector ${input.connectorId} is not configured`,
@@ -3059,6 +3527,28 @@ export function createRouter(deps: RouterDeps) {
         // row that is inserted after SELECT FOR UPDATE and before remote revoke.
         const row = await deps.prisma.$transaction(async (tx) => {
           await lockProviderConnectionScope(tx, context.actor, input.connectorId, input.provider);
+          const existing = await tx.connection.findMany({
+            where: {
+              spaceId: context.actor.spaceId,
+              userId: context.actor.userId,
+              connectorId: input.connectorId,
+              provider: input.provider,
+            },
+            select: { id: true, status: true },
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          });
+          const reusable = pickReusableConnection(existing);
+          if (reusable) {
+            return tx.connection.update({
+              where: { id: reusable.id },
+              data: {
+                displayName: input.displayName,
+                status: "pending",
+                providerRef: null,
+                metadata: {},
+              },
+            });
+          }
           return tx.connection.create({
             data: {
               spaceId: context.actor.spaceId,
@@ -4131,10 +4621,26 @@ export function createRouter(deps: RouterDeps) {
           groupId: row.groupId,
           runId: row.runId,
           name: row.name,
+          description: row.description,
           mimeType: row.mimeType,
           size: row.size,
+          version: row.version,
           createdAt: row.createdAt.toISOString(),
         }));
+      }),
+      listSpace: authed.artifacts.listSpace.handler(async ({ context, input }) => {
+        if (input.botId) await repos.getBot(context.actor, input.botId);
+        try {
+          return await listSpaceArtifacts(deps, context.actor, input);
+        } catch (error) {
+          if (error instanceof ArtifactListCursorError) {
+            throw new ORPCError("BAD_REQUEST", { message: error.message });
+          }
+          throw error;
+        }
+      }),
+      listVersions: authed.artifacts.listVersions.handler(async ({ context, input }) => {
+        return listArtifactVersions(deps, context.actor, input);
       }),
       create: authed.artifacts.create.handler(async ({ context, input }) => {
         const botId = input.botId
@@ -4171,6 +4677,12 @@ export function createRouter(deps: RouterDeps) {
           if (error instanceof IsolationError) throw error;
           throw error;
         }
+      }),
+      getById: authed.artifacts.getById.handler(async ({ context, input }) => {
+        return getSpaceArtifactById(deps, context.actor, input);
+      }),
+      remove: authed.artifacts.remove.handler(async ({ context, input }) => {
+        return deleteArtifactFamily(deps, context.actor, { familyId: input.artifactId });
       }),
     },
     usage: {
@@ -4314,6 +4826,9 @@ export function createRouter(deps: RouterDeps) {
           signal: context.signal,
         });
       }),
+      disconnect: authed.voice.disconnect.handler(async ({ context, input }) =>
+        disconnectVoiceCredential(deps, context.actor, { provider: input.provider }),
+      ),
       setVoice: authed.voice.setVoice.handler(async ({ context, input }) => {
         const cred = await withSerializableRetry(() =>
           deps.prisma.$transaction(
@@ -4422,7 +4937,8 @@ async function spaceNavigationDto(
     where: { userId: actor.userId, organizationId: currentSpace.organizationId },
     select: {
       spaceId: true,
-      space: { select: { name: true, isDefault: true } },
+      role: true,
+      space: { select: { name: true, isDefault: true, deletingAt: true } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -4435,6 +4951,8 @@ async function spaceNavigationDto(
     inactiveGroups,
     botSections,
     externalConversations,
+    contentBots,
+    contentGroups,
   ] = await Promise.all([
     repos.listBots(actor),
     groupRepos.listGroups(actor),
@@ -4442,6 +4960,23 @@ async function spaceNavigationDto(
     groupRepos.listSpaceGroupsForSpaces(actor, inactiveSpaceIds),
     repos.listBotSectionsForSpaces(actor, spaceIds),
     createExternalConversationRepos(deps.prisma).listForSpaces(actor, spaceIds),
+    // Active-only navigation lists miss archived content in other spaces; count any
+    // bot/group in the actor's spaces (including another member's) so a shared
+    // non-empty space cannot look empty for onboarding redirects.
+    deps.prisma.bot.findMany({
+      where: { spaceId: { in: spaceIds } },
+      select: { spaceId: true },
+      distinct: ["spaceId"],
+    }),
+    deps.prisma.chatGroup.findMany({
+      where: { spaceId: { in: spaceIds } },
+      select: { spaceId: true },
+      distinct: ["spaceId"],
+    }),
+  ]);
+  const spacesWithContent = new Set([
+    ...contentBots.map((row) => row.spaceId),
+    ...contentGroups.map((row) => row.spaceId),
   ]);
   const currentMembership = memberships.find((membership) => membership.spaceId === actor.spaceId);
   if (!currentMembership) throw new IsolationError();
@@ -4451,6 +4986,7 @@ async function spaceNavigationDto(
   const botsFor = (spaceId: string) => botsBySpace.get(spaceId) ?? [];
   const groupsFor = (spaceId: string) => groupsBySpace.get(spaceId) ?? [];
   const sectionsFor = (spaceId: string) => sectionsBySpace.get(spaceId) ?? [];
+  const staleClaimBefore = new Date(Date.now() - SPACE_DELETION_CLAIM_TIMEOUT_MS);
 
   return {
     current: {
@@ -4470,8 +5006,16 @@ async function spaceNavigationDto(
         id: membership.spaceId,
         name: membership.space.name,
         isDefault: membership.space.isDefault,
+        hasContent: spacesWithContent.has(membership.spaceId),
+        canDelete:
+          membership.role === "owner" &&
+          !membership.space.isDefault &&
+          memberships.length > 1 &&
+          !spacesWithContent.has(membership.spaceId) &&
+          (membership.space.deletingAt === null || membership.space.deletingAt < staleClaimBefore),
         bots: spaceBots.map((bot) => ({
           id: bot.id,
+          parentBotId: bot.parentBotId,
           spaceId: bot.spaceId,
           name: bot.name,
           title: bot.title,
@@ -4776,6 +5320,7 @@ async function persistModelCredential(
     plaintext: string;
     label?: string;
     modelId?: string;
+    supportsImages?: boolean;
     signal?: AbortSignal;
   },
 ) {
@@ -4814,6 +5359,7 @@ async function persistModelCredential(
                 provider: input.provider,
                 label: input.label ?? input.provider,
                 secretId: secret.id,
+                supportsImages: input.supportsImages ?? false,
               },
             })
           : await tx.userModelCredential.update({
@@ -4821,10 +5367,16 @@ async function persistModelCredential(
               data: {
                 label: input.label ?? input.provider,
                 secretId: secret.id,
+                ...(input.supportsImages !== undefined
+                  ? { supportsImages: input.supportsImages }
+                  : {}),
               },
             });
         throwIfAborted(input.signal);
-        const defaultModel = input.modelId ?? deps.env.defaultModel;
+        const defaultModel =
+          usableModelId(input.modelId) ??
+          defaultCatalogModelId(input.provider) ??
+          usableModelId(deps.env.defaultModel);
         await selectSpaceModelPreference(tx, actor, credential.id, defaultModel);
         throwIfAborted(input.signal);
         if (existing) {

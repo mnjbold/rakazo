@@ -4,6 +4,7 @@ import type {
   ThreadMessage,
   ThreadSnapshot,
 } from "@rakazo/contracts";
+import { withLiveStreamingProgress } from "@rakazo/core";
 import { describe, expect, it } from "vitest";
 import {
   activeThreadRuns,
@@ -60,20 +61,54 @@ describe("thread event reduction", () => {
     );
   });
 
-  it("applies a persisted thumbs-up event to its message", () => {
+  it("appends an emoji reply with its exact target", () => {
     const initial = snapshot([message("message-1", [{ kind: "text", text: "Done" }], 1)]);
 
     const next = reduceThreadSnapshot(
       initial,
       event({
-        type: "thread.message.reaction",
+        type: "thread.message.created",
         seq: 4,
-        payload: { messageId: "message-1", thumbsUp: true },
+        payload: {
+          messageId: "reaction-1",
+          role: "user",
+          blocks: [{ kind: "text", text: "❤️" }],
+          replyToMessageId: "message-1",
+        },
       }),
     );
 
-    expect(next?.messages[0]?.thumbsUp).toBe(true);
+    expect(next?.messages.find((message) => message.id === "reaction-1")).toMatchObject({
+      role: "user",
+      blocks: [{ kind: "text", text: "❤️" }],
+      replyToMessageId: "message-1",
+    });
     expect(next?.cursor).toBe(4);
+  });
+
+  it("appends a quoted reply carrying its excerpt", () => {
+    const initial = snapshot([message("message-1", [{ kind: "text", text: "Done" }], 1)]);
+
+    const next = reduceThreadSnapshot(
+      initial,
+      event({
+        type: "thread.message.created",
+        seq: 4,
+        payload: {
+          messageId: "reply-1",
+          role: "user",
+          blocks: [{ kind: "text", text: "why this?" }],
+          replyToMessageId: "message-1",
+          replyQuote: "Done",
+        },
+      }),
+    );
+
+    expect(next?.messages.find((message) => message.id === "reply-1")).toMatchObject({
+      role: "user",
+      replyToMessageId: "message-1",
+      replyQuote: "Done",
+    });
   });
 
   it("prepends older pages in order, removes overlaps, and advances the history cursor", () => {
@@ -150,6 +185,103 @@ describe("thread event reduction", () => {
       expect.objectContaining({
         id: "progress:run-1",
         blocks: [{ kind: "progress", text: "Hello" }],
+      }),
+    ]);
+  });
+
+  it("keeps hidden token progress so re-enabling streaming stays continuous", () => {
+    const initial = snapshot([]);
+    const afterTokens = reduceThreadSnapshot(
+      initial,
+      event({
+        type: "thread.progress",
+        seq: 4,
+        runId: "run-1",
+        payload: { text: "Lis", streaming: true },
+      }),
+    );
+    const afterDelta = reduceThreadSnapshot(
+      afterTokens,
+      event({
+        type: "thread.progress",
+        seq: 5,
+        runId: "run-1",
+        payload: { delta: "bon", streaming: true },
+      }),
+    );
+
+    expect(afterDelta?.cursor).toBe(5);
+    expect(afterDelta?.messages).toEqual([
+      expect.objectContaining({
+        id: "progress:run-1",
+        blocks: [{ kind: "progress", text: "Lisbon" }],
+      }),
+    ]);
+    expect(withLiveStreamingProgress(afterDelta, false)?.messages).toEqual([]);
+
+    const afterActivity = reduceThreadSnapshot(
+      afterDelta,
+      event({
+        type: "thread.progress",
+        seq: 6,
+        runId: "run-1",
+        payload: { text: "Using browser", activity: true },
+      }),
+    );
+    expect(withLiveStreamingProgress(afterActivity, false)?.messages).toEqual([
+      expect.objectContaining({
+        id: "progress:run-1",
+        blocks: [{ kind: "progress", text: "Using browser", activity: true }],
+      }),
+    ]);
+
+    const afterComplete = reduceThreadSnapshot(
+      afterActivity,
+      event({
+        type: "thread.message.created",
+        seq: 7,
+        runId: "run-1",
+        payload: {
+          messageId: "m-final",
+          role: "bot",
+          blocks: [{ kind: "text", text: "Lisbon" }],
+        },
+      }),
+    );
+    expect(afterComplete?.messages).toEqual([
+      expect.objectContaining({
+        id: "m-final",
+        blocks: [{ kind: "text", text: "Lisbon" }],
+      }),
+    ]);
+  });
+
+  it("resumes from retained tokens after streaming is turned back on mid-reply", () => {
+    const afterPrefix = reduceThreadSnapshot(
+      snapshot([]),
+      event({
+        type: "thread.progress",
+        seq: 4,
+        runId: "run-1",
+        payload: { text: "Lis", streaming: true },
+      }),
+    );
+    const hidden = withLiveStreamingProgress(afterPrefix, false);
+    expect(hidden?.messages).toEqual([]);
+
+    const afterResume = reduceThreadSnapshot(
+      afterPrefix,
+      event({
+        type: "thread.progress",
+        seq: 5,
+        runId: "run-1",
+        payload: { delta: "bon", streaming: true },
+      }),
+    );
+    expect(withLiveStreamingProgress(afterResume, true)?.messages).toEqual([
+      expect.objectContaining({
+        id: "progress:run-1",
+        blocks: [{ kind: "progress", text: "Lisbon" }],
       }),
     ]);
   });
@@ -309,6 +441,7 @@ describe("thread event reduction", () => {
     expect(isThreadSnapshotEvent(event({ type: "run.started" }))).toBe(true);
     expect(isThreadSnapshotEvent(event({ type: "run.completed" }))).toBe(true);
     expect(isThreadSnapshotEvent(event({ type: "computer.takeover.requested" }))).toBe(true);
+    expect(isThreadSnapshotEvent(event({ type: "agent.tool.completed" }))).toBe(true);
   });
 
   it("event-sources the active run on run.started so Stop does not wait on threads.get", () => {
@@ -852,6 +985,31 @@ describe("thread event reduction", () => {
     ]);
   });
 
+  it("advances past tool completion audit events without adding a visible message", () => {
+    const initial = snapshot(
+      [
+        message(
+          "progress:run-1",
+          [{ kind: "steps", steps: [{ label: "Slack find channels", count: 1 }] }],
+          4,
+        ),
+      ],
+      4,
+    );
+    const next = reduceThreadSnapshot(
+      initial,
+      event({
+        type: "agent.tool.completed",
+        seq: 5,
+        runId: "run-1",
+        payload: { name: "SLACK_FIND_CHANNELS", outcome: "succeeded" },
+      }),
+    );
+
+    expect(next?.cursor).toBe(5);
+    expect(next?.messages).toEqual(initial.messages);
+  });
+
   it("holds a tool call that lands mid-sentence until the sentence completes", () => {
     const initial = snapshot([]);
 
@@ -1354,6 +1512,30 @@ describe("computer event reduction", () => {
     expect(computerTakeoverBlocked(computer({ busyBotName: "Writer" }), "completed")).toBe(false);
   });
 
+  it("ignores computer events that belong to a different bot", () => {
+    const prev = computer({ takeoverRequested: false, controlHolder: "bot" });
+    expect(
+      reduceComputerStatus(
+        prev,
+        event({
+          type: "computer.takeover.requested",
+          botId: "bot-peer",
+          payload: {},
+        }),
+      ),
+    ).toBe(prev);
+    expect(
+      reduceComputerStatus(
+        prev,
+        event({
+          type: "computer.status",
+          botId: "bot-peer",
+          payload: { status: "suspended" },
+        }),
+      ),
+    ).toBe(prev);
+  });
+
   it("marks takeover requested and clears control unless the lease was retained", () => {
     const busy = computer({ state: "running", busyBotName: "Writer", controlHolder: "bot" });
     expect(
@@ -1474,7 +1656,7 @@ function computer(overrides: Partial<ComputerStatus> = {}): ComputerStatus {
     screenHeight: 800,
     homeRevision: null,
     busyBotName: null,
-    updateAvailable: true,
+    canUpdate: true,
     ...overrides,
   };
 }

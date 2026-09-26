@@ -1,6 +1,12 @@
 import { eventIterator, oc } from "@orpc/contract";
 import * as z from "zod";
-import { ATTACHMENT_MAX_BASE64_LENGTH, ATTACHMENT_MAX_COUNT } from "./attachments.js";
+import { AiConsentQuerySchema, AiConsentStatusSchema } from "./ai-consent.js";
+import {
+  ARTIFACT_DESCRIPTION_MAX_LENGTH,
+  ARTIFACT_NAME_MAX_LENGTH,
+  ATTACHMENT_MAX_BASE64_LENGTH,
+  ATTACHMENT_MAX_COUNT,
+} from "./attachments.js";
 import {
   ActionApprovalRuleSchema,
   ActionAutoReviewSettingsSchema,
@@ -10,6 +16,7 @@ import {
   AgentSkillSchema,
   AppBootstrapSchema,
   ArtifactSchema,
+  ArtifactVersionSchema,
   ArtifactWithContentSchema,
   AvatarStyleSchema,
   BotMcpServerSchema,
@@ -19,6 +26,7 @@ import {
   ComputerModeSchema,
   ComputerReleaseReasonSchema,
   ComputerStatusSchema,
+  ComputerUpdateSchema,
   ConnectionCatalogItemSchema,
   ConnectionSchema,
   CreateAgentSkillInput,
@@ -51,6 +59,7 @@ import {
   ModelConnectInputSchema,
   ModelCredentialSchema,
   ModelOAuthBeginSchema,
+  REPLY_QUOTE_MAX_LENGTH,
   ReorderBotsInput,
   RoutineSchema,
   ScratchpadItemSchema,
@@ -79,6 +88,11 @@ import {
 } from "./domain.js";
 import { ProductEventSchema } from "./events.js";
 import { Id, IsoDate } from "./ids.js";
+import {
+  IntegrationProviderConfigSchema,
+  IntegrationSetupStateSchema,
+} from "./integration-settings.js";
+import { MessageReactionSchema } from "./reactions.js";
 import { RunsListOutputSchema } from "./runs.js";
 import { SearchQueryOutputSchema } from "./search.js";
 
@@ -119,6 +133,7 @@ const threadSendInput = threadTarget
       .max(64)
       .optional(),
     replyToMessageId: Id.optional(),
+    replyQuote: z.string().trim().min(1).max(REPLY_QUOTE_MAX_LENGTH).optional(),
     clientNonce: z.string().min(1).max(200).optional(),
   })
   .superRefine((input, ctx) => {
@@ -131,9 +146,29 @@ const threadSendInput = threadTarget
         path: ["text"],
       });
     }
+    if (input.replyQuote && !input.replyToMessageId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "replyQuote requires replyToMessageId",
+        path: ["replyQuote"],
+      });
+    }
   });
 
 export const appContract = {
+  aiConsent: {
+    status: oc.input(AiConsentQuerySchema).output(AiConsentStatusSchema),
+    allow: oc
+      .input(
+        z.object({
+          scope: z.string(),
+          version: z.string(),
+          keys: z.array(z.string()).min(1).max(200),
+        }),
+      )
+      .output(AiConsentStatusSchema),
+    revoke: oc.input(z.object({ key: z.string().nullable() })).output(AiConsentStatusSchema),
+  },
   health: oc.output(z.object({ ok: z.literal(true), version: z.string() })),
   me: oc.output(MeSchema),
   preferences: {
@@ -142,6 +177,9 @@ export const appContract = {
   spaces: {
     list: oc.output(SpaceNavigationSchema),
     create: oc.input(z.object({ name: z.string().trim().min(1).max(60) })).output(SpaceSchema),
+    remove: oc
+      .input(z.object({ spaceId: Id }))
+      .output(z.object({ ok: z.literal(true), activeSpaceId: Id })),
   },
   bootstrap: oc.input(z.object({ botId: Id.optional() })).output(AppBootstrapSchema),
   deployment: {
@@ -306,6 +344,9 @@ export const appContract = {
     create: oc
       .input(threadTarget.safeExtend({ name: z.string().trim().min(1).max(60) }))
       .output(BotSectionSchema),
+    update: oc
+      .input(z.object({ sectionId: Id, name: z.string().trim().min(1).max(60) }))
+      .output(BotSectionSchema),
   },
   threads: {
     head: oc.input(threadTarget).output(
@@ -345,7 +386,8 @@ export const appContract = {
       .input(
         threadTarget.safeExtend({
           messageId: Id,
-          thumbsUp: z.boolean(),
+          reaction: MessageReactionSchema,
+          clientNonce: z.string().min(1).max(200),
         }),
       )
       .output(z.object({ ok: z.literal(true) })),
@@ -360,6 +402,8 @@ export const appContract = {
           runId: Id,
           messageId: Id,
           answer: z.string().min(1),
+          /** Only for a login card; `answer` carries its password. */
+          username: z.string().min(1).max(512).optional(),
         }),
       )
       .output(z.object({ ok: z.literal(true) })),
@@ -370,9 +414,14 @@ export const appContract = {
     status: oc.input(botId).output(ComputerStatusSchema),
     boot: oc.input(botId).output(ComputerStatusSchema),
     stop: oc.input(botId).output(ComputerStatusSchema),
-    recover: oc.input(botId).output(ComputerStatusSchema),
+    recover: oc.input(botId).output(ComputerUpdateSchema),
     reset: oc.input(botId).output(ComputerStatusSchema),
-    update: oc.input(botId).output(ComputerStatusSchema),
+    update: oc.input(botId).output(ComputerUpdateSchema),
+    updates: oc.output(z.array(ComputerUpdateSchema)),
+    releaseInterrupted: oc
+      .input(z.object({ id: Id, workersStopped: z.literal(true) }))
+      .output(z.object({ ok: z.literal(true) })),
+    dismissUpdate: oc.input(z.object({ id: Id })).output(z.object({ ok: z.literal(true) })),
     takeover: oc.input(botId).output(z.object({ leaseId: Id, expiresAt: z.string() })),
     release: oc
       .input(
@@ -554,12 +603,19 @@ export const appContract = {
   },
   capabilities: {
     list: oc.output(z.array(CapabilityInstallSchema)),
-    catalogSearch: oc.input(z.object({ query: z.string().trim().max(253).default("") })).output(
-      z.object({
-        enabled: z.boolean(),
-        results: z.array(IntegrationCatalogResultSchema),
-      }),
-    ),
+    catalogSearch: oc
+      .input(
+        z.object({
+          query: z.string().trim().max(253).default(""),
+          usePublicCatalog: z.boolean().default(false),
+        }),
+      )
+      .output(
+        z.object({
+          enabled: z.boolean(),
+          results: z.array(IntegrationCatalogResultSchema),
+        }),
+      ),
     install: oc
       .input(
         z.object({
@@ -577,7 +633,14 @@ export const appContract = {
     servers: {
       list: oc.output(z.array(McpServerSchema)),
       create: oc.input(McpServerConfigInput).output(McpServerSchema),
-      update: oc.input(z.object({ id: Id, config: McpServerConfigInput })).output(McpServerSchema),
+      update: oc
+        .input(
+          z.union([
+            z.object({ id: Id, config: McpServerConfigInput }),
+            z.object({ id: Id, secret: z.string().min(1).max(16384) }),
+          ]),
+        )
+        .output(McpServerSchema),
       remove: oc.input(z.object({ id: Id })).output(z.object({ ok: z.literal(true) })),
     },
     assignments: {
@@ -631,8 +694,14 @@ export const appContract = {
     dismissFocus: oc.input(z.object({ botId: Id })).output(z.object({ ok: z.literal(true) })),
     /** Flip an app_connect card to connected after authorization completes. */
     appConnected: oc
-      .input(z.object({ botId: Id, provider: z.string() }))
+      .input(
+        z.object({ botId: Id, provider: z.string(), connectorId: z.string().default("composio") }),
+      )
       .output(z.object({ ok: z.literal(true) })),
+  },
+  integrationSetup: {
+    get: oc.output(IntegrationSetupStateSchema),
+    save: oc.input(IntegrationProviderConfigSchema).output(z.object({ ok: z.literal(true) })),
   },
   connections: {
     catalog: oc
@@ -716,11 +785,27 @@ export const appContract = {
   },
   artifacts: {
     list: oc.input(botId).output(z.array(ArtifactSchema)),
+    listSpace: oc
+      .input(
+        z.object({
+          botId: Id.optional(),
+          cursor: z.string().optional(),
+          limit: z.number().int().min(1).max(60).optional(),
+        }),
+      )
+      .output(
+        z.object({
+          items: z.array(ArtifactSchema.extend({ versionCount: z.number().int() })),
+          nextCursor: z.string().nullable(),
+        }),
+      ),
+    listVersions: oc.input(z.object({ familyId: Id })).output(z.array(ArtifactVersionSchema)),
     create: oc
       .input(
         threadTarget.and(
           z.object({
-            name: z.string().min(1).max(255),
+            name: z.string().min(1).max(ARTIFACT_NAME_MAX_LENGTH),
+            description: z.string().max(ARTIFACT_DESCRIPTION_MAX_LENGTH).optional(),
             mimeType: z.string().min(1),
             contentBase64: z.string().min(1).max(ATTACHMENT_MAX_BASE64_LENGTH),
           }),
@@ -728,6 +813,8 @@ export const appContract = {
       )
       .output(ArtifactSchema),
     get: oc.input(threadTarget.and(z.object({ artifactId: Id }))).output(ArtifactWithContentSchema),
+    getById: oc.input(z.object({ artifactId: Id })).output(ArtifactWithContentSchema),
+    remove: oc.input(z.object({ artifactId: Id })).output(z.object({ ok: z.literal(true) })),
   },
   usage: {
     list: oc.output(z.array(UsageRecordSchema)),
@@ -767,6 +854,9 @@ export const appContract = {
         }),
       )
       .output(VoiceCredentialSchema),
+    disconnect: oc
+      .input(z.object({ provider: z.string().min(1) }))
+      .output(z.object({ ok: z.literal(true) })),
     setVoice: oc
       .input(z.object({ voiceId: z.string().min(1).max(120), provider: z.string().optional() }))
       .output(VoiceStatusSchema),

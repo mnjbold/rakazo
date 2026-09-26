@@ -1,3 +1,4 @@
+import type { VoiceVerifyResult } from "@rakazo/adapter-kit";
 import { readBodyCapped } from "./web-ssrf.js";
 
 /** A 2,000-character utterance should stay far below this, even at high MP3 bitrates. */
@@ -94,6 +95,10 @@ function detail(body: unknown): string {
   return "";
 }
 
+export function voiceUnreachable(provider: string): string {
+  return `Couldn't reach ${provider} to check that key. Check your connection.`;
+}
+
 export function voiceHttpError(
   status: number,
   provider: string,
@@ -105,7 +110,7 @@ export function voiceHttpError(
     return `${provider} rejected that key. Check the key and that it has speech permissions.`;
   }
   if (status === 429)
-    return theirs || `${provider} is rate-limiting this account — wait a moment and try again.`;
+    return theirs || `${provider} is rate-limiting this account. Wait a moment and try again.`;
   if (status === 402) return theirs || `${provider} says this account is out of credit.`;
   return theirs ? `${what} failed: ${theirs}` : `${what} failed (${status})`;
 }
@@ -113,6 +118,35 @@ export function voiceHttpError(
 export async function requireOk(res: Response, provider: string, what: string): Promise<Response> {
   if (res.ok) return res;
   throw new Error(voiceHttpError(statusFor(res), provider, what, await readVoiceJson(res)));
+}
+
+export async function verifyVoiceHttpGet(options: {
+  url: string;
+  headers: Record<string, string>;
+  signal: AbortSignal;
+  provider: string;
+}): Promise<VoiceVerifyResult> {
+  try {
+    const res = await fetch(options.url, {
+      headers: options.headers,
+      signal: voiceDeadline(options.signal, 20_000),
+    });
+    if (res.ok) return { ok: true };
+    return {
+      ok: false,
+      message: voiceHttpError(
+        res.status,
+        options.provider,
+        "checking that key",
+        await readVoiceJson(res),
+      ),
+    };
+  } catch {
+    return {
+      ok: false,
+      message: voiceUnreachable(options.provider),
+    };
+  }
 }
 
 function statusFor(res: Response) {

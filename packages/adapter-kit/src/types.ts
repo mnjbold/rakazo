@@ -147,6 +147,16 @@ export interface AgentToolExecutionResult {
   details: unknown;
 }
 
+/** Ephemeral completion data for audit hooks; result contents must be redacted before persistence. */
+export interface AgentToolCompletion {
+  name: string;
+  executionId: string;
+  durationMs: number;
+  result?: unknown;
+  error?: unknown;
+  paused?: boolean;
+}
+
 export interface ControlLeaseRef {
   leaseId: string;
   holder: "user" | "bot";
@@ -275,6 +285,19 @@ export interface SemanticMemoryResult {
   memory: string;
   score: number;
   updatedAt?: string;
+  /** Stable provider id when the backend supports citation / forget. */
+  id?: string;
+  /** Attribution string preserved from the memory backend. */
+  provenance?: string;
+  /** Provider entity/namespace the fact was recalled from, when scoped. */
+  entity?: string;
+}
+
+export interface SemanticMemoryForgetRequest {
+  id: string;
+  reason?: string;
+  /** Entity/namespace from a prior recall citation, when the backend scopes deletes. */
+  entity?: string;
 }
 
 export type SemanticMemoryResponse<T = void> =
@@ -302,6 +325,12 @@ export interface SemanticMemoryPurgeHistoryRequest {
   generations: number[];
 }
 
+export type SemanticMemoryForgetResponse = SemanticMemoryResponse<{
+  id: string;
+  expired: boolean;
+  reason: string | null;
+}>;
+
 export interface AgentInputImage {
   name: string;
   mimeType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
@@ -317,6 +346,30 @@ export interface AgentSteeringMessage {
   images?: AgentInputImage[];
 }
 
+export interface AgentRunModel {
+  provider: string;
+  id: string;
+  apiKey?: string;
+  baseUrl?: string;
+  /** Whether this custom connection accepts standard reasoning_effort. */
+  reasoning?: boolean;
+  /** Whether this custom connection accepts image input. */
+  acceptsImages?: boolean;
+  /** Maximum number of image inputs the model connection accepts in one request. */
+  maxImagesPerPrompt?: number;
+  /** Maximum completion tokens sent to the model endpoint. */
+  maxTokens?: number;
+  /** Context-window limit used when sizing prompts and completions. */
+  contextWindow?: number;
+  /** Preferred thinking effort for reasoning models; clamped to the model’s supported set. */
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | null;
+  /** In-process OAuth credential from the encrypted store for this run. */
+  oauth?: {
+    credential: AgentModelOAuthCredential;
+    persist?: (credential: AgentModelOAuthCredential) => Promise<void>;
+  };
+}
+
 export interface AgentRunRequest {
   botId: string;
   threadId: string;
@@ -327,26 +380,14 @@ export interface AgentRunRequest {
   history: Array<{ id?: string; role: "user" | "assistant" | "system"; content: string }>;
   currentTurnImages?: AgentInputImage[];
   tools: ConnectorTool[];
-  model: {
-    provider: string;
-    id: string;
-    apiKey?: string;
-    baseUrl?: string;
-    /** Whether this custom connection accepts standard reasoning_effort. */
-    reasoning?: boolean;
-    /** Preferred thinking effort for reasoning models; clamped to the model’s supported set. */
-    thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | null;
-    /** In-process OAuth credential from the encrypted store for this run. */
-    oauth?: {
-      credential: AgentModelOAuthCredential;
-      persist?: (credential: AgentModelOAuthCredential) => Promise<void>;
-    };
-  };
+  model: AgentRunModel;
+  /** Resolve an explicitly requested helper model within the active user and space scope. */
+  resolveModel?: (provider: string, modelId: string) => Promise<AgentRunModel>;
   resumeFromCheckpoint?: string;
   script?: ScriptedTurn[];
   /**
-   * Bot-message wakes may finish with no text and no tools (FYI silence).
-   * When set, skip synthetic empty-turn fallbacks.
+   * FYI bot-message wakes and scheduled routines may finish with no text.
+   * When set, skip synthetic empty-turn fallbacks (including after tools).
    */
   allowSilentEmpty?: boolean;
   /** Contextual fallback when a non-silent run produces no written response. */
@@ -357,6 +398,8 @@ export interface AgentRunRequest {
     executionId: string,
     route?: ConnectorRoute,
   ) => Promise<unknown>;
+  /** Called after a tool returns; implementations must not persist raw result contents. */
+  onToolCompleted?: (completion: AgentToolCompletion) => Promise<void> | void;
   /** Atomically claim durable user steering at the runtime's next safe turn boundary. */
   claimSteering?: (seenIds: string[]) => Promise<AgentSteeringMessage[]>;
 }
@@ -387,7 +430,16 @@ export type AgentRuntimeEvent =
       actions?: Array<{ id: string; label: string }>;
     }
   | { type: "takeover"; reason: string }
-  | { type: "usage"; inputTokens: number; outputTokens: number; provider: string; model: string }
+  | {
+      type: "usage";
+      inputTokens: number;
+      outputTokens: number;
+      /** Cache hits and writes folded into inputTokens, kept apart so cost views can split them. */
+      cacheReadTokens: number;
+      cacheWriteTokens: number;
+      provider: string;
+      model: string;
+    }
   | { type: "checkpoint"; blob: string }
   | {
       type: "subagent";
@@ -447,6 +499,7 @@ export interface BackgroundJobPayloads {
   "run.continue": { runId: string };
   "routine.wakeup": { routineId: string; scheduledFor: string };
   "computer.sleep": { computerId: string };
+  "computer.update": { updateId: string };
   "computer.control-expire": { computerId: string; leaseId: string };
   "skill.teaching-expire": { skillId: string };
   "history.compact": { threadId: string };
@@ -463,6 +516,8 @@ export type BackgroundJob = {
     payload: BackgroundJobPayloads[Name];
     availableAt?: Date;
     replaceKey?: string;
+    /** Cap retried executions; omit to use the job queue's default. */
+    maxAttempts?: number;
   };
 }[BackgroundJobName];
 
@@ -686,7 +741,13 @@ export type BrowserActKind = "click" | "fill" | "type";
 
 export type BrowserActStep =
   | { kind: "click"; ref: string }
-  | { kind: "fill" | "type"; ref: string; text: string };
+  | {
+      kind: "fill" | "type";
+      ref: string;
+      text: string;
+      /** Refuse the step unless the page is on this origin when it is applied. */
+      origin?: string;
+    };
 
 export interface BrowserActRequest {
   actions: BrowserActStep[];
@@ -761,4 +822,39 @@ export interface CloudAgentReplyRequest {
   prompt: string;
   images?: CloudAgentImage[];
   signal?: AbortSignal;
+}
+
+/**
+ * Optional auto-allow check for a consequential tool call. Core still runs when
+ * no hosted verifier is configured; the LLM judge is the default adapter.
+ */
+export interface AutoReviewCapabilities {
+  /** True when the adapter never leaves the process (tests / Playwright). */
+  offline?: boolean;
+  /** True when a hosted vendor key is not required. */
+  keyless?: boolean;
+}
+
+export type AutoReviewDecision = "pass" | "ask" | "error";
+
+export interface AutoReviewMatchingRule {
+  effect: string;
+  matchKind: string;
+  matchValue: string;
+}
+
+export interface AutoReviewRequest {
+  toolName: string;
+  connectorKind: string;
+  /** Caller must already redact secrets and sensitive keys. */
+  args: Record<string, unknown>;
+  userTask: string;
+  botDescription: string;
+  matchingRules: AutoReviewMatchingRule[];
+}
+
+export interface AutoReviewResult {
+  decision: AutoReviewDecision;
+  reason?: string;
+  model: string;
 }

@@ -2,6 +2,7 @@ import type { VoiceProvider } from "@rakazo/adapter-kit";
 import { CartesiaVoiceProvider } from "./cartesia-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 import { KokoroVoiceProvider } from "./kokoro-voice.js";
+import { FishAudioVoiceProvider } from "./fish-audio-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
 import { SCRIPTED_VOICE_CATALOG_ENTRY, ScriptedVoiceProvider } from "./scripted-voice.js";
 import { VoiceStudioVoiceProvider } from "./voicestudio-voice.js";
@@ -39,6 +40,12 @@ export const VOICE_CATALOG = [
     transcribe: false,
     managed: false,
   },
+  {
+    id: "fish-audio",
+    name: "Fish Audio",
+    description: "Voice models, cloning, and expressive speech with optional transcription.",
+    transcribe: true,
+  },
 ] as const;
 
 export { SCRIPTED_VOICE_CATALOG_ENTRY };
@@ -66,6 +73,7 @@ export function isVoiceProviderId(value: string): value is VoiceProviderId {
   return VOICE_CATALOG.some((entry) => entry.id === value);
 }
 
+/** Construct the provider adapter selected by a persisted voice credential. */
 export function createVoiceProvider(kind: string): VoiceProvider {
   switch (kind) {
     case "elevenlabs":
@@ -78,6 +86,8 @@ export function createVoiceProvider(kind: string): VoiceProvider {
       return new VoiceStudioVoiceProvider();
     case "kokoro":
       return new KokoroVoiceProvider();
+    case "fish-audio":
+      return new FishAudioVoiceProvider();
     case "scripted":
       if (!scriptedVoiceEnabled()) break;
       return new ScriptedVoiceProvider();
@@ -85,7 +95,7 @@ export function createVoiceProvider(kind: string): VoiceProvider {
       break;
   }
   throw new Error(
-    `Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | voicestudio | kokoro.`,
+    `Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | voicestudio | kokoro | fish-audio.`,
   );
 }
 

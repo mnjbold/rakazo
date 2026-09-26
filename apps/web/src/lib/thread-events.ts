@@ -18,7 +18,6 @@ import {
   subagentBlockFromPayload,
   takeLiveMessage,
   updateCloudAgentMessages,
-  updateMessageReaction,
   upsertMessageById,
 } from "@rakazo/core";
 
@@ -33,6 +32,7 @@ const runTriggers = new Set<Run["trigger"]>([
   "webhook",
   "messaging",
   "cloud_agent",
+  "created",
 ]);
 
 function runFromStartedEvent(event: ProductEvent, previous: Run | undefined): Run {
@@ -248,6 +248,7 @@ export function isThreadSnapshotEvent(event: ProductEvent): boolean {
     event.type === "thread.subagent" ||
     event.type === "thread.cloud_agent" ||
     event.type === "agent.tool.called" ||
+    event.type === "agent.tool.completed" ||
     event.type === "thread.message.created" ||
     event.type === "thread.message.updated" ||
     event.type === "thread.message.reaction" ||
@@ -438,6 +439,9 @@ export function reduceThreadSnapshot(
     };
     return { ...prev, cursor: event.seq, messages: [...remaining, next] };
   }
+  if (event.type === "agent.tool.completed") {
+    return { ...prev, cursor: event.seq };
+  }
   if (event.type === "thread.subagent") {
     const block = subagentBlockFromPayload(event.payload);
     const next: ThreadMessage = {
@@ -470,13 +474,6 @@ export function reduceThreadSnapshot(
       messages: updateCloudAgentMessages(prev.messages, event.payload ?? {}),
     };
   }
-  if (event.type === "thread.message.reaction") {
-    return {
-      ...prev,
-      cursor: event.seq,
-      messages: updateMessageReaction(prev.messages, event.payload ?? {}),
-    };
-  }
   if (event.type === "thread.message.created" || event.type === "thread.message.updated") {
     const role = (event.payload.role as ThreadMessage["role"]) ?? "bot";
     const blocks = (event.payload.blocks as ThreadMessage["blocks"]) ?? [];
@@ -488,7 +485,12 @@ export function reduceThreadSnapshot(
       blocks,
       botId: event.botId,
       runId: event.runId,
-      thumbsUp: event.payload.thumbsUp === true,
+      replyToMessageId:
+        typeof event.payload.replyToMessageId === "string"
+          ? event.payload.replyToMessageId
+          : undefined,
+      replyQuote:
+        typeof event.payload.replyQuote === "string" ? event.payload.replyQuote : undefined,
       createdAt: event.createdAt,
     };
     const replacedSubagentIds = new Set(
@@ -562,6 +564,7 @@ export function reduceComputerStatus(
 ): ComputerStatus | null {
   if (!prev) return prev;
   if (!isComputerStatusEvent(event)) return prev;
+  if (event.botId !== prev.botId) return prev;
   if (event.type === "computer.takeover.requested") {
     const retainedControl = event.payload.retainedControl === true;
     const next = {

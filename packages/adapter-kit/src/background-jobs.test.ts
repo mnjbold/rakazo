@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   dispatchBackgroundJob,
+  HISTORY_COMPACT_MAX_ATTEMPTS,
   historyCompactJob,
   historyCompactJobKey,
   messagingDeliverJob,
@@ -12,6 +13,7 @@ function handlers(): BackgroundJobHandlers {
   return {
     "run.continue": vi.fn(async () => undefined),
     "routine.wakeup": vi.fn(async () => undefined),
+    "computer.update": vi.fn(async () => undefined),
     "computer.sleep": vi.fn(async () => undefined),
     "computer.control-expire": vi.fn(async () => undefined),
     "skill.teaching-expire": vi.fn(async () => undefined),
@@ -86,7 +88,12 @@ describe("historyCompactJob", () => {
       name: "history.compact",
       payload: { threadId: "thread-1" },
       replaceKey: historyCompactJobKey("thread-1"),
+      maxAttempts: HISTORY_COMPACT_MAX_ATTEMPTS,
     });
+  });
+
+  it("caps attempts below the queue default so a stuck thread cannot storm", () => {
+    expect(HISTORY_COMPACT_MAX_ATTEMPTS).toBeLessThan(25);
   });
 
   it("keys different threads differently", () => {

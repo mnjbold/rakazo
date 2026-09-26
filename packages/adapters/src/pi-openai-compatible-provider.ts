@@ -8,6 +8,7 @@ import {
   type ProviderStreams,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
+import { DEFAULT_MODEL_CONTEXT_WINDOW, DEFAULT_MODEL_MAX_TOKENS } from "@rakazo/contracts";
 import { Agent } from "undici";
 import { declaredVisionModelIds, inputModalities } from "./model-modalities.js";
 import {
@@ -25,6 +26,7 @@ import {
   normalizeOpenAiCompatibleBaseUrl,
   OPENAI_COMPATIBLE_PROVIDER_ID,
 } from "./openai-compatible-url.js";
+import { dispatcherFetch } from "./undici-fetch.js";
 
 export { OPENAI_COMPATIBLE_PROVIDER_ID };
 
@@ -38,8 +40,6 @@ export function openAiCompatibleVisionModelIds(): ReadonlySet<string> {
   return declaredVisionModelIds(OPENAI_COMPATIBLE_VISION_MODELS_ENV);
 }
 
-const DEFAULT_CONTEXT_WINDOW = 32_768;
-const DEFAULT_MAX_TOKENS = 4_096;
 const MAX_MODELS_RESPONSE_BYTES = 64 * 1024;
 const MAX_MODEL_IDS = 500;
 const MAX_MODEL_ID_LENGTH = 256;
@@ -53,6 +53,8 @@ export function openAiCompatibleModel(
   baseUrl: string,
   reasoning = false,
   acceptsImages = false,
+  maxTokens = DEFAULT_MODEL_MAX_TOKENS,
+  contextWindow = DEFAULT_MODEL_CONTEXT_WINDOW,
 ): Model<"openai-completions"> {
   return {
     id,
@@ -69,19 +71,26 @@ export function openAiCompatibleModel(
     thinkingLevelMap: { off: "none" },
     input: inputModalities(acceptsImages),
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: DEFAULT_CONTEXT_WINDOW,
-    maxTokens: DEFAULT_MAX_TOKENS,
+    contextWindow,
+    maxTokens,
   };
 }
 
 function openAiCompatibleProvider(models: Model<"openai-completions">[]): Provider {
   const api = openAICompletionsApi();
-  const safeFetch = createOpenAiCompatibleFetch();
+  // Guard the fetch the caller supplied (the runtime's seam for tests) or the
+  // dispatcher-matched default; never the bare global.
   const safeApi: ProviderStreams = {
     stream: (model, context, options) =>
-      api.stream(model, context, { ...options, fetch: safeFetch }),
+      api.stream(model, context, {
+        ...options,
+        fetch: createOpenAiCompatibleFetch(options?.fetch),
+      }),
     streamSimple: (model, context, options) =>
-      api.streamSimple(model, context, { ...options, fetch: safeFetch }),
+      api.streamSimple(model, context, {
+        ...options,
+        fetch: createOpenAiCompatibleFetch(options?.fetch),
+      }),
   };
   return createProvider({
     id: OPENAI_COMPATIBLE_PROVIDER_ID,
@@ -150,7 +159,7 @@ function requestCarriesAuthorization(input: RequestInfo | URL, init?: RequestIni
 }
 
 export function createOpenAiCompatibleFetch(
-  baseFetch: typeof globalThis.fetch = globalThis.fetch,
+  baseFetch: typeof globalThis.fetch = dispatcherFetch,
   resolve: ResolveHostname = resolveHostname,
 ): typeof globalThis.fetch {
   return async (input, init) => {
@@ -165,8 +174,8 @@ export function createOpenAiCompatibleFetch(
         ? new Agent({ connect: { lookup: createOpenAiCompatibleLookup(url, resolve) } })
         : undefined;
     try {
-      const response = await baseFetch(input instanceof Request ? input : url, {
-        ...init,
+      const response = await baseFetch(url, {
+        ...(await requestInitFor(input, init)),
         redirect: "error",
         ...(dispatcher ? { dispatcher } : {}),
       } as RequestInit & { dispatcher?: Agent });
@@ -176,6 +185,18 @@ export function createOpenAiCompatibleFetch(
       throw error;
     }
   };
+}
+
+/** The base fetch comes from the undici package, which recognizes only its own
+ * Request class and reads a global Request as the string "[object Request]".
+ * Flatten Request inputs to a URL plus init, with init overriding the
+ * Request's fields the way fetch itself merges them. */
+async function requestInitFor(input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit> {
+  if (!(input instanceof Request)) return init ?? {};
+  const request = new Request(input, init);
+  const body =
+    request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
+  return { method: request.method, headers: request.headers, body, signal: request.signal };
 }
 
 async function closeDispatcherWithResponse(
@@ -260,14 +281,28 @@ export function registerOpenAiCompatibleCatalog(models: MutableModels): MutableM
 /** Register a concrete model + base URL for an agent run. */
 export function registerOpenAiCompatibleRuntime(
   models: MutableModels,
-  opts: { modelId: string; baseUrl: string; reasoning?: boolean },
+  opts: {
+    modelId: string;
+    baseUrl: string;
+    reasoning?: boolean;
+    acceptsImages?: boolean;
+    maxTokens?: number;
+    contextWindow?: number;
+  },
 ): MutableModels {
   const baseUrl = normalizeOpenAiCompatibleBaseUrl(opts.baseUrl);
   const modelId = opts.modelId.trim();
-  const acceptsImages = openAiCompatibleVisionModelIds().has(modelId);
+  const acceptsImages = opts.acceptsImages || openAiCompatibleVisionModelIds().has(modelId);
   models.setProvider(
     openAiCompatibleProvider([
-      openAiCompatibleModel(modelId, baseUrl, opts.reasoning, acceptsImages),
+      openAiCompatibleModel(
+        modelId,
+        baseUrl,
+        opts.reasoning,
+        acceptsImages,
+        opts.maxTokens,
+        opts.contextWindow,
+      ),
     ]),
   );
   return models;
@@ -363,7 +398,7 @@ async function readBoundedJson(response: Response): Promise<OpenAiCompatibleMode
 
 export async function probeOpenAiCompatibleModels(
   input: { baseUrl: string; apiKey?: string },
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl?: typeof fetch,
   signal?: AbortSignal,
 ): Promise<string[]> {
   const baseUrl = assertAllowedOpenAiCompatibleUrl(input.baseUrl);

@@ -14,13 +14,13 @@ Rakazo is in beta. Learn more at [rakazo.com](https://rakazo.com).
 ## Features
 
 - Persistent bots with their own conversations, memory, routines, and history
-- Voice mode: speak replies, dictate, and call a bot. Bring your own ElevenLabs, OpenAI, or Cartesia key
+- Voice mode: speak replies, dictate, and call a bot. Bring your own ElevenLabs, OpenAI, Cartesia, or Fish Audio key
 - Shared Team Computers and isolated Private computers
 - Browser, terminal, file, and graphical desktop access
 - Bots that can delegate to peer bots or short-lived subagents
 - Bring-your-own model credentials through Pi
 - App integrations through Composio or Pipedream Connect, plus user-installed Treg, remote MCP, and OpenAPI tool sources
-- Docker, E2B, Daytona, Box, and trusted local-computer support
+- Docker, E2B, Daytona, CreateOS, Box, and trusted local-computer support
 
 ## Demo
 
@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/dccdeddb-2134-4a56-8eed-b2e591736b1c
 - Better Auth
 - Graphile Worker
 - Pi
-- Docker, E2B, Daytona, and Box
+- Docker, E2B, Daytona, CreateOS, and Box
 - Composio, Pipedream Connect, MCP, and OpenAPI integrations
 
 ## Quick start (published images)
@@ -53,7 +53,7 @@ The installer downloads the Compose files, creates `.env` with random secrets, a
 It preserves an existing `.env` when rerun.
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account, and connect a model.
-Local Docker computers are on by default. Optional remote providers: `e2b`, `daytona`, or `box`
+Local Docker computers are on by default. Optional remote providers: `e2b`, `daytona`, `createos`, or `box`
 with the matching API key.
 
 Default image tag is `edge` (main builds, `linux/amd64` + `linux/arm64`). Details and tags:
@@ -73,7 +73,7 @@ the desktop app, the mobile app, or a browser.
 
 ```bash
 bash install-images.sh --prepare-only
-# edit .env: SANDBOX_PROVIDER=box (or e2b / daytona) with its API key, RAKAZO_HOST=your.domain
+# edit .env: SANDBOX_PROVIDER=box (or e2b / daytona / createos) with its API key, RAKAZO_HOST=your.domain
 bash install-images.sh
 ```
 
@@ -92,11 +92,12 @@ cd rakazo
 cp .env.example .env
 ```
 
-Set `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`, and `SCREEN_PROXY_SECRET` in `.env` to independent
-long random values. Docker sandboxes also need a dedicated `SANDBOX_SUPERVISOR_TOKEN`. You can
-also set `OPENROUTER_API_KEY`, or set `MINIMAX_API_KEY` with
-`PI_DEFAULT_PROVIDER=minimax` and `PI_DEFAULT_MODEL=MiniMax-M3` for a direct MiniMax Token Plan.
-You can instead connect a supported model provider during onboarding.
+Set `POSTGRES_PASSWORD` (for example `openssl rand -hex 16`), then put the same value in
+`DATABASE_URL`. Set `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`, and `SCREEN_PROXY_SECRET` to
+independent long random values. Docker sandboxes also need a dedicated
+`SANDBOX_SUPERVISOR_TOKEN`. You can also set `OPENROUTER_API_KEY`, or set `MINIMAX_API_KEY` with
+`PI_DEFAULT_PROVIDER=minimax` and `PI_DEFAULT_MODEL=MiniMax-M3` for a direct MiniMax Token Plan,
+or connect a supported model provider during onboarding.
 
 Managed app catalogs are optional. Set `COMPOSIO_API_KEY` for Composio, or the
 `PIPEDREAM_CLIENT_ID`, `PIPEDREAM_CLIENT_SECRET`, and `PIPEDREAM_PROJECT_ID` trio for Pipedream
@@ -109,7 +110,10 @@ hosted product should review [Treg's integration terms](https://treg.to/integrat
 a written agreement for hosted resale.
 
 ```bash
-docker compose --env-file .env -f infra/compose/docker-compose.yml up postgres -d
+docker compose --env-file .env \
+  -f infra/compose/docker-compose.yml \
+  -f infra/compose/docker-compose.postgres-host.yml \
+  up postgres -d
 pnpm install
 pnpm db:generate
 pnpm db:migrate
@@ -117,11 +121,25 @@ pnpm sandbox:build
 pnpm dev
 ```
 
+Postgres stays network-internal in the default Compose file (same as published images). The
+`postgres-host` overlay publishes loopback `127.0.0.1:5433` for host-side `pnpm` and DB tools.
+Without the overlay, open a shell with
+`docker compose --env-file .env -f infra/compose/docker-compose.yml exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'`.
+Use a URI-safe `POSTGRES_PASSWORD` (`openssl rand -hex 16`). An existing `pgdata` volume keeps the
+user, password, and database from first init, so keep those values in `.env`, or change them in
+place with `ALTER ROLE` / rename. Recreate the volume only after a backup (or when the data is
+disposable); `docker compose down -v` deletes all Postgres state.
+
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account, connect a model, and create
 your first bot.
 
 For deployment, provider selection, backups, and upgrades, see the
 [self-hosting guide](./docs/self-host.md).
+
+To use CreateOS, set `SANDBOX_PROVIDER=createos` and `CREATEOS_SANDBOX_API_KEY`.
+Optional `CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_SHAPE`, and
+`CREATEOS_SANDBOX_ROOTFS` default to `https://api.sb.createos.sh`, `s-2vcpu-2gb`,
+and `desktop:1`.
 
 ## Desktop and mobile
 
@@ -154,10 +172,13 @@ Mobile build and release instructions live in [docs/mobile-release.md](./docs/mo
 ## UI language
 
 The web (and Electron-hosted) UI supports English, Deutsch, 한국어, Türkçe, हिन्दी,
-Português (Brasil), and 简体中文 under **Settings → Language**. The Expo app supports
-English and 简体中文 under **Account → Language**. The marketing homepage (`apps/www`) is
-available in en/de/ko/zh via footer language links (`/`, `/de/`, `/ko/`, `/zh/`); other
-marketing pages stay English.
+Português (Brasil), 简体中文, Español, and Русский under **Settings → Language**. The Expo
+app ships English, 简体中文, Русский, and Deutsch catalogs; **Account → Language** offers
+English and 简体中文, and the other catalogs follow the device language or
+`EXPO_PUBLIC_DEFAULT_UI_LOCALE`. The marketing
+homepage (`apps/www`) is available in en/de/ko/zh via footer language links (`/`, `/de/`,
+`/ko/`, `/zh/`); other marketing pages stay English. The Russian marketing homepage and
+native Electron setup/menu remain separate follow-up work.
 
 ## Development
 

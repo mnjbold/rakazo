@@ -26,28 +26,28 @@ export async function rpc<T>(page: Page, procedure: string, body: unknown): Prom
 
 export async function completeOnboarding(page: Page, testInfo?: TestInfo) {
   await page.waitForURL(/\/(onboarding|app)/, { timeout: 20_000 });
-  const heading = page.getByRole("heading", { name: /Connect a model|Create your first bot/ });
+  // Optional Server integrations step (needsSetup). Skip when shown, then the
+  // first bot is created automatically — land in Chief's chat with no form.
+  const integrations = page.getByRole("heading", { name: "Server integrations", exact: true });
   const chief = page.getByText("Chief").first();
-  await heading.or(chief).waitFor({ timeout: 20_000 });
-  if ((await chief.isVisible().catch(() => false)) && page.url().includes("/app")) return;
-  if (
-    await page
-      .getByRole("heading", { name: "Create your first bot" })
-      .isVisible()
-      .catch(() => false)
-  ) {
-    if (testInfo) await captureScreenshot(page, testInfo, "03-create-first-bot");
-    await page.locator("label:has-text('Name') input").fill("Chief");
-    const created = page.waitForResponse(
-      (response) => response.url().includes("/rpc/bots/create") && response.ok(),
-    );
-    await page.getByRole("button", { name: "Continue" }).click();
-    await created;
-    await page.waitForURL(/\/app\//, { timeout: 20_000 });
+  await integrations.or(chief).or(page.getByText("Opening chat…")).waitFor({ timeout: 20_000 });
+  if ((await chief.isVisible().catch(() => false)) && page.url().includes("/app")) {
+    if (testInfo) {
+      await captureScreenshot(page, testInfo, "03-create-first-bot");
+      await captureScreenshot(page, testInfo, "06-onboarding-complete");
+    }
+    return;
   }
-  await page.waitForURL(/\/app/);
+  if (await integrations.isVisible().catch(() => false)) {
+    if (testInfo) await captureScreenshot(page, testInfo, "02-connect-apps");
+    await page.getByRole("button", { name: "Skip", exact: true }).click();
+  }
+  await page.waitForURL(/\/app\//, { timeout: 20_000 });
   await expect(page.getByText("Chief").first()).toBeVisible();
-  if (testInfo) await captureScreenshot(page, testInfo, "06-onboarding-complete");
+  if (testInfo) {
+    await captureScreenshot(page, testInfo, "03-create-first-bot");
+    await captureScreenshot(page, testInfo, "06-onboarding-complete");
+  }
 }
 
 export async function signup(
@@ -122,6 +122,21 @@ export async function createBotFromPicker(
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await page.waitForURL(/\/app\/[^/]+$/);
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
+}
+
+/** Open the user Settings overlay, optionally switching to a sidebar section. */
+export async function openUserSettings(
+  page: Page,
+  section?: "general" | "models" | "memory" | "voice" | "usage" | "computer" | "updates",
+) {
+  await page.getByTestId("user-menu-trigger").click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const settings = page.getByTestId("user-settings");
+  await expect(settings).toBeVisible();
+  if (section && section !== "general") {
+    await settings.getByTestId(`settings-nav-${section}`).click();
+  }
+  return settings;
 }
 
 /** Create a named bot via RPC for test setup (skips the + picker). */

@@ -1,10 +1,12 @@
 import { RPCHandler } from "@orpc/server/fetch";
 import { COMPUTER_SCREEN_UNAVAILABLE, ComputerScreenUnavailableError } from "@rakazo/adapters";
-import type { Actor } from "@rakazo/contracts";
+import type { Actor, Bot } from "@rakazo/contracts";
+import { REPLY_QUOTE_MAX_LENGTH } from "@rakazo/contracts";
+import { openScreenCapability } from "@rakazo/core/node/screen-capability";
 import type { PrismaClient } from "@rakazo/db";
 import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
-import { describe, expect, it, vi } from "vitest";
-import { createRouter, type RouterDeps } from "./router.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRouter, enqueueBotIntroRun, type RouterDeps } from "./router.js";
 
 describe("account preferences", () => {
   function preferencesDeps(avatarStyle: string) {
@@ -40,6 +42,31 @@ describe("account preferences", () => {
     } satisfies Actor;
     return { update, deps, actor, handler: new RPCHandler(createRouter(deps)) };
   }
+
+  it("keeps an unconfigured catalog offline unless explicitly requested", async () => {
+    const { actor, deps } = preferencesDeps("robot");
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ results: [] }), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    deps.remoteConnectors = { fetch } as RouterDeps["remoteConnectors"];
+    const handler = new RPCHandler(createRouter(deps));
+    const request = async (usePublicCatalog?: boolean) =>
+      handler.handle(
+        new Request("http://127.0.0.1/rpc/capabilities/catalogSearch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ json: { query: "notion", usePublicCatalog } }),
+        }),
+        { prefix: "/rpc", context: { actor } },
+      );
+    const { response } = await request();
+    await expect(response.json()).resolves.toEqual({ json: { enabled: false, results: [] } });
+    expect(fetch).not.toHaveBeenCalled();
+    await request(true);
+    expect(fetch).toHaveBeenCalled();
+  });
 
   it("persists and returns the selected avatar style", async () => {
     const { update, actor, handler } = preferencesDeps("organic");
@@ -212,6 +239,45 @@ describe("model setup gate", () => {
       json: expect.objectContaining({ needsModel: true }),
     });
   });
+
+  it("rejects a reply quote without a reply target", async () => {
+    const { actor, handler } = modelGateDeps({ agentRuntime: "scripted" });
+
+    const response = await call(handler, actor, "threads/send", {
+      botId: "bot-1",
+      text: "hello",
+      replyQuote: "just this span",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      json: expect.objectContaining({
+        data: expect.objectContaining({
+          issues: expect.arrayContaining([expect.objectContaining({ path: ["replyQuote"] })]),
+        }),
+      }),
+    });
+  });
+
+  it("rejects an over-length reply quote", async () => {
+    const { actor, handler } = modelGateDeps({ agentRuntime: "scripted" });
+
+    const response = await call(handler, actor, "threads/send", {
+      botId: "bot-1",
+      text: "hello",
+      replyToMessageId: "parent-1",
+      replyQuote: "x".repeat(REPLY_QUOTE_MAX_LENGTH + 1),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      json: expect.objectContaining({
+        data: expect.objectContaining({
+          issues: expect.arrayContaining([expect.objectContaining({ path: ["replyQuote"] })]),
+        }),
+      }),
+    });
+  });
 });
 
 describe("thread answer delivery", () => {
@@ -332,6 +398,88 @@ describe("MCP server deletion", () => {
         spaceId: "workspace-1",
         userId: "user-1",
       },
+    });
+  });
+});
+
+describe("connections.begin", () => {
+  it("reuses a revoked row for the same provider instead of inserting a duplicate", async () => {
+    const begin = vi.fn().mockResolvedValue({ state: "gmail-state", authorizationUrl: null });
+    const update = vi.fn().mockResolvedValue({
+      id: "conn-old",
+      connectorId: "composio",
+      provider: "gmail",
+      displayName: "Gmail",
+      status: "pending",
+      createdAt: new Date("2026-08-26T00:00:00.000Z"),
+    });
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const create = vi.fn();
+    const prisma = {
+      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+        const tx = {
+          $executeRaw: vi.fn().mockResolvedValue(undefined),
+          connection: {
+            findMany: vi.fn().mockResolvedValue([{ id: "conn-old", status: "revoked" }]),
+            update,
+            updateMany,
+            create,
+          },
+        };
+        return fn(tx);
+      }),
+    } as unknown as PrismaClient;
+    const deps = {
+      prisma,
+      connectors: {
+        managed: vi.fn(() => ({ begin })),
+      },
+      env: {
+        defaultProvider: "fake",
+        defaultModel: "fake-model",
+        webOrigin: "http://127.0.0.1:5173",
+        screenProxySecret: "fake-test-secret",
+        sandboxProvider: "fake",
+      },
+      dataDir: "/tmp/rakazo-router-test",
+    } as unknown as RouterDeps;
+    const actor = {
+      spaceId: "workspace-1",
+      userId: "user-1",
+      email: "user@rakazo.test",
+      isDeploymentOwner: true,
+    } satisfies Actor;
+    const handler = new RPCHandler(createRouter(deps));
+
+    const { matched, response } = await handler.handle(
+      new Request("http://127.0.0.1/rpc/connections/begin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          json: {
+            connectorId: "composio",
+            provider: "gmail",
+            displayName: "Gmail",
+          },
+        }),
+      }),
+      { prefix: "/rpc", context: { actor } },
+    );
+
+    expect(matched).toBe(true);
+    expect(response.status).toBe(200);
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "conn-old" },
+      data: {
+        displayName: "Gmail",
+        status: "pending",
+        providerRef: null,
+        metadata: {},
+      },
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      json: { connectionId: "conn-old" },
     });
   });
 });
@@ -545,6 +693,7 @@ describe("computer screen url", () => {
   } satisfies Actor;
   const computerRow = {
     id: "computer-1",
+    screenGeneration: 3,
     kind: "e2b",
     scope: "team",
     state: "running",
@@ -562,6 +711,7 @@ describe("computer screen url", () => {
       bot: {
         findFirst: vi.fn().mockResolvedValue({
           id: "bot-1",
+          screenGeneration: 2,
           thread: { id: "thread-1" },
           computer: computerRow,
         }),
@@ -593,6 +743,36 @@ describe("computer screen url", () => {
     );
     return { response, updateMany };
   };
+
+  it("issues lifecycle-bound capabilities for managed-provider screens too", async () => {
+    const { response } = await callScreenUrl(async () => ({
+      url: "https://screen.example/vnc.html?token=fake-token",
+    }));
+    expect(response.status).toBe(200);
+    const { json } = await response.json();
+    const url = new URL(json.url);
+    expect(url.origin).toBe("http://127.0.0.1:5173");
+    expect(openScreenCapability(url.pathname, "fake-test-secret")).toMatchObject({
+      scope: {
+        botId: "bot-1",
+        computerId: "computer-1",
+        botGeneration: 2,
+        computerGeneration: 3,
+        controlLeaseId: null,
+      },
+      target: { hostname: "screen.example", interactive: false },
+    });
+  });
+
+  it("returns desktop provider screen URLs without sealing them", async () => {
+    const { response } = await callScreenUrl(async () => ({
+      url: "desktop://screen/computer-1",
+    }));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      json: { url: "desktop://screen/computer-1?view_only=true" },
+    });
+  });
 
   it("clears the row instead of 500ing when the provider says the sandbox is gone", async () => {
     const { response, updateMany } = await callScreenUrl(() =>
@@ -631,4 +811,453 @@ describe("computer screen url", () => {
     });
     expect(updateMany).not.toHaveBeenCalled();
   });
+});
+
+describe("integration setup authorization", () => {
+  it.each([
+    { owner: false, configured: false, needsSetup: false },
+    { owner: true, configured: false, needsSetup: true },
+    { owner: true, configured: true, needsSetup: false },
+  ])(
+    "offers server setup only to an owner without configured providers: %j",
+    async ({ owner, configured, needsSetup }) => {
+      const lookup = vi.fn(async () => configured);
+      const deps = {
+        prisma: {},
+        env: { webOrigin: "https://example.test" },
+        integrationSettings: { configured: lookup },
+      } as unknown as RouterDeps;
+      const handler = new RPCHandler(createRouter(deps));
+      const { response } = await handler.handle(
+        new Request("https://example.test/rpc/integrationSetup/get", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ json: null }),
+        }),
+        {
+          prefix: "/rpc",
+          context: {
+            actor: {
+              userId: "user",
+              spaceId: "space",
+              email: "user@rakazo.test",
+              isDeploymentOwner: owner,
+            },
+          },
+        },
+      );
+      const result = (await response.json()).json;
+      expect(result).toMatchObject({ canConfigure: owner, needsSetup });
+      if (!owner) {
+        expect(result.providers).toEqual([]);
+        expect(lookup).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("rejects provider credentials from a non-owner before verification or persistence", async () => {
+    const save = vi.fn();
+    const deps = {
+      prisma: {},
+      env: { webOrigin: "https://example.test" },
+      integrationSettings: { save },
+    } as unknown as RouterDeps;
+    const handler = new RPCHandler(createRouter(deps));
+    const { response } = await handler.handle(
+      new Request("https://example.test/rpc/integrationSetup/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ json: { provider: "composio", apiKey: "fake-key" } }),
+      }),
+      {
+        prefix: "/rpc",
+        context: {
+          actor: {
+            userId: "member",
+            spaceId: "space",
+            email: "member@rakazo.test",
+            isDeploymentOwner: false,
+          },
+        },
+      },
+    );
+    expect(response.status).toBe(403);
+    expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("interrupted computer reservation release", () => {
+  function fixture() {
+    const order: string[] = [];
+    const computerUpdate = {
+      findFirst: vi.fn(async () => ({ id: "update-1", computerId: "computer-1" })),
+      updateMany: vi.fn(async () => {
+        order.push("operation");
+        return { count: 1 };
+      }),
+    };
+    const computer = {
+      updateMany: vi.fn(async () => {
+        order.push("computer");
+        return { count: 1 };
+      }),
+    };
+    const prisma = { computer, computerUpdate, $transaction: vi.fn(async (fn) => fn(prisma)) };
+    const handler = new RPCHandler(
+      createRouter({ prisma, env: { sandboxProvider: "fake" } } as unknown as RouterDeps),
+    );
+    const call = async (owner: boolean, workersStopped?: boolean) =>
+      handler.handle(
+        new Request("http://127.0.0.1/rpc/computer/releaseInterrupted", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ json: { id: "update-1", workersStopped } }),
+        }),
+        {
+          prefix: "/rpc",
+          context: {
+            actor: {
+              spaceId: "space-1",
+              userId: "user-1",
+              email: "user@rakazo.test",
+              isDeploymentOwner: owner,
+            },
+          },
+        },
+      );
+    return { prisma, computer, computerUpdate, order, call };
+  }
+  it.each([
+    { owner: false, stopped: true, status: 403 },
+    { owner: true, stopped: false, status: 400 },
+    { owner: true, stopped: undefined, status: 400 },
+  ])(
+    "requires owner authorization and an explicit stopped-workers assertion: %j",
+    async ({ owner, stopped, status }) => {
+      const { call, prisma } = fixture();
+      const { response } = await call(owner, stopped);
+      expect(response.status).toBe(status);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it("atomically releases only an interrupted reservation in the owner's workspace", async () => {
+    const { call, computer, computerUpdate, order } = fixture();
+    const { response } = await call(true, true);
+    expect(response.status).toBe(200);
+    expect(computerUpdate.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "update-1",
+        status: "interrupted",
+        computer: { spaceId: "space-1", bots: { some: { userId: "user-1", archivedAt: null } } },
+      },
+    });
+    expect(computerUpdate.updateMany).toHaveBeenCalledWith({
+      where: { id: "update-1", status: "interrupted" },
+      data: { status: "failed" },
+    });
+    expect(computer.updateMany).toHaveBeenCalledWith({
+      where: { id: "computer-1", maintenanceId: "update-1" },
+      data: { maintenanceId: null, state: "error" },
+    });
+    expect(order).toEqual(["operation", "computer"]);
+  });
+});
+
+describe("model credential persistence", () => {
+  const actor = {
+    spaceId: "workspace-1",
+    userId: "user-1",
+    email: "user@rakazo.test",
+    isDeploymentOwner: true,
+  } satisfies Actor;
+
+  function persistDeps(options?: { envDefaultModel?: string }) {
+    const upsert = vi.fn().mockResolvedValue({ id: "preference" });
+    const finish = vi.fn();
+    // Connect loads any previous credential on the root client before the write transaction.
+    const userModelCredential = {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockImplementation(async ({ data }: { data: { provider: string } }) => ({
+        id: "cred-1",
+        userId: actor.userId,
+        provider: data.provider,
+        label: data.provider,
+        secretId: "secret-1",
+        supportsImages: false,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      })),
+    };
+    const spaceModelPreference = {
+      findFirst: vi.fn().mockResolvedValue(null),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      upsert,
+    };
+    const tx = {
+      userModelCredential,
+      secret: { create: vi.fn().mockResolvedValue({}) },
+      spaceModelPreference,
+    };
+    const deps = {
+      prisma: {
+        userModelCredential,
+        spaceModelPreference,
+        $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+      },
+      secrets: {
+        put: vi.fn().mockResolvedValue({ id: "secret-1", ciphertext: "cipher" }),
+      },
+      oauthLogins: {
+        finish,
+      },
+      env: {
+        defaultProvider: "openrouter",
+        defaultModel: options?.envDefaultModel ?? "openai/gpt-5.6-luna",
+        webOrigin: "http://127.0.0.1:5173",
+        screenProxySecret: "fake-test-secret",
+        sandboxProvider: "fake",
+        agentRuntime: "pi",
+      },
+    } as unknown as RouterDeps;
+    return { upsert, finish, deps, handler: new RPCHandler(createRouter(deps)) };
+  }
+
+  async function call(handler: RPCHandler<never>, path: string, body: unknown): Promise<Response> {
+    const { response } = await handler.handle(
+      new Request(`http://127.0.0.1/rpc/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ json: body }),
+      }),
+      { prefix: "/rpc", context: { actor } },
+    );
+    return response;
+  }
+
+  it("does not persist a stringified null model id from subscription sign-in", async () => {
+    const { upsert, finish, handler } = persistDeps();
+    finish.mockImplementation(async (_loginId, _actor, persist) => ({
+      status: "connected" as const,
+      value: await persist({
+        status: "connected",
+        provider: "anthropic",
+        modelId: "null",
+        label: "Anthropic",
+        credential: {
+          type: "oauth",
+          access: "access-token",
+          refresh: "refresh-token",
+          expires: Date.now() + 60_000,
+        },
+        signal: new AbortController().signal,
+      }),
+    }));
+
+    const response = await call(handler, "models/finishOAuth", { loginId: "login-1" });
+    expect(response.status).toBe(200);
+    const persisted = upsert.mock.calls[0]?.[0] as {
+      create: { modelId: string | null };
+      update: { modelId: string | null };
+    };
+    expect(persisted.create.modelId).not.toBe("null");
+    expect(persisted.create.modelId).toBeTruthy();
+    expect(persisted.update.modelId).toBe(persisted.create.modelId);
+    await expect(response.json()).resolves.toEqual({
+      json: expect.objectContaining({
+        provider: "anthropic",
+        modelId: persisted.create.modelId,
+      }),
+    });
+  });
+
+  it("does not persist a missing model id as the string null", async () => {
+    const { upsert, handler } = persistDeps({ envDefaultModel: "null" });
+
+    const response = await call(handler, "models/connect", {
+      provider: "test-provider",
+      apiKey: "sk-test-key-123",
+      modelId: undefined,
+    });
+    expect(response.status).toBe(200);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ modelId: null }),
+        update: expect.objectContaining({ modelId: null }),
+      }),
+    );
+  });
+});
+
+describe("bot intro run", () => {
+  const actor = {
+    spaceId: "space-1",
+    userId: "user-1",
+    email: "user@rakazo.test",
+    isDeploymentOwner: true,
+  } satisfies Actor;
+  const bot = { id: "bot-1", threadId: "thread-1" } as unknown as Bot;
+
+  function introDeps(options: { agentRuntime?: string; hasCredential?: boolean } = {}) {
+    let calls = 0;
+    const create = vi.fn(({ data }: { data: object }) => {
+      calls += 1;
+      return Promise.resolve({ id: `record-${calls}`, ...data });
+    });
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const tx = { task: { create }, run: { create } };
+    const preference =
+      (options.hasCredential ?? true)
+        ? { isDefault: true, modelId: "model-1", credential: { id: "cred-1", provider: "test" } }
+        : null;
+    const spaceModelPreference = { findFirst: vi.fn().mockResolvedValue(preference) };
+    const deps = {
+      prisma: {
+        $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
+        spaceModelPreference,
+        deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+      },
+      jobs: { enqueue },
+      env: { agentRuntime: options.agentRuntime ?? "pi" },
+    } as unknown as RouterDeps;
+    return { create, enqueue, deps };
+  }
+
+  it("queues an invisible-prompt run so the bot states how it read its role", async () => {
+    const { create, enqueue, deps } = introDeps();
+
+    await enqueueBotIntroRun(deps, actor, bot);
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          spaceId: "space-1",
+          botId: "bot-1",
+          threadId: "thread-1",
+          userId: "user-1",
+          status: "queued",
+        }),
+      }),
+    );
+    const [taskCall, runCall] = create.mock.calls as Array<
+      [{ data: { prompt?: string; trigger?: string; taskId?: string } }]
+    >;
+    expect(taskCall?.[0].data.prompt).toMatch(/understood your role/i);
+    expect(runCall?.[0].data.trigger).toBe("created");
+    // The Run must reference the Task this same call created, not a stale or
+    // mismatched id, and the enqueued job must target that Run.
+    expect(runCall?.[0].data.taskId).toBe("record-1");
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ payload: { runId: "record-2" } }),
+    );
+  });
+
+  it("does nothing when the bot has no thread", async () => {
+    const { create, enqueue, deps } = introDeps();
+
+    await enqueueBotIntroRun(deps, actor, { id: "bot-1", threadId: null } as unknown as Bot);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on the scripted test/eval runtime", async () => {
+    const { create, enqueue, deps } = introDeps({ agentRuntime: "scripted" });
+
+    await enqueueBotIntroRun(deps, actor, bot);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no model is configured yet", async () => {
+    const { create, enqueue, deps } = introDeps({ hasCredential: false });
+
+    await enqueueBotIntroRun(deps, actor, bot);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+});
+
+describe("bot restore computer quota", () => {
+  function fixture(archivedBot: { archivedAt: Date | null } | null, inUse = 0) {
+    const bot = archivedBot
+      ? {
+          ...archivedBot,
+          id: "bot-archived",
+          computerId: "computer-archived",
+          computer: { id: "computer-archived" },
+          userId: "user-1",
+        }
+      : null;
+    const botApi = {
+      findFirst: vi.fn(async () => bot),
+      update: vi.fn(async () => ({})),
+    };
+    const computer = {
+      count: vi.fn(async (args: { where: { id?: string } }) => (args.where.id ? 0 : inUse)),
+    };
+    const $queryRaw = vi.fn(async () => [{ lock: "1" }]);
+    const prisma = {
+      bot: botApi,
+      computer,
+      $queryRaw,
+      $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({ $queryRaw, computer, bot: botApi }),
+      ),
+    };
+    const handler = new RPCHandler(
+      createRouter({ prisma, env: { sandboxProvider: "fake" } } as unknown as RouterDeps),
+    );
+    const call = async () =>
+      handler.handle(
+        new Request("http://127.0.0.1/rpc/bots/restore", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ json: { botId: "bot-archived" } }),
+        }),
+        {
+          prefix: "/rpc",
+          context: {
+            actor: {
+              spaceId: "space-1",
+              userId: "user-1",
+              email: "user@rakazo.test",
+              isDeploymentOwner: true,
+            },
+          },
+        },
+      );
+    return { prisma, call };
+  }
+
+  it("archives, creates, then restores is refused when the restore would exceed the cap", async () => {
+    process.env.SANDBOX_MAX_COMPUTERS_PER_USER = "1";
+    const { prisma, call } = fixture({ archivedAt: new Date() }, 1);
+    const { response } = await call();
+    expect(response.status).toBe(400);
+    expect(prisma.bot.update).not.toHaveBeenCalled();
+  });
+
+  it("restores normally when the user is below the cap or the computer is already live", async () => {
+    process.env.SANDBOX_MAX_COMPUTERS_PER_USER = "1";
+    const { prisma, call } = fixture({ archivedAt: new Date() }, 0);
+    const { response } = await call();
+    expect(response.status).toBe(200);
+    expect(prisma.bot.update).toHaveBeenCalledWith({
+      where: { id: "bot-archived" },
+      data: { archivedAt: null },
+    });
+  });
+
+  it("does not enforce anything when the cap is unset", async () => {
+    const { prisma, call } = fixture({ archivedAt: new Date() }, 99);
+    const { response } = await call();
+    expect(response.status).toBe(200);
+    expect(prisma.bot.update).toHaveBeenCalledOnce();
+  });
+});
+
+afterEach(() => {
+  delete process.env.SANDBOX_MAX_COMPUTERS_PER_USER;
 });

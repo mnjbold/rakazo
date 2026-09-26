@@ -1,3 +1,5 @@
+export const DEFAULT_OPENROUTER_MODEL_ID = "openai/gpt-5.6-luna";
+
 /**
  * The deployment-wide model default: which provider a run falls back to when no user
  * credential applies, and the key for that provider.
@@ -15,7 +17,7 @@ export function resolveDeploymentModel(env: NodeJS.ProcessEnv = process.env) {
     minimax: env.MINIMAX_API_KEY,
   };
   const models: Record<string, string> = {
-    openrouter: "deepseek/deepseek-v4-flash-0731",
+    openrouter: DEFAULT_OPENROUTER_MODEL_ID,
     anthropic: "claude-sonnet-5",
     minimax: "MiniMax-M3",
   };

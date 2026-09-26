@@ -44,6 +44,7 @@ async function fixture(provider: "fake" | "desktop" = "fake") {
     kind: first.kind,
     controlHolder: "none",
     controlLeaseId: null,
+    maintenanceId: null as string | null,
     homeRevision: "saved",
     updatedAt: new Date("2024-01-01T00:00:00.000Z"),
   };
@@ -66,6 +67,7 @@ async function fixture(provider: "fake" | "desktop" = "fake") {
   const deps = {
     prisma: {
       computer,
+      computerExecutionLease: { findFirst: vi.fn().mockResolvedValue(null) },
       run: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient,
     sandbox,
@@ -78,6 +80,23 @@ async function fixture(provider: "fake" | "desktop" = "fake") {
 }
 
 describe("computer recovery preserves live work", () => {
+  it("blocks competing maintenance and boots while an update owns the computer", async () => {
+    const { deps, row } = await fixture();
+    row.maintenanceId = "other-update";
+    const destroy = vi.spyOn(deps.sandbox, "destroy");
+    const provision = vi.spyOn(deps.sandbox, "provision");
+    await expect(provisionComputer(deps, row.id, context)).rejects.toBeInstanceOf(
+      ComputerBusyError,
+    );
+    for (const mode of ["update", "recover", "reset"] as const) {
+      await expect(replaceComputer(deps, row.id, mode, context)).rejects.toBeInstanceOf(
+        ComputerBusyError,
+      );
+    }
+    expect(destroy).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+  });
+
   it("claims a running computer before concurrent workers can create competing replacements", async () => {
     const { deps, row, computer, first } = await fixture();
     await deps.sandbox.destroy(first, context);
@@ -256,6 +275,30 @@ describe("computer recovery preserves live work", () => {
       expect(await deps.home.readFile("bot", "notes.txt", context)).toBe("live work");
     },
   );
+
+  it("resets a computer stuck suspending after a hung stop", async () => {
+    const { deps, row } = await fixture();
+    row.state = "suspending";
+    const updated = await replaceComputer(deps, row.id, "reset", context);
+    expect(updated.fresh).toBe(true);
+    expect(row).toMatchObject({ state: "running", providerRef: updated.providerRef });
+    expect(
+      new TextDecoder().decode(await deps.sandbox.readFile(updated, "notes.txt", context)),
+    ).toBe("checkpoint");
+  });
+
+  it("refuses Reset while a suspend claim is still live", async () => {
+    const { deps, row, computer } = await fixture();
+    row.state = "suspending";
+    row.updatedAt = new Date();
+    const destroy = vi.spyOn(deps.sandbox, "destroy");
+    await expect(replaceComputer(deps, row.id, "reset", context)).rejects.toBeInstanceOf(
+      ComputerBusyError,
+    );
+    expect(destroy).not.toHaveBeenCalled();
+    expect(computer.updateMany).not.toHaveBeenCalled();
+    expect(row.state).toBe("suspending");
+  });
 
   it("resets a missing computer after idempotent provider teardown", async () => {
     const { deps, row, first } = await fixture();

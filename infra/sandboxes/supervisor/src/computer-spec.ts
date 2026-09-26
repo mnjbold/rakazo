@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import path from "node:path";
 import { MAX_DESKTOP_DISPLAY, screenPorts } from "@rakazo/core/node/desktop-runtime";
+import type Docker from "dockerode";
 
 export const COMPUTER_IMAGE = process.env.RAKAZO_COMPUTER_IMAGE ?? "rakazo/computer:local";
 
@@ -31,6 +33,19 @@ export function resolveTeamScreenLimit(value = process.env.SANDBOX_TEAM_SCREEN_L
     );
   }
   return Math.min(limit, MAX_DESKTOP_DISPLAY);
+}
+
+export function resolveSpaceComputerLimit(
+  value = process.env.SANDBOX_MAX_COMPUTERS_PER_SPACE,
+): number {
+  if (value === undefined || value.trim() === "" || isUnlimited(value)) return 0;
+  const limit = Number(value);
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    throw new Error(
+      "SANDBOX_MAX_COMPUTERS_PER_SPACE must be a positive integer, or 0 for no configured cap",
+    );
+  }
+  return limit;
 }
 
 /**
@@ -109,19 +124,25 @@ function parsePidsLimit(name: string, raw: string): number {
   return value;
 }
 
+/** An unset variable and one present but blank both mean "use the default". */
+function envOrDefault(name: string, fallback: string): string {
+  const raw = process.env[name];
+  return raw === undefined || raw.trim() === "" ? fallback : raw;
+}
+
 /** The host resource ceilings applied to every bot computer. */
 export function computerResourceLimits() {
   const memoryBytes = parseMemoryBytes(
     "RAKAZO_COMPUTER_MEMORY",
-    process.env.RAKAZO_COMPUTER_MEMORY ?? DEFAULT_COMPUTER_MEMORY,
+    envOrDefault("RAKAZO_COMPUTER_MEMORY", DEFAULT_COMPUTER_MEMORY),
   );
   const nanoCpus = parseNanoCpus(
     "RAKAZO_COMPUTER_CPUS",
-    process.env.RAKAZO_COMPUTER_CPUS ?? DEFAULT_COMPUTER_CPUS,
+    envOrDefault("RAKAZO_COMPUTER_CPUS", DEFAULT_COMPUTER_CPUS),
   );
   const pidsLimit = parsePidsLimit(
     "RAKAZO_COMPUTER_PIDS_LIMIT",
-    process.env.RAKAZO_COMPUTER_PIDS_LIMIT ?? DEFAULT_COMPUTER_PIDS_LIMIT,
+    envOrDefault("RAKAZO_COMPUTER_PIDS_LIMIT", DEFAULT_COMPUTER_PIDS_LIMIT),
   );
   return {
     // Memory and MemorySwap are set together: leaving MemorySwap unset lets the
@@ -159,12 +180,58 @@ export function computerPortBindings(publishControlPort = false) {
   return { ExposedPorts, PortBindings };
 }
 
+export function computerHomeStorage(
+  serviceHomePath: string,
+  dataDir: string,
+  info: Docker.ContainerInspectInfo | undefined,
+): { homePath: string; homeVolume?: { name: string; subpath: string } } {
+  const relative = path.relative(dataDir, serviceHomePath);
+  if (
+    !relative ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error("computer home must be inside the data directory");
+  }
+  const mount = info?.Mounts.find((entry) => entry.Destination === dataDir);
+  if (mount?.Type === "volume") {
+    if (!mount.Name) throw new Error("computer data volume has no name");
+    return { homePath: serviceHomePath, homeVolume: { name: mount.Name, subpath: relative } };
+  }
+  return { homePath: mount?.Source ? path.join(mount.Source, relative) : serviceHomePath };
+}
+
+export function assertVolumeSubpathSupport(apiVersion: string) {
+  const match = /^(\d+)\.(\d+)$/.exec(apiVersion);
+  if (!match || Number(match[1]) < 1 || (Number(match[1]) === 1 && Number(match[2]) < 45)) {
+    throw new Error("Docker Engine 26+ (API 1.45+) is required for bot home volume subpaths");
+  }
+}
+
+export function homeVolumeMatches(
+  mounts: Docker.ContainerInspectInfo["HostConfig"]["Mounts"],
+  volume: { name: string; subpath: string },
+) {
+  return (
+    mounts?.some(
+      (mount) =>
+        mount.Target === "/home/rakazo" &&
+        mount.Type === "volume" &&
+        mount.Source === volume.name &&
+        mount.VolumeOptions?.Subpath === volume.subpath &&
+        !mount.ReadOnly,
+    ) ?? false
+  );
+}
+
 export interface ComputerCreateInput {
   name: string;
   image: string;
   botId: string;
   spaceId: string;
   homePath: string;
+  homeVolume?: { name: string; subpath: string };
   user?: string;
   controlToken?: string;
   networkMode?: string;
@@ -207,7 +274,23 @@ export function containerCreateOptions(input: ComputerCreateInput) {
     },
     ExposedPorts: ports.ExposedPorts,
     HostConfig: {
-      Binds: [`${input.homePath}:/home/rakazo`],
+      ...(input.homeVolume
+        ? {
+            Binds: undefined,
+            Mounts: [
+              {
+                Type: "volume" as const,
+                Source: input.homeVolume.name,
+                Target: "/home/rakazo",
+                // Docker makes Labels and DriverConfig optional; dockerode's types do not.
+                VolumeOptions: {
+                  NoCopy: true,
+                  Subpath: input.homeVolume.subpath,
+                } as Docker.MountSettings["VolumeOptions"],
+              },
+            ],
+          }
+        : { Binds: [`${input.homePath}:/home/rakazo`], Mounts: undefined }),
       PortBindings: ports.PortBindings,
       ShmSize: 256 * 1024 * 1024,
       CapDrop: ["ALL"],

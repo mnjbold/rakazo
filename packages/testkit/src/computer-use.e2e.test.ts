@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ComputerRef, SandboxProvider } from "@rakazo/adapter-kit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { createApp } from "../../../apps/api/src/app.ts";
 import { computerTestSandbox } from "./computer-test-config.js";
 import { sessionCookieHeader } from "./index.js";
 
@@ -11,7 +12,7 @@ const describeLive = live ? describe : describe.skip;
 
 describeLive("real model and sandbox computer journey", () => {
   let dataDir: string | undefined;
-  let handles: Awaited<ReturnType<typeof import("../../../apps/api/src/app.ts")["createApp"]>>;
+  let handles: Awaited<ReturnType<typeof createApp>>;
   let computer: ComputerRef | undefined;
   let sandboxProvider: "box" | "e2b";
   let botId: string | undefined;
@@ -178,7 +179,17 @@ describeLive("real model and sandbox computer journey", () => {
     await handles.sandbox.destroy(computer, testContext(bot.id));
     // Simulate loss outside the app: the stored state still says running, so use
     // recovery to replace the missing sandbox and restore its checkpoint.
-    await rpc(handles.app, cookie, "computer/recover", { botId: bot.id });
+    const recovery = await rpc<{ id: string }>(handles.app, cookie, "computer/recover", {
+      botId: bot.id,
+    });
+    await expect
+      .poll(
+        async () =>
+          (await handles.prisma.computerUpdate.findUniqueOrThrow({ where: { id: recovery.id } }))
+            .status,
+        { timeout: 120_000 },
+      )
+      .toBe("completed");
     const replacementBot = await handles.prisma.bot.findUniqueOrThrow({
       where: { id: bot.id },
       include: { computer: true },

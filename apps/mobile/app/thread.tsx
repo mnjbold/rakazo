@@ -6,7 +6,11 @@ import type {
   MessageBlock,
   Routine,
 } from "@rakazo/contracts";
-import { canReactToThreadMessage } from "@rakazo/contracts";
+import {
+  canReactToThreadMessage,
+  MESSAGE_REACTIONS,
+  type MessageReaction,
+} from "@rakazo/contracts";
 import {
   abortableDelay,
   attachmentsForThread,
@@ -18,6 +22,7 @@ import {
   isSecretAskBlock,
   latestAnswerableAskMessageId,
   mentionChipKey,
+  projectMessageReactions,
   resolveComposerSendPlan,
   SLASH_ACTIONS,
   type SlashActionId,
@@ -25,11 +30,21 @@ import {
   serializeComposerPrompt,
   truncateSlashDescription,
   userVisibleMessages,
+  withLiveStreamingProgress,
 } from "@rakazo/core";
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -44,12 +59,13 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   type TextProps,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppConnectCard } from "../components/AppConnectCard";
@@ -82,6 +98,7 @@ import {
 } from "../lib/api";
 import { mobileTokens } from "../lib/appearance";
 import { type MobileArtifactTarget, openMobileArtifact } from "../lib/artifact-open";
+import { nextAutoSpeakAction } from "../lib/auto-speak";
 import { confirmDeleteBot } from "../lib/bot-lifecycle";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
 import { dateLocaleForUi, t, useI18n } from "../lib/i18n";
@@ -105,6 +122,10 @@ import {
   takePhoto,
 } from "../lib/pick-attachments";
 import { threadRefreshDelayMs } from "../lib/refresh";
+import {
+  getCachedResponseStreamingEnabled,
+  subscribeResponseStreaming,
+} from "../lib/response-streaming";
 import {
   type ThreadScrollAction,
   ThreadScrollBehavior,
@@ -230,6 +251,7 @@ function Thread() {
   const router = useRouter();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const { botId, groupId, name, messageId } = useLocalSearchParams<{
     botId?: string;
     groupId?: string;
@@ -258,7 +280,13 @@ function Thread() {
   activeBotId.current = botId;
   const activeGroupId = useRef(groupId);
   activeGroupId.current = groupId;
+  const routeName = useRef(name);
+  routeName.current = name;
+  const mentionBotsRefreshGeneration = useRef(0);
+  const mentionBotsAppliedGeneration = useRef(0);
   const readVisibleTarget = useRef<string | null>(null);
+  const autoSpoken = useRef<string | null>(null);
+  const autoSpokenBotId = useRef<string | null>(null);
   const threadKey = groupId ?? botId;
   const [threadScrollState, setThreadScrollState] = useState<ThreadScrollState>(() =>
     scrollBehavior.current.state(),
@@ -278,6 +306,23 @@ function Thread() {
       ? { botId }
       : undefined;
   const [snap, setSnap] = useState<MobileSnapshot | null>(null);
+  const snapRef = useRef<MobileSnapshot | null>(null);
+  const streamResponses = useSyncExternalStore(
+    subscribeResponseStreaming,
+    getCachedResponseStreamingEnabled,
+    () => false,
+  );
+  const streamResponsesRef = useRef(streamResponses);
+  streamResponsesRef.current = streamResponses;
+
+  function commitSnap(next: MobileSnapshot | null) {
+    snapRef.current = next;
+    setSnap(withLiveStreamingProgress(next, streamResponsesRef.current));
+  }
+
+  useEffect(() => {
+    setSnap(withLiveStreamingProgress(snapRef.current, streamResponses));
+  }, [streamResponses]);
   const activeThreadId = useRef<string | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -305,13 +350,16 @@ function Thread() {
   const [markdownPreview, setMarkdownPreview] = useState<MarkdownArtifactPreviewTarget | null>(
     null,
   );
-  const visibleMessages = useMemo(
+  const reactionView = useMemo(
     () =>
-      userVisibleMessages(snap?.messages ?? [], { includePeerReceipts: true }).filter((message) =>
-        hasVisibleMessagePresentation(message.blocks),
+      projectMessageReactions(
+        userVisibleMessages(snap?.messages ?? [], { includePeerReceipts: true }).filter((message) =>
+          hasVisibleMessagePresentation(message.blocks),
+        ),
       ),
     [snap?.messages],
   );
+  const visibleMessages = reactionView.visibleMessages;
   const latestMessageId = visibleMessages.at(-1)?.id ?? null;
   const activePendingAttachments = attachmentsForThread(pendingAttachments, threadKey);
   const composerMentionTargets = useMemo(
@@ -372,6 +420,7 @@ function Thread() {
         })
       : [];
   const currentBot = botId ? mentionBots.find((bot) => bot.id === botId) : undefined;
+  const displayName = currentBot?.name ?? name;
   const notificationThreadId = snap?.threadId ?? currentBot?.threadId;
   activeThreadId.current = notificationThreadId;
   const currentBotStatus = snap ? snap.run?.status : currentBot?.status;
@@ -390,6 +439,35 @@ function Thread() {
   }, [inGroup, snap?.activeRuns, snap?.members, snap?.run]);
   const working = inGroup ? workingGroupBots.length > 0 : isWorkingStatus(currentBotStatus);
 
+  const speakFinishedReply = useCallback(() => {
+    if (!botId || inGroup || !currentBot) return;
+    const decision = nextAutoSpeakAction({
+      botId: currentBot.id,
+      autoSpeak: currentBot.autoSpeak,
+      focused: AppState.currentState === "active" && navigation.isFocused(),
+      snapshotReady: snap?.botId === currentBot.id,
+      lastSpokenBotId: autoSpokenBotId.current,
+      lastSpokenMessageId: autoSpoken.current,
+      runStatus: snap?.run?.status,
+      messages: snap?.messages ?? [],
+    });
+    if (decision.action === "seed") {
+      autoSpokenBotId.current = currentBot.id;
+      autoSpoken.current = decision.messageId;
+      return;
+    }
+    if (decision.action !== "speak") return;
+    autoSpokenBotId.current = currentBot.id;
+    autoSpoken.current = decision.messageId;
+    void speakText(decision.text, { botId: currentBot.id }).catch(() => undefined);
+  }, [botId, inGroup, currentBot, navigation, snap?.botId, snap?.messages, snap?.run?.status]);
+
+  useEffect(() => {
+    speakFinishedReply();
+    const appState = AppState.addEventListener("change", speakFinishedReply);
+    return () => appState.remove();
+  }, [speakFinishedReply]);
+
   useEffect(() => {
     void rpc<AgentSkillCatalogEntry[]>("agentSkills/list")
       .then(setAgentSkills)
@@ -400,14 +478,37 @@ function Thread() {
     setThreadScrollState(scrollBehavior.current.state());
   }, [threadKey]);
 
+  const refreshMentionBots = useCallback(async () => {
+    if (!botId && !groupId) return;
+    const generation = ++mentionBotsRefreshGeneration.current;
+    const targetBotId = botId;
+    try {
+      const bots = await rpc<MobileBot[]>("bots/list");
+      // Apply any successful response that is still the newest applied so far.
+      // A later failed refresh must not discard an earlier success.
+      if (generation < mentionBotsAppliedGeneration.current) return;
+      if (targetBotId !== activeBotId.current) return;
+      mentionBotsAppliedGeneration.current = generation;
+      setMentionBots(bots);
+      if (targetBotId) {
+        const next = bots.find((bot) => bot.id === targetBotId);
+        // Read the route name from a ref so renaming does not recreate this
+        // callback (and restart the SSE subscription that depends on it).
+        if (next?.name && next.name !== routeName.current) {
+          router.setParams({ name: next.name });
+        }
+      }
+    } catch {
+      // Keep the last known roster if refresh fails.
+    }
+  }, [botId, groupId, router]);
+
   useEffect(() => {
-    void rpc<MobileBot[]>("bots/list")
-      .then(setMentionBots)
-      .catch(() => setMentionBots([]));
+    void refreshMentionBots();
     void rpc<MobileGroup[]>("groups/list")
       .then(setMentionGroups)
       .catch(() => setMentionGroups([]));
-  }, []);
+  }, [refreshMentionBots]);
 
   useEffect(() => {
     if (mentionBots.length === 0) {
@@ -480,9 +581,16 @@ function Thread() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: name || t("Thread"),
+      title: displayName || t("Thread"),
       headerTitle: () => (
-        <View
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={!inGroup && botId ? t("Chat settings") : displayName || t("Thread")}
+          disabled={inGroup || !botId}
+          onPress={() => {
+            if (!botId || inGroup) return;
+            router.push({ pathname: "/bot-settings", params: { botId } });
+          }}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -503,9 +611,9 @@ function Thread() {
             numberOfLines={1}
             style={{ color: tokens.foreground, fontSize: 18, fontWeight: "600" }}
           >
-            {name || t("Thread")}
+            {displayName || t("Thread")}
           </Text>
-        </View>
+        </Pressable>
       ),
       headerRight: () =>
         inGroup ? (
@@ -541,9 +649,9 @@ function Thread() {
     botId,
     currentBot,
     currentBotStatus,
+    displayName,
     groupId,
     inGroup,
-    name,
     navigation,
     router,
     t,
@@ -564,8 +672,10 @@ function Thread() {
         expandedHistoryThread.current = null;
         pinnedAroundRef.current = null;
         historyEpoch.current += 1;
-        setSnap((current) =>
-          current ? { ...current, messages: [], olderCursor: null, run: null } : current,
+        commitSnap(
+          snapRef.current
+            ? { ...snapRef.current, messages: [], olderCursor: null, run: null }
+            : snapRef.current,
         );
       })
       .catch((err: unknown) =>
@@ -575,11 +685,19 @@ function Thread() {
 
   const botActions = [
     {
+      text: t("Chat settings"),
+      onPress: () =>
+        router.push({
+          pathname: "/bot-settings",
+          params: { botId: botId ?? "" },
+        }),
+    },
+    {
       text: t("Open computer"),
       onPress: () =>
         router.push({
           pathname: "/computer",
-          params: { botId: botId ?? "", name: name ?? t("Bot") },
+          params: { botId: botId ?? "", name: displayName ?? t("Bot") },
         }),
     },
     {
@@ -612,7 +730,7 @@ function Thread() {
     {
       text: t("Delete…"),
       destructive: true,
-      onPress: () => confirmDeleteBot({ id: botId ?? "", name: name || t("Bot") }, leaveBot),
+      onPress: () => confirmDeleteBot({ id: botId ?? "", name: displayName || t("Bot") }, leaveBot),
     },
   ];
 
@@ -656,8 +774,8 @@ function Thread() {
       })
     )
       return next;
-    setSnap((prev) =>
-      mergeMobileSnapshot(prev, next, expandedHistoryThread.current === next.threadId),
+    commitSnap(
+      mergeMobileSnapshot(snapRef.current, next, expandedHistoryThread.current === next.threadId),
     );
     return next;
   }
@@ -691,7 +809,7 @@ function Thread() {
         }
       : null;
     jumpScrollTarget.current = targetInPage ? target.messageId : null;
-    setSnap({
+    commitSnap({
       ...snap,
       messages: targetInPage ? [...page.messages] : snap.messages,
       olderCursor: targetInPage ? page.olderCursor : snap.olderCursor,
@@ -714,7 +832,7 @@ function Thread() {
         return;
       }
       expandedHistoryThread.current = page.threadId;
-      setSnap((prev) => prependMobileMessagePage(prev, page));
+      commitSnap(prependMobileMessagePage(snapRef.current, page));
     } catch (err) {
       loadingOlderContent.current = false;
       setError(err instanceof Error ? err.message : t("Could not load earlier messages"));
@@ -776,11 +894,13 @@ function Thread() {
           threadId: notificationThreadId,
         }).catch(() => undefined);
       }
+      void refreshMentionBots();
       markReadIfVisible();
+      speakFinishedReply();
       return () => {
         void setOpenNotificationThread(null).catch(() => undefined);
       };
-    }, [botId, markReadIfVisible, notificationThreadId]),
+    }, [botId, markReadIfVisible, notificationThreadId, refreshMentionBots, speakFinishedReply]),
   );
 
   useEffect(() => {
@@ -835,6 +955,7 @@ function Thread() {
               if (
                 event.type === "thread.progress" ||
                 event.type === "agent.tool.called" ||
+                event.type === "agent.tool.completed" ||
                 event.type === "thread.message.created" ||
                 event.type === "thread.message.updated" ||
                 event.type === "thread.message.reaction" ||
@@ -850,13 +971,17 @@ function Thread() {
                   pinnedAroundRef.current = null;
                   historyEpoch.current += 1;
                 }
-                setSnap((prev) => applyMobileThreadEvent(prev, event));
+                commitSnap(applyMobileThreadEvent(snapRef.current, event));
+              }
+              if (event.type === "bot.updated") {
+                void refreshMentionBots();
               }
               if (event.type === "thread.message.created" && event.payload?.role === "bot") {
                 readVisibleTarget.current = null;
                 markReadIfVisible();
               }
               if (isRunTerminalEvent(event)) {
+                void refreshMentionBots();
                 if (!jumpScrollTarget.current && !expandedHistoryThread.current) {
                   void refresh().catch(() => undefined);
                 }
@@ -878,7 +1003,7 @@ function Thread() {
     return () => {
       abort.abort();
     };
-  }, [botId, groupId, markReadIfVisible]);
+  }, [botId, groupId, markReadIfVisible, refreshMentionBots]);
 
   useEffect(() => {
     if (!botId && !groupId) return;
@@ -1142,7 +1267,7 @@ function Thread() {
   }
 
   const answerMessage = useCallback(
-    async (message: MobileMessage, answer: string) => {
+    async (message: MobileMessage, answer: string, username?: string) => {
       const targetBotId = botId;
       const targetGroupId = groupId;
       if ((!targetBotId && !targetGroupId) || !message.runId) return;
@@ -1151,6 +1276,7 @@ function Thread() {
         runId: message.runId,
         messageId: message.id,
         answer,
+        ...(username ? { username } : {}),
       });
       if (isCurrentTarget(targetBotId, targetGroupId)) await refresh();
     },
@@ -1242,7 +1368,7 @@ function Thread() {
     );
   }
 
-  async function reactToMessage(message: MobileMessage) {
+  async function reactToMessage(message: MobileMessage, reaction: MessageReaction) {
     const targetBotId = botId;
     const targetGroupId = groupId;
     if (!targetBotId && !targetGroupId) return;
@@ -1250,7 +1376,8 @@ function Thread() {
       await rpc("threads/react", {
         ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! }),
         messageId: message.id,
-        thumbsUp: !message.thumbsUp,
+        reaction,
+        clientNonce: newClientNonce(),
       });
     } catch (err) {
       if (!isCurrentTarget(targetBotId, targetGroupId)) return;
@@ -1265,8 +1392,18 @@ function Thread() {
         ? [
             {
               name: "react",
-              text: message.thumbsUp ? t("Remove thumbs-up") : t("Add thumbs-up"),
-              onPress: () => void reactToMessage(message),
+              text: t("React"),
+              onPress: () =>
+                presentMessageActionSheet({
+                  cancel: t("Cancel"),
+                  more: t("More"),
+                  colorScheme,
+                  actions: MESSAGE_REACTIONS.map((emoji) => ({
+                    name: emoji,
+                    text: emoji,
+                    onPress: () => void reactToMessage(message, emoji),
+                  })),
+                }),
             },
           ]
         : []),
@@ -1305,6 +1442,7 @@ function Thread() {
 
   function renderMessageRow(message: MobileMessage, options?: { enableJump?: boolean }) {
     const actionProps = messageActionProps(message);
+    const messageReactions = reactionView.reactions.get(message.id);
     const activityBotId =
       !inGroup && message.role === "bot" && message.id.startsWith("progress:")
         ? (message.botId ?? botId)
@@ -1369,7 +1507,7 @@ function Thread() {
               botId={botId ?? snap?.members?.[0]?.botId ?? ""}
               groupId={groupId}
               message={message}
-              botName={name}
+              botName={displayName}
               bots={mentionBots}
               members={snap?.members}
               replyPreview={
@@ -1382,20 +1520,35 @@ function Thread() {
               actionProps={actionProps}
             />
           </Pressable>
-          {canReactToThreadMessage(message) && message.thumbsUp ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("Remove thumbs-up")}
-              accessibilityState={{ selected: true }}
-              onPress={() => void reactToMessage(message)}
-              hitSlop={8}
+          {messageReactions ? (
+            <View
               style={{
-                alignSelf: message.role === "user" ? "flex-end" : "flex-start",
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 4,
                 marginTop: 4,
+                justifyContent: message.role === "user" ? "flex-end" : "flex-start",
               }}
             >
-              <Text style={{ color: tokens.warning, fontSize: 13 }}>👍</Text>
-            </Pressable>
+              {[...messageReactions].map(([emoji, count]) => (
+                <Text
+                  key={emoji}
+                  style={{
+                    color: tokens.foreground,
+                    backgroundColor: tokens.muted,
+                    borderColor: tokens.border,
+                    borderWidth: 1,
+                    borderRadius: 16,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    fontSize: 13,
+                  }}
+                >
+                  {emoji}
+                  {count > 1 ? ` ${count}` : ""}
+                </Text>
+              ))}
+            </View>
           ) : null}
         </View>
       </View>
@@ -1405,10 +1558,11 @@ function Thread() {
   const workingFooter =
     !inGroup && currentBot && isWorkingStatus(currentBotStatus) && !hasLiveProgress ? (
       <View
+        accessibilityLabel={t("{name} is working", { name: currentBot.name })}
+        accessibilityRole="text"
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 10,
           minHeight: 40,
           marginTop: 12,
         }}
@@ -1419,16 +1573,18 @@ function Thread() {
           size={28}
           status={currentBotStatus}
         />
-        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }}>
-          {t("{name} is working", { name: currentBot.name })}
-        </Text>
       </View>
     ) : inGroup && workingGroupBots.length > 0 ? (
       <View
+        accessibilityLabel={
+          workingGroupBots.length === 1
+            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
+            : t("{count} agents working", { count: workingGroupBots.length })
+        }
+        accessibilityRole="text"
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 10,
           minHeight: 40,
           marginTop: 12,
         }}
@@ -1446,11 +1602,6 @@ function Thread() {
             </View>
           ))}
         </View>
-        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5, flexShrink: 1 }}>
-          {workingGroupBots.length === 1
-            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
-            : t("{count} agents working", { count: workingGroupBots.length })}
-        </Text>
       </View>
     ) : null;
 
@@ -1584,7 +1735,7 @@ function Thread() {
           </Pressable>
         ) : null}
       </View>
-      <View style={{ paddingBottom: Math.max(insets.bottom + 12, 24) }}>
+      <View style={{ paddingBottom: keyboardVisible ? 12 : Math.max(insets.bottom + 12, 24) }}>
         {replyTarget ? (
           <View
             style={{
@@ -1905,7 +2056,9 @@ function Thread() {
             <TextInput
               value={draft}
               onChangeText={updateDraft}
-              accessibilityLabel={name ? t("Message {name}", { name }) : t("Message")}
+              accessibilityLabel={
+                displayName ? t("Message {name}", { name: displayName }) : t("Message")
+              }
               onKeyPress={(event) => {
                 if (
                   event.nativeEvent.key === "Backspace" &&
@@ -1918,8 +2071,8 @@ function Thread() {
               placeholder={
                 selectedSkill || selectedMentions.length
                   ? undefined
-                  : name
-                    ? t("Message {name}", { name })
+                  : displayName
+                    ? t("Message {name}", { name: displayName })
                     : t("Message…")
               }
               placeholderTextColor={tokens.mutedForeground}
@@ -2207,7 +2360,7 @@ const MessageBubble = memo(function MessageBubble({
   members?: MobileSnapshot["members"];
   replyPreview?: MobileMessage;
   canAnswer: boolean;
-  onAnswer: (message: MobileMessage, answer: string) => Promise<void>;
+  onAnswer: (message: MobileMessage, answer: string, username?: string) => Promise<void>;
   onOpenBot: (botId: string, name: string) => void;
   onPreviewMarkdown: (target: MarkdownArtifactPreviewTarget) => void;
   actionProps: MessageActionProps;
@@ -2233,7 +2386,7 @@ const MessageBubble = memo(function MessageBubble({
           ask={ask}
           actionProps={actionProps}
           canAnswer={canAnswer}
-          onAnswer={(answer) => onAnswer(message, answer)}
+          onAnswer={(answer, username) => onAnswer(message, answer, username)}
         />
         {appConnectBlocks.map((block, index) => (
           <AppConnectCard
@@ -2625,7 +2778,7 @@ const MessageBubble = memo(function MessageBubble({
             {speaker}
           </Text>
         ) : null}
-        {replyPreview ? (
+        {replyPreview || (message.replyToMessageId && message.replyQuote) ? (
           <Text
             style={{
               color: message.role === "user" ? tokens.secondaryForeground : tokens.mutedForeground,
@@ -2633,7 +2786,11 @@ const MessageBubble = memo(function MessageBubble({
             }}
             numberOfLines={2}
           >
-            {previewMessageText(replyPreview)}
+            {message.replyQuote
+              ? `“${message.replyQuote}”`
+              : replyPreview
+                ? previewMessageText(replyPreview)
+                : ""}
           </Text>
         ) : null}
         {caption ? (
@@ -2804,7 +2961,7 @@ function MessageTextCard({
           {speaker}
         </Text>
       ) : null}
-      {replyPreview ? (
+      {replyPreview || (message.replyToMessageId && message.replyQuote) ? (
         <Text
           style={{
             color: message.role === "user" ? tokens.secondaryForeground : tokens.mutedForeground,
@@ -2813,7 +2970,11 @@ function MessageTextCard({
           }}
           numberOfLines={2}
         >
-          {previewMessageText(replyPreview)}
+          {message.replyQuote
+            ? `“${message.replyQuote}”`
+            : replyPreview
+              ? previewMessageText(replyPreview)
+              : ""}
         </Text>
       ) : null}
       {message.role === "user" ? (
@@ -2890,18 +3051,22 @@ function AskBlock({
 }: {
   ask: Extract<MobileMessage["blocks"][number], { kind: "ask" }>;
   canAnswer: boolean;
-  onAnswer: (answer: string) => Promise<void>;
+  onAnswer: (answer: string, username?: string) => Promise<void>;
   actionProps: MessageActionProps;
 }) {
   const tokens = useMobileTokens();
   const { t } = useI18n();
   const [answer, setAnswer] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const answered = ask.status === "answered";
   const secretInput = isSecretAskBlock(ask);
+  const loginInput = secretInput && ask.credential?.auth.type === "login";
+  const incomplete =
+    (secretInput ? answer.length === 0 : !answer.trim()) || (loginInput && !username.trim());
   const secretLabel =
-    ask.purpose === "password"
+    loginInput || ask.purpose === "password"
       ? t("Password")
       : ask.purpose === "api_key"
         ? t("API key")
@@ -2911,13 +3076,14 @@ function AskBlock({
 
   async function submit() {
     if (submitting) return;
-    if (secretInput ? answer.length === 0 : !answer.trim()) return;
+    if (incomplete) return;
     const submitValue = secretInput ? answer : answer.trim();
+    const submitUsername = loginInput ? username.trim() : undefined;
     setSubmitting(true);
     setError(null);
     if (secretInput) setAnswer("");
     try {
-      await onAnswer(submitValue);
+      await onAnswer(submitValue, submitUsername);
     } catch (cause) {
       setError(!secretInput && cause instanceof Error ? cause.message : t("Could not send answer"));
     } finally {
@@ -2958,6 +3124,23 @@ function AskBlock({
         </Text>
       ) : canAnswer ? (
         <>
+          {loginInput ? (
+            <TextInput
+              accessibilityLabel={t("Username")}
+              value={username}
+              onChangeText={setUsername}
+              placeholder={t("Username")}
+              placeholderTextColor={tokens.mutedForeground}
+              autoComplete="off"
+              autoCorrect={false}
+              autoCapitalize="none"
+              editable={!submitting}
+              style={[
+                askInputStyles.field,
+                { borderColor: tokens.border, color: tokens.foreground },
+              ]}
+            />
+          ) : null}
           <TextInput
             accessibilityLabel={secretInput ? secretLabel : t("Answer")}
             value={answer}
@@ -2970,26 +3153,18 @@ function AskBlock({
             autoCapitalize={secretInput ? "none" : "sentences"}
             editable={!submitting}
             onSubmitEditing={() => void submit()}
-            style={{
-              minHeight: 42,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: tokens.border,
-              color: tokens.foreground,
-              paddingHorizontal: 12,
-              paddingVertical: 9,
-            }}
+            style={[askInputStyles.field, { borderColor: tokens.border, color: tokens.foreground }]}
           />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={submitLabel}
-            disabled={(secretInput ? answer.length === 0 : !answer.trim()) || submitting}
+            disabled={incomplete || submitting}
             onPress={() => void submit()}
             style={{
               alignSelf: "flex-end",
               borderRadius: 999,
               backgroundColor: tokens.foreground,
-              opacity: (secretInput ? answer.length === 0 : !answer.trim()) || submitting ? 0.5 : 1,
+              opacity: incomplete || submitting ? 0.5 : 1,
               paddingHorizontal: 16,
               paddingVertical: 9,
             }}
@@ -3008,3 +3183,13 @@ function AskBlock({
     </View>
   );
 }
+
+const askInputStyles = StyleSheet.create({
+  field: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+});

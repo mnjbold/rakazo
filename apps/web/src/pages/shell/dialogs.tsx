@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Bot } from "@rakazo/contracts";
+import type { Bot, BotSection } from "@rakazo/contracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,7 @@ import {
   DialogTitle,
   Input,
 } from "@rakazo/ui-web";
-import { Lock } from "lucide-react";
+import { Lock, Users } from "lucide-react";
 import { useId, useState } from "react";
 
 /** Each dialog is mounted only while open, so `open` is always true and the
@@ -96,6 +96,53 @@ export function NewSpaceDialog({
   );
 }
 
+export function PickerInfoDialog({
+  topic,
+  onClose,
+}: {
+  topic: "group" | "space";
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent data-testid="picker-info-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2.5">
+            {topic === "group" ? (
+              <Users
+                size={17}
+                strokeWidth={1.8}
+                className="text-muted-foreground"
+                aria-hidden="true"
+              />
+            ) : (
+              <Lock
+                size={17}
+                strokeWidth={1.8}
+                className="text-muted-foreground"
+                aria-hidden="true"
+              />
+            )}
+            {topic === "group" ? <Trans>Groups</Trans> : <Trans>Spaces</Trans>}
+          </DialogTitle>
+          <DialogDescription>
+            {topic === "group" ? (
+              <Trans>Shared chat with 2-6 bots. They all reply in the same thread.</Trans>
+            ) : (
+              <Trans>Private workspace with its own bots and groups.</Trans>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function NewBotSectionDialog({
   bot,
   onCancel,
@@ -153,6 +200,70 @@ export function NewBotSectionDialog({
             </Button>
             <Button type="submit" disabled={saving || !name.trim()}>
               {saving ? <Trans>Creating…</Trans> : <Trans>Create</Trans>}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function RenameBotSectionDialog({
+  section,
+  onCancel,
+  onConfirm,
+}: {
+  section: Pick<BotSection, "name">;
+  onCancel: () => void;
+  onConfirm: (name: string) => Promise<void>;
+}) {
+  const { t } = useLingui();
+  const nameId = useId();
+  const [name, setName] = useState(section.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const trimmed = name.trim();
+  const unchanged = trimmed === section.name;
+
+  return (
+    <Dialog open onOpenChange={closeUnlessBusy(saving, onCancel)}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined}>
+        <form
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!trimmed || saving || unchanged) return;
+            setSaving(true);
+            setError(null);
+            void onConfirm(trimmed).catch((err: unknown) => {
+              setError(err instanceof Error ? err.message : t`Could not rename section`);
+              setSaving(false);
+            });
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>Rename section</Trans>
+            </DialogTitle>
+          </DialogHeader>
+          <label htmlFor={nameId} className="block text-[13.5px] text-foreground/75">
+            <Trans>Name</Trans>
+            <Input
+              id={nameId}
+              maxLength={60}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-2"
+              autoFocus
+            />
+          </label>
+          {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={saving} onClick={onCancel}>
+              <Trans>Cancel</Trans>
+            </Button>
+            <Button type="submit" disabled={saving || !trimmed || unchanged}>
+              {saving ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
             </Button>
           </DialogFooter>
         </form>
@@ -306,11 +417,13 @@ export function DeleteBotDialog({
 export function DeleteItemDialog({
   item,
   noun,
+  description,
   onCancel,
   onConfirm,
 }: {
   item: { name: string };
-  noun: "group" | "routine";
+  noun: "group" | "routine" | "space";
+  description?: React.ReactNode;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
 }) {
@@ -326,7 +439,7 @@ export function DeleteItemDialog({
             <Trans>Delete {item.name}?</Trans>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            <Trans>This cannot be undone.</Trans>
+            {description ?? <Trans>This cannot be undone.</Trans>}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
@@ -346,7 +459,9 @@ export function DeleteItemDialog({
                     ? err.message
                     : noun === "group"
                       ? t`Could not delete group`
-                      : t`Could not delete routine`,
+                      : noun === "space"
+                        ? t`Could not delete space`
+                        : t`Could not delete routine`,
                 );
                 setDeleting(false);
               });
