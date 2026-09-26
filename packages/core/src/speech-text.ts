@@ -229,3 +229,22 @@ export function spokenDecision(transcript: string): "yes" | "no" | null {
   if (NO.test(text) && text.split(/\s+/).length <= 6) return "no";
   return null;
 }
+
+const FILLER =
+  /^(?:u+h+|u+m+|h+m+|m+h*m*|a+h+|o+h+|e+r+m*|hu+h|mhm|uh-?huh|ok|okay|yeah|right|so|and|the|a)$/i;
+
+/**
+ * True for a live-call transcript that is background noise or a filler, not a turn meant for the
+ * bot: no letters, only filler words, or a single character. Callers skip this check while the
+ * bot is waiting on a spoken answer, where "yes" or "ok" is a real reply.
+ */
+export function isNoiseUtterance(transcript: string): boolean {
+  const words = transcript
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return true;
+  if (words.every((word) => FILLER.test(word))) return true;
+  return words.length === 1 && (words[0]?.length ?? 0) < 2;
+}

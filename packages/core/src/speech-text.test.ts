@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isNoiseUtterance,
   narrateTool,
   speakable,
   speechFromBlocks,
@@ -162,5 +163,26 @@ describe("spokenDecision", () => {
     expect(spokenDecision("No thanks")).toBe("no");
     expect(spokenDecision("I'm sure that's fine, go look at the logs")).toBeNull();
     expect(spokenDecision("")).toBeNull();
+  });
+});
+
+describe("isNoiseUtterance", () => {
+  it("drops fillers, punctuation-only, and lone characters", () => {
+    for (const noise of ["", "...", "uh", "Umm.", "hmm hmm", "oh okay", "mhm", "a", "x"]) {
+      expect(isNoiseUtterance(noise), noise).toBe(true);
+    }
+  });
+
+  it("keeps real turns, including short commands", () => {
+    for (const turn of [
+      "hi",
+      "stop",
+      "open my email",
+      "what's the weather",
+      "call Sam",
+      "Okay send it",
+    ]) {
+      expect(isNoiseUtterance(turn), turn).toBe(false);
+    }
   });
 });

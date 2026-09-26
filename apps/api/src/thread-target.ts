@@ -572,6 +572,7 @@ export async function sendThreadMessage(
     mentions?: MentionTargetInput[];
     replyToMessageId?: string;
     clientNonce?: string;
+    live?: boolean;
   },
 ) {
   const existing = await replayExistingSend(deps, target.threadId, input.clientNonce);
@@ -666,6 +667,7 @@ export async function sendThreadMessage(
             userId: actor.userId,
             status: "queued",
             trigger: "user",
+            live: input.live,
             clientNonce: sendRunClientNonce(input.clientNonce, message.id),
             sourceMessageId: message.id,
           },
@@ -767,6 +769,7 @@ export async function sendThreadMessage(
             userId: actor.userId,
             status: "queued",
             trigger: "user",
+            live: input.live,
             clientNonce: sendRunClientNonce(input.clientNonce, message.id, botId),
             sourceMessageId: message.id,
           },

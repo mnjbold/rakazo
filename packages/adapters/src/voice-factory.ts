@@ -2,8 +2,10 @@ import type { VoiceProvider } from "@rakazo/adapter-kit";
 import { CartesiaVoiceProvider } from "./cartesia-voice.js";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice.js";
 import { KokoroVoiceProvider } from "./kokoro-voice.js";
+import { MiniMaxVoiceProvider } from "./minimax-voice.js";
 import { OpenAIVoiceProvider } from "./openai-voice.js";
 import { SCRIPTED_VOICE_CATALOG_ENTRY, ScriptedVoiceProvider } from "./scripted-voice.js";
+import { TelnyxVoiceProvider } from "./telnyx-voice.js";
 import { VoiceStudioVoiceProvider } from "./voicestudio-voice.js";
 
 export const VOICE_CATALOG = [
@@ -38,6 +40,18 @@ export const VOICE_CATALOG = [
     description: "Local OpenAI-compatible TTS. No cloud key required — use a placeholder.",
     transcribe: false,
     managed: false,
+  },
+  {
+    id: "minimax",
+    name: "MiniMax",
+    description: "Expressive Speech voices. Reuse a MiniMax key.",
+    transcribe: false,
+  },
+  {
+    id: "telnyx",
+    name: "Telnyx",
+    description: "Kokoro, Ultra and partner voices plus Whisper transcription. Reuse a Telnyx key.",
+    transcribe: true,
   },
 ] as const;
 
@@ -78,6 +92,10 @@ export function createVoiceProvider(kind: string): VoiceProvider {
       return new VoiceStudioVoiceProvider();
     case "kokoro":
       return new KokoroVoiceProvider();
+    case "minimax":
+      return new MiniMaxVoiceProvider();
+    case "telnyx":
+      return new TelnyxVoiceProvider();
     case "scripted":
       if (!scriptedVoiceEnabled()) break;
       return new ScriptedVoiceProvider();
@@ -85,7 +103,7 @@ export function createVoiceProvider(kind: string): VoiceProvider {
       break;
   }
   throw new Error(
-    `Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | voicestudio | kokoro.`,
+    `Unknown voice provider "${kind}". Use elevenlabs | openai | cartesia | voicestudio | kokoro | minimax | telnyx.`,
   );
 }
 

@@ -33,6 +33,15 @@ const peerExchange = [
 ];
 
 describe("user-visible messages", () => {
+  it("hides a live-call reply that chose silence, streamed or final", () => {
+    const visible = userVisibleMessages([
+      message("streaming", "run-live", [{ kind: "progress", text: "[silent]" }]),
+      message("final", "run-live", [{ kind: "text", text: " [SILENT] " }]),
+      message("spoken", "run-live", [{ kind: "text", text: "Your meeting moved to 3pm." }]),
+    ]);
+    expect(visible.map((entry) => entry.id)).toEqual(["spoken"]);
+  });
+
   it("hides peer activity but keeps the bot's text reply to the user", () => {
     expect(userVisibleMessages(peerExchange).map((item) => item.id)).toEqual([
       "user",

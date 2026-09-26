@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { z } from "zod";
 import {
   appContract,
   BOT_DESCRIPTION_MAX_LENGTH,
@@ -151,6 +152,17 @@ describe("contracts", () => {
         verificationUri: "javascript:alert(1)",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts an optional live flag on send and follow-up", () => {
+    const send = appContract.threads.send["~orpc"].inputSchema as z.ZodType;
+    const followUp = appContract.threads.followUp["~orpc"].inputSchema as z.ZodType;
+    const target = { botId: "bot_1" };
+    expect(send.parse({ ...target, text: "hi", live: true })).toMatchObject({ live: true });
+    expect(send.parse({ ...target, text: "hi" })).not.toHaveProperty("live");
+    expect(send.safeParse({ ...target, text: "hi", live: "yes" }).success).toBe(false);
+    expect(followUp.parse({ ...target, text: "hi", live: true })).toMatchObject({ live: true });
+    expect(followUp.safeParse({ ...target, text: "hi", live: 1 }).success).toBe(false);
   });
 
   it("exposes the product rpc surface", () => {

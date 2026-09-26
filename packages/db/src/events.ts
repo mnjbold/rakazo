@@ -201,6 +201,8 @@ export interface SendUserMessageInput {
   createRun?: boolean;
   /** When true, start a new run even if the bot is already busy (team-chat delivery). */
   allowParallelRun?: boolean;
+  /** Mark a created run as a live voice call. */
+  live?: boolean;
 }
 
 export interface SendUserMessageResult {
@@ -411,6 +413,7 @@ export async function sendUserMessage(
             userId: input.userId,
             status: "queued",
             trigger: input.trigger,
+            live: input.live,
             clientNonce: input.clientNonce ? `send:${message.id}` : undefined,
             sourceMessageId: message.id,
           },
@@ -1108,6 +1111,8 @@ async function createSteeringContinuation(
   });
   if (pending.length === 0) return null;
   const last = pending.at(-1)!;
+  // Speech steered into a live call stays in the call when it outlives the run.
+  const finished = await tx.run.findUnique({ where: { id: input.runId }, select: { live: true } });
   const task = await tx.task.create({
     data: {
       spaceId: input.spaceId,
@@ -1127,6 +1132,7 @@ async function createSteeringContinuation(
       userId: pending[0]!.userId,
       status: "queued",
       trigger: "follow_up",
+      live: finished?.live ?? false,
       sourceMessageId: last.message.id,
     },
   });

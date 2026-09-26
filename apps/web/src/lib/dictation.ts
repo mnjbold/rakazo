@@ -62,6 +62,8 @@ export class Dictation {
   private transcribeAbort: AbortController | null = null;
   private audioContext: AudioContext | null = null;
   private vadTimer: ReturnType<typeof setInterval> | undefined;
+  /** Live mic loudness 0..1 while the recorder's silence detector runs; 0 otherwise. Poll it, don't subscribe. */
+  level = 0;
   private onFinal: ((text: string) => void) | null = null;
 
   subscribe(fn: (s: DictationSnapshot) => void): () => void {
@@ -259,6 +261,7 @@ export class Dictation {
           sum += n * n;
         }
         const rms = Math.sqrt(sum / data.length);
+        this.level = Math.min(1, rms * 6);
         if (rms > SILENCE_RMS) {
           heardSpeech = true;
           silentFor = 0;
@@ -284,6 +287,7 @@ export class Dictation {
   private stopVad() {
     clearInterval(this.vadTimer);
     this.vadTimer = undefined;
+    this.level = 0;
     const ctx = this.audioContext;
     this.audioContext = null;
     if (ctx) void ctx.close().catch(() => undefined);

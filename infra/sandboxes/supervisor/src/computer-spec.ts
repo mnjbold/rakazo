@@ -109,19 +109,24 @@ function parsePidsLimit(name: string, raw: string): number {
   return value;
 }
 
+// `.env.example` ships these keys blank, so blank must mean "use the default", not a parse error.
+function envOrDefault(name: string, fallback: string): string {
+  return process.env[name]?.trim() || fallback;
+}
+
 /** The host resource ceilings applied to every bot computer. */
 export function computerResourceLimits() {
   const memoryBytes = parseMemoryBytes(
     "RAKAZO_COMPUTER_MEMORY",
-    process.env.RAKAZO_COMPUTER_MEMORY ?? DEFAULT_COMPUTER_MEMORY,
+    envOrDefault("RAKAZO_COMPUTER_MEMORY", DEFAULT_COMPUTER_MEMORY),
   );
   const nanoCpus = parseNanoCpus(
     "RAKAZO_COMPUTER_CPUS",
-    process.env.RAKAZO_COMPUTER_CPUS ?? DEFAULT_COMPUTER_CPUS,
+    envOrDefault("RAKAZO_COMPUTER_CPUS", DEFAULT_COMPUTER_CPUS),
   );
   const pidsLimit = parsePidsLimit(
     "RAKAZO_COMPUTER_PIDS_LIMIT",
-    process.env.RAKAZO_COMPUTER_PIDS_LIMIT ?? DEFAULT_COMPUTER_PIDS_LIMIT,
+    envOrDefault("RAKAZO_COMPUTER_PIDS_LIMIT", DEFAULT_COMPUTER_PIDS_LIMIT),
   );
   return {
     // Memory and MemorySwap are set together: leaving MemorySwap unset lets the
