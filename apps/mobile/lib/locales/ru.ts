@@ -401,6 +401,9 @@ export const RU_MESSAGES: Record<string, string> = {
   "Replying to": "Ответ пользователю",
   "Replace API key": "Заменить ключ API",
   "Replace key": "Заменить ключ",
+  Reconnect: "Переподключить",
+  "This provider is managed by your server. No API key is needed here.":
+    "Этим провайдером управляет ваш сервер. API-ключ здесь не нужен.",
   Reset: "Сбросить",
   "Reset your password": "Сбросить пароль",
   "Reset computer": "Сбросить компьютер",

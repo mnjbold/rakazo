@@ -273,7 +273,8 @@ export default function VoiceSettings() {
               onPress={() => void connect()}
               style={[
                 styles.button,
-                (pending !== null || (!selected.managed && apiKey.trim().length < 8)) && styles.disabled,
+                (pending !== null || (!selected.managed && apiKey.trim().length < 8)) &&
+                  styles.disabled,
               ]}
             >
               <Text style={styles.buttonLabel}>

@@ -412,6 +412,9 @@ export const DE_MESSAGES: Record<string, string> = {
   "Paste a replacement key": "Ersatzschlüssel einfügen",
   "Paste your API key": "Füge deinen API-Schlüssel ein",
   "Replace key": "Schlüssel ersetzen",
+  Reconnect: "Erneut verbinden",
+  "This provider is managed by your server. No API key is needed here.":
+    "Dieser Anbieter wird von deinem Server verwaltet. Hier ist kein API-Schlüssel nötig.",
   "Speak + transcribe": "Sprechen + transkribieren",
   "Speak only": "Nur sprechen",
   "This device": "Dieses Gerät",
