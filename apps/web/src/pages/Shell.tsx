@@ -6,7 +6,6 @@ import type {
   AgentSkillCatalogEntry,
   Bot,
   BotSection,
-  ComputerMode,
   ComputerReleaseReason,
   ComputerStatus,
   Connection,
@@ -2338,18 +2337,9 @@ export function ShellPage() {
     setSettingsOpen(true);
   }
 
-  async function createBot(input: {
-    name: string;
-    title: string;
-    description: string;
-    computerMode: ComputerMode;
-  }) {
+  async function createBot(create: () => Promise<Bot>) {
     const isFirstBot = botsRef.current.length === 0;
-    const bot = await rpc.bots.create({
-      ...normalizeCreateBotProfile(input),
-      notifyOnFinish: true,
-      computerMode: input.computerMode,
-    });
+    const bot = await create();
     setBots((current) =>
       current.some((item) => item.id === bot.id) ? current : [bot, ...current],
     );
@@ -3763,7 +3753,18 @@ export function ShellPage() {
             {panel === "create" ? (
               <CreateBotForm
                 onCancel={() => setPanel(null)}
-                onCreate={(input) => createBot(input)}
+                onCreate={(input) =>
+                  createBot(() =>
+                    rpc.bots.create({
+                      ...normalizeCreateBotProfile(input),
+                      notifyOnFinish: true,
+                      computerMode: input.computerMode,
+                    }),
+                  )
+                }
+                onUseTemplate={(templateId, computerMode) =>
+                  createBot(() => rpc.botTemplates.use({ templateId, computerMode }))
+                }
               />
             ) : null}
             {panel === "settings" && active ? (
@@ -4033,6 +4034,17 @@ export function ShellPage() {
                 navigate(contextBot ? `/app/${chat.id}` : `/app/g/${chat.id}`);
               });
             }}
+            onShareAsTemplate={
+              contextBot
+                ? (visibility) => {
+                    setBotMenu(null);
+                    // Opening the gallery confirms the share and keeps unpublish one click away.
+                    void rpc.botTemplates
+                      .create({ botId: contextBot.id, visibility })
+                      .then(() => setPanel("create"));
+                  }
+                : undefined
+            }
             onClear={() => {
               setClearTarget(
                 contextBot

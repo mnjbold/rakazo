@@ -313,6 +313,35 @@ export function normalizeCreateBotProfile(
   };
 }
 
+export const BotTemplateVisibilitySchema = z.enum(["space", "public"]);
+export type BotTemplateVisibility = z.infer<typeof BotTemplateVisibilitySchema>;
+
+/** Profile snapshot only: secrets, connections, memory, history, and computers never travel. */
+export const BotTemplateSchema = z.object({
+  id: Id,
+  visibility: BotTemplateVisibilitySchema,
+  name: z.string(),
+  title: z.string(),
+  description: z.string(),
+  instructions: z.string(),
+  color: z.string(),
+  mine: z.boolean(),
+  createdAt: z.string(),
+});
+export type BotTemplate = z.infer<typeof BotTemplateSchema>;
+
+export const CreateBotTemplateInput = z.object({
+  botId: Id,
+  visibility: BotTemplateVisibilitySchema,
+});
+export type CreateBotTemplateInput = z.infer<typeof CreateBotTemplateInput>;
+
+export const UseBotTemplateInput = z.object({
+  templateId: Id,
+  computerMode: ComputerModeSchema.default("team"),
+});
+export type UseBotTemplateInput = z.infer<typeof UseBotTemplateInput>;
+
 export const UpdateBotInput = z
   .object({
     botId: Id,

@@ -115,6 +115,14 @@ export default function Layout() {
                   }}
                 />
                 <Stack.Screen
+                  name="bot-templates"
+                  options={{
+                    title: t("Templates"),
+                    presentation: "modal",
+                    gestureEnabled: true,
+                  }}
+                />
+                <Stack.Screen
                   name="new-space"
                   options={{
                     title: t("New space"),

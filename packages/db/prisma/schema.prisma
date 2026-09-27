@@ -46,6 +46,7 @@ model User {
   createdSpaces               Space[]                      @relation("SpaceCreator")
   botSecrets BotSecret[]
   agentSecrets               AgentSecret[]
+  botTemplates               BotTemplate[]
 
   @@unique([email])
   @@map("user")
@@ -175,6 +176,7 @@ model Space {
   deletionClaimId             String?
   memberships                 SpaceMember[]
   bots                        Bot[]
+  botTemplates                BotTemplate[]
   botSections                 BotSection[]
   botDeletions                BotDeletion[]
   threads                     Thread[]
@@ -395,6 +397,29 @@ model Bot {
   @@index([computerId])
   @@index([parentBotId])
   @@map("bots")
+}
+
+/// Shareable snapshot of a bot profile. Never holds secrets, connections, memory, or history.
+model BotTemplate {
+  id           String   @id @default(cuid())
+  spaceId      String
+  space        Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// space | public
+  visibility   String
+  name         String
+  title        String   @default("")
+  description  String   @default("")
+  instructions String   @default("")
+  color        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([spaceId, createdAt])
+  @@index([visibility, createdAt])
+  @@index([userId])
+  @@map("bot_templates")
 }
 
 model BotSection {

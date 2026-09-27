@@ -611,4 +611,8 @@ export const RU_MESSAGES: Record<string, string> = {
     "Встроенный голос телефона. Бесплатно, без аккаунта",
   "Could not save that preference": "Не удалось сохранить эту настройку",
   Username: "Имя пользователя",
+  // app/bot-templates.tsx
+  Templates: "Шаблоны",
+  "No templates": "Нет шаблонов",
+  "Use template {name}": "Использовать шаблон {name}",
 };

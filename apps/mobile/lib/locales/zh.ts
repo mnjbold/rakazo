@@ -594,4 +594,8 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Your phone's built-in voice. Free, no account needed": "手机自带的语音。免费，无需账户",
   "Could not save that preference": "无法保存该设置",
   Username: "用户名",
+  // app/bot-templates.tsx
+  Templates: "模板",
+  "No templates": "暂无模板",
+  "Use template {name}": "使用模板 {name}",
 };

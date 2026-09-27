@@ -609,4 +609,8 @@ export const DE_MESSAGES: Record<string, string> = {
   "Android blocked notifications.": "Android hat Benachrichtigungen blockiert.",
   // lib/voice.ts
   "Could not play that clip.": "Dieser Clip konnte nicht abgespielt werden.",
+  // app/bot-templates.tsx
+  Templates: "Vorlagen",
+  "No templates": "Keine Vorlagen",
+  "Use template {name}": "Vorlage {name} verwenden",
 };

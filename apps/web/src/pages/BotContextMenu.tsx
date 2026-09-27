@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
-import type { Bot, BotSection } from "@rakazo/contracts";
+import type { Bot, BotSection, BotTemplateVisibility } from "@rakazo/contracts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +19,12 @@ import {
   Eraser,
   Folder,
   FolderPlus,
+  Globe,
   Pencil,
   Pin,
+  Share2,
   Trash2,
+  Users,
 } from "lucide-react";
 
 export type ContextMenuPosition = { x: number; y: number };
@@ -40,6 +43,7 @@ export function BotContextMenu({
   onToggleUnread,
   onEdit,
   onDuplicate,
+  onShareAsTemplate,
   onClear,
   onArchive,
   onDelete,
@@ -55,6 +59,7 @@ export function BotContextMenu({
   onToggleUnread: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
+  onShareAsTemplate?: (visibility: BotTemplateVisibility) => void;
   onClear: () => void;
   onArchive: () => void;
   onDelete: () => void;
@@ -134,6 +139,24 @@ export function BotContextMenu({
           <Copy />
           {t`Duplicate`}
         </DropdownMenuItem>
+        {onShareAsTemplate ? (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Share2 />
+              {t`Share as template`}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-[180px]">
+              <DropdownMenuItem onClick={() => onShareAsTemplate("space")}>
+                <Users />
+                {t`This space`}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onShareAsTemplate("public")}>
+                <Globe />
+                {t`Everyone`}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onClear}>
           <Eraser />

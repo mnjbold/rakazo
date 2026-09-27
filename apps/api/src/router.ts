@@ -162,6 +162,7 @@ import {
   listArtifactVersions,
   listSpaceArtifacts,
 } from "./artifacts.js";
+import { createBotTemplatesService } from "./bot-templates.js";
 import { botProfileLabelsChanged, commitBotUpdate } from "./bot-update.js";
 import {
   executionBlocksUserTakeover,
@@ -589,6 +590,11 @@ export function createRouter(deps: RouterDeps) {
     dataDir: deps.dataDir,
   });
   const agentSkills = createAgentSkillsService(deps.prisma);
+  const botTemplates = createBotTemplatesService(deps.prisma, (actor, input) =>
+    repos.createBot(actor, input).catch((error: unknown) => {
+      throw mapSpaceLifecycleError(error);
+    }),
+  );
 
   const authed = os.use(async ({ context, next }) => {
     if (!context.actor) throw new ORPCError("UNAUTHORIZED");
@@ -1493,6 +1499,22 @@ export function createRouter(deps: RouterDeps) {
           path: `/api/v1/bots/${bot.id}/webhook`,
           webhookConfigured: true as const,
         };
+      }),
+    },
+    botTemplates: {
+      list: authed.botTemplates.list.handler(({ context }) => botTemplates.list(context.actor)),
+      create: authed.botTemplates.create.handler(({ context, input }) =>
+        botTemplates.create(context.actor, input),
+      ),
+      remove: authed.botTemplates.remove.handler(({ context, input }) =>
+        botTemplates.remove(context.actor, input.templateId),
+      ),
+      use: authed.botTemplates.use.handler(async ({ context, input }) => {
+        const bot = await botTemplates.use(context.actor, input);
+        await enqueueBotIntroRun(deps, context.actor, bot).catch((error) => {
+          getLogger().error("bot intro run enqueue", error);
+        });
+        return bot;
       }),
     },
     groups: {

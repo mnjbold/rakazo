@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentSkillCatalogEntry,
   Bot,
+  BotTemplate,
   ComputerMode,
   Me,
   ModelCatalogEntry,
@@ -16,6 +17,7 @@ import {
   BOT_TITLE_MAX_LENGTH,
 } from "@rakazo/contracts";
 import {
+  BotAvatar,
   Button,
   Input,
   NativeSelect,
@@ -24,7 +26,7 @@ import {
   Textarea,
   Toggle,
 } from "@rakazo/ui-web";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { rpc } from "../../lib/rpc";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
@@ -77,6 +79,7 @@ function ComputerModePicker({
 
 export function CreateBotForm({
   onCreate,
+  onUseTemplate,
   onCancel,
 }: {
   onCreate: (input: {
@@ -85,6 +88,7 @@ export function CreateBotForm({
     description: string;
     computerMode: ComputerMode;
   }) => Promise<void>;
+  onUseTemplate: (templateId: string, computerMode: ComputerMode) => Promise<void>;
   onCancel: () => void;
 }) {
   const { t } = useLingui();
@@ -95,23 +99,51 @@ export function CreateBotForm({
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<BotTemplate[]>([]);
 
-  async function handleSubmit() {
-    if (!name.trim() || submitting) return;
+  useEffect(() => {
+    let cancelled = false;
+    rpc.botTemplates
+      .list()
+      .then((rows) => {
+        if (!cancelled) setTemplates(rows);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    if (submitting) return;
     setError(null);
     setSubmitting(true);
     try {
-      await onCreate({
-        name: name.trim(),
-        title: title.trim(),
-        description: description.trim(),
-        computerMode,
-      });
+      await action();
     } catch (err) {
       setError(err instanceof Error ? err.message : t`Could not create bot`);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit() {
+    if (!name.trim()) return;
+    await run(() =>
+      onCreate({
+        name: name.trim(),
+        title: title.trim(),
+        description: description.trim(),
+        computerMode,
+      }),
+    );
+  }
+
+  async function removeTemplate(templateId: string) {
+    await run(async () => {
+      await rpc.botTemplates.remove({ templateId });
+      setTemplates((current) => current.filter((template) => template.id !== templateId));
+    });
   }
 
   return (
@@ -132,6 +164,54 @@ export function CreateBotForm({
         >
           {error}
         </p>
+      ) : null}
+      {templates.length ? (
+        <section data-testid="bot-templates" aria-labelledby={`${ids}-templates`}>
+          <h3 id={`${ids}-templates`} className="text-[14px] text-muted-foreground">
+            <Trans>Templates</Trans>
+          </h3>
+          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+            {templates.map((template) => (
+              <li
+                key={template.id}
+                data-testid={`bot-template-${template.id}`}
+                className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
+              >
+                <BotAvatar color={template.color} identity={template.id} size={24} />
+                <span className="min-w-0 flex-1">
+                  <span dir="auto" className="block truncate text-[14px]">
+                    {template.name}
+                  </span>
+                  {template.title ? (
+                    <span dir="auto" className="block truncate text-[12.5px] text-muted-foreground">
+                      {template.title}
+                    </span>
+                  ) : null}
+                </span>
+                {template.mine ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t`Remove template ${template.name}`}
+                    disabled={submitting}
+                    onClick={() => void removeTemplate(template.id)}
+                  >
+                    <Trash2 size={14} strokeWidth={1.8} />
+                  </Button>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={t`Use template ${template.name}`}
+                  disabled={submitting}
+                  onClick={() => void run(() => onUseTemplate(template.id, computerMode))}
+                >
+                  <Trans>Use</Trans>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
       <label htmlFor={`${ids}-name`} className="mt-6 block text-[14px] text-muted-foreground">
         <Trans>Name</Trans>

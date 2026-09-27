@@ -500,6 +500,7 @@ export default function Home() {
                 { text: t("New bot"), onPress: () => void createQuickBot() },
                 { text: t("New group"), onPress: () => router.push("/new-group") },
                 { text: t("New space"), onPress: () => router.push("/new-space") },
+                { text: t("Templates"), onPress: () => router.push("/bot-templates") },
                 { text: t("Cancel"), style: "cancel" },
               ]);
             }}
