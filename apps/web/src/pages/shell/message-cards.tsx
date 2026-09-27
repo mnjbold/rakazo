@@ -5,6 +5,7 @@ import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BuiCard, SuccessPop } from "../../components/ai/primitives";
+import { IntegrationIcon } from "../../components/integrations/IntegrationIcon";
 import { type ArtifactTarget, decodeArtifactBase64 } from "../../lib/artifact-open";
 import { chartViewport } from "../../lib/chart-viewport";
 import { connectMcpOauth } from "../../lib/mcp-connect";
@@ -204,17 +205,7 @@ export function AppConnectCard({
       className="w-[min(420px,80%)] px-4 py-3.5"
     >
       <div className="flex items-center gap-3.5">
-        {block.logo ? (
-          <img
-            src={block.logo}
-            alt=""
-            className="h-10 w-10 rounded-[10px] bg-white object-contain p-1"
-          />
-        ) : (
-          <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-muted text-[15px] text-foreground">
-            {block.name.slice(0, 1).toUpperCase()}
-          </span>
-        )}
+        <IntegrationIcon name={block.name} logo={block.logo} className="size-10" />
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-medium text-foreground">{block.name}</span>
           <span className="block truncate text-[13px] text-muted-foreground">

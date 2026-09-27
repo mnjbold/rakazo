@@ -105,5 +105,11 @@ export function filterConnectionCatalogItems(
   );
 }
 
+/** One-letter stand-in for an integration without usable artwork. */
+export function integrationMonogram(name: string): string {
+  const letter = name.match(/[\p{L}\p{N}]/u)?.[0];
+  return letter ? letter.toLocaleUpperCase() : "?";
+}
+
 export const EMPTY_PLUGIN_CATALOG_MESSAGE =
   "Configure a plugin catalog on the server to connect apps.";

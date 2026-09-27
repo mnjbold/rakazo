@@ -30,6 +30,7 @@ import {
 } from "@rakazo/ui-web";
 import { ChevronDown, ChevronLeft, ChevronUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IntegrationIcon } from "../components/integrations/IntegrationIcon";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
 import { optionalCatalogFeedProbe } from "../lib/optional-catalog-feed";
 import { rpc } from "../lib/rpc";
@@ -37,6 +38,9 @@ import { rpc } from "../lib/rpc";
 type SourceKind = "treg" | "executor" | "mcp" | "api" | "graphql";
 
 type ConnectionTool = { name: string; description: string };
+
+// One column on phones, up to five in the desktop dialog.
+const CATALOG_GRID = "grid grid-cols-[repeat(auto-fill,minmax(min(100%,11rem),1fr))] gap-1";
 
 function itemKey(item: Pick<ConnectionCatalogItem, "connectorId" | "slug">) {
   return `${item.connectorId}:${item.slug}`;
@@ -439,7 +443,7 @@ export function PluginsOverlay({
         <Button
           type="button"
           variant="secondary"
-          className="rounded-full"
+          className="rounded-full pointer-coarse:h-10"
           size="sm"
           disabled={connecting}
           onClick={(event) => {
@@ -455,7 +459,7 @@ export function PluginsOverlay({
       <Button
         type="button"
         variant="secondary"
-        className="rounded-full"
+        className="rounded-full pointer-coarse:h-10"
         size="sm"
         disabled={connecting}
         onClick={(event) => {
@@ -476,34 +480,24 @@ export function PluginsOverlay({
   ) {
     const connected = itemConnected(item);
     const tileTestId = opts?.tileTestId !== false && connected;
-    const icon = logo ? (
-      <img
-        src={logo}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        className="h-9 w-9 shrink-0 rounded-xl bg-accent object-contain"
-      />
-    ) : (
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
-        {label[0]}
-      </div>
-    );
+    const icon = <IntegrationIcon name={label} logo={logo} />;
     const title = (
       <div className="min-w-0 flex-1 text-start">
-        <div className="truncate text-[15px] font-medium text-foreground">{label}</div>
+        <div title={label} className="truncate text-sm font-medium text-foreground">
+          {label}
+        </div>
       </div>
     );
     return (
       <div
         key={itemKey(item)}
         data-testid={tileTestId ? `connection-tile-${item.slug.toLowerCase()}` : undefined}
-        className="flex min-w-0 items-center gap-3 rounded-xl px-2.5 py-2"
+        className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 py-1"
       >
         {connected ? (
           <button
             type="button"
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-start hover:bg-accent/60"
+            className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg text-start hover:bg-accent/60"
             onClick={() => openDetail(item)}
           >
             {icon}
@@ -541,19 +535,7 @@ export function PluginsOverlay({
             >
               <ChevronLeft />
             </Button>
-            {item.logo ? (
-              <img
-                src={item.logo}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-9 w-9 shrink-0 rounded-xl bg-accent object-contain"
-              />
-            ) : (
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
-                {item.name[0]}
-              </div>
-            )}
+            <IntegrationIcon name={item.name} logo={item.logo} className="size-9" />
             <div className="truncate text-[17px] font-medium text-foreground">{item.name}</div>
           </div>
           <Button
@@ -673,7 +655,7 @@ export function PluginsOverlay({
         showCloseButton={false}
         className="flex h-[760px] max-h-[calc(100%-2rem)] w-[1080px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-card p-0 sm:max-w-[1080px]"
       >
-        <DialogHeader className="flex-row items-start justify-between px-8 pt-7">
+        <DialogHeader className="flex-row items-start justify-between px-4 pt-6 sm:px-8 sm:pt-7">
           <DialogTitle className="text-2xl text-foreground">
             <Trans>Integrations</Trans>
           </DialogTitle>
@@ -685,7 +667,7 @@ export function PluginsOverlay({
         </DialogHeader>
 
         {!detailItem ? (
-          <div className="px-8 pt-4">
+          <div className="px-4 pt-4 sm:px-8">
             <Input
               value={query}
               onChange={(event) => {
@@ -699,7 +681,10 @@ export function PluginsOverlay({
           </div>
         ) : null}
 
-        <div id="integration-list" className="rk-scroll flex-1 overflow-y-auto px-8 py-6">
+        <div
+          id="integration-list"
+          className="rk-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6"
+        >
           <Button
             variant="outline"
             className="mb-4"
@@ -741,7 +726,7 @@ export function PluginsOverlay({
                       <Trans>Configure a plugin catalog on the server to connect apps.</Trans>
                     </p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className={CATALOG_GRID}>
                       {featuredTiles.map((tile) => {
                         const item = tile.item;
                         const key = item ? itemKey(item) : tile.id;
@@ -755,15 +740,13 @@ export function PluginsOverlay({
                         return (
                           <div
                             key={key}
-                            className={`flex min-w-0 items-center gap-3 rounded-xl px-2.5 py-2 ${
+                            className={`flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 py-1 ${
                               disabled ? "opacity-70" : ""
                             }`}
                           >
-                            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
-                              {tile.label[0]}
-                            </div>
+                            <IntegrationIcon name={tile.label} />
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[15px] font-medium text-foreground">
+                              <div className="truncate text-sm font-medium text-foreground">
                                 {tile.label}
                               </div>
                               {disabled ? (
@@ -791,7 +774,7 @@ export function PluginsOverlay({
                 </p>
               ) : null}
               {visible.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div data-testid="integration-catalog" className={CATALOG_GRID}>
                   {rendered.map((item) =>
                     renderCatalogTile(item, item.name, item.logo, {
                       // Avoid duplicate connection-tile-* ids while featured is also shown.
