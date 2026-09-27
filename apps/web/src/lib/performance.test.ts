@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { markAfterPaint, markOnce } from "./performance";
+import {
+  markAfterPaint,
+  markEndOfSpeech,
+  markOnce,
+  measureReplyLatency,
+  REPLY_LATENCY,
+} from "./performance";
 
 describe("performance marks", () => {
   beforeEach(() => {
@@ -28,5 +34,15 @@ describe("performance marks", () => {
     expect(performance.getEntriesByName("rk:test:painted")).toHaveLength(1);
 
     vi.unstubAllGlobals();
+  });
+
+  it("measures end of speech to first reply audio once per turn", () => {
+    performance.clearMeasures();
+    measureReplyLatency();
+    expect(performance.getEntriesByName(REPLY_LATENCY)).toHaveLength(0);
+    markEndOfSpeech();
+    measureReplyLatency();
+    measureReplyLatency();
+    expect(performance.getEntriesByName(REPLY_LATENCY)).toHaveLength(1);
   });
 });

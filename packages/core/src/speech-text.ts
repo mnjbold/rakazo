@@ -1,4 +1,5 @@
 import type { MessageBlock } from "@rakazo/contracts";
+import { couldBeSilentReply, isSilentReply } from "./live-call.js";
 
 /** A fenced block becomes a mention of itself, with its language if known. */
 function describeCodeBlock(fence: string): string {
@@ -115,29 +116,93 @@ const BOUNDARY =
  * Short fragments are glued onto their neighbour so the voice keeps context.
  */
 export function toUtterances(input: string, { minChars = 12, maxChars = 320 } = {}): string[] {
-  const text = speakable(input);
-  if (!text) return [];
+  return glueShort(
+    roughSentences(speakable(input)).flatMap((piece) => fitLength(piece, maxChars)),
+    minChars,
+  );
+}
 
+function roughSentences(text: string): string[] {
+  if (!text) return [];
   const MARK = "\u0000";
-  const rough = text
+  return text
     .replace(BOUNDARY, `$1$2${MARK}`)
     .split(MARK)
     .map((s) => s.trim())
     .filter(Boolean);
+}
 
+function fitLength(piece: string, maxChars: number): string[] {
+  return piece.length <= maxChars ? [piece] : splitLong(piece, maxChars);
+}
+
+function glueShort(parts: readonly string[], minChars = 12): string[] {
   const out: string[] = [];
-  for (const piece of rough) {
-    const parts = piece.length <= maxChars ? [piece] : splitLong(piece, maxChars);
-    for (const part of parts) {
-      const prev = out[out.length - 1];
-      if (prev && (prev.length < minChars || part.length < minChars)) {
-        out[out.length - 1] = `${prev} ${part}`;
-      } else {
-        out.push(part);
-      }
+  for (const part of parts) {
+    const prev = out[out.length - 1];
+    if (prev && (prev.length < minChars || part.length < minChars)) {
+      out[out.length - 1] = `${prev} ${part}`;
+    } else {
+      out.push(part);
     }
   }
   return out;
+}
+
+const CLOSED_SENTENCE = /[.!?]["')\]]*\s+$/;
+
+/**
+ * The sentences of a reply that can be spoken now: all of them once the reply is final, and
+ * while it still streams only those already closed by a boundary, so a half-written sentence
+ * never reaches the voice.
+ */
+export function readySentences(text: string, final: boolean, { maxChars = 320 } = {}): string[] {
+  const pieces = roughSentences(speakable(text));
+  if (!final && !CLOSED_SENTENCE.test(text)) pieces.pop();
+  return pieces.flatMap((piece) => fitLength(piece, maxChars));
+}
+
+function sentenceKey(sentence: string): string {
+  return sentence.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/**
+ * What one live-call turn has queued for speech. A streamed reply is spoken sentence by sentence
+ * as it arrives, and the finished message (or a later rewrite of the same text) never repeats a
+ * sentence already queued. The exact silent token, or a stream that could still become it, is
+ * never spoken.
+ */
+export class SpeechTurn {
+  private readonly queued = new Set<string>();
+  private skipNext = false;
+
+  /** New utterances to queue for `text`: a still-streaming reply, or a finished message when `final`. */
+  take(text: string, final: boolean): string[] {
+    if (final ? isSilentReply(text) : couldBeSilentReply(text)) return [];
+    const fresh: string[] = [];
+    for (const sentence of readySentences(text, final)) {
+      const key = sentenceKey(sentence);
+      if (!key || this.queued.has(key)) continue;
+      this.queued.add(key);
+      if (this.skipNext) {
+        this.skipNext = false;
+        continue;
+      }
+      fresh.push(sentence);
+    }
+    return glueShort(fresh);
+  }
+
+  /**
+   * The person talked over this reply. Nothing streamed so far is spoken later, including the
+   * sentence that was still arriving.
+   * ponytail: drops only the one open sentence; text the model keeps streaming after it still plays.
+   */
+  interrupt(streamText: string) {
+    const closed = readySentences(streamText, false);
+    for (const sentence of closed) this.queued.add(sentenceKey(sentence));
+    this.skipNext = readySentences(streamText, true).length > closed.length;
+  }
 }
 
 function splitLong(text: string, maxChars: number): string[] {

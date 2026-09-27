@@ -8,11 +8,13 @@ import type {
 } from "@rakazo/contracts";
 import { LIVE_INTERRUPTION_HEARD_MAX_LENGTH } from "@rakazo/contracts";
 import {
+  endOfTurnSilenceMs,
   isNoiseUtterance,
   isSecretAskBlock,
   isSilentReply,
   isUsingComputer,
   narrateTool,
+  SpeechTurn,
   speechFromBlocks,
   spokenDecision,
 } from "@rakazo/core";
@@ -72,6 +74,11 @@ export function CallView({
   const spokenMessage = useRef<string | null>(null);
   // The bot reply the person last talked over, sent with their next turn and then cleared.
   const interruption = useRef<LiveInterruption | null>(null);
+  // What the current run has queued for speech, so a streamed reply is never spoken twice.
+  const speechTurn = useRef<{ runId: string | null; turn: SpeechTurn }>({
+    runId: null,
+    turn: new SpeechTurn(),
+  });
   const narrated = useRef(new Set<string>());
   const narrationRun = useRef<{ runId: string | null; count: number }>({ runId: null, count: 0 });
   const closing = useRef(false);
@@ -86,6 +93,9 @@ export function CallView({
 
   const runActive = Boolean(snapshot?.run && RUN_ACTIVE.includes(snapshot.run.status));
   const lastBot = [...(snapshot?.messages ?? [])].reverse().find((m) => m.role === "bot");
+  const lastReply = [...(snapshot?.messages ?? [])]
+    .reverse()
+    .find((m) => m.role === "bot" && !isStreamMessage(m));
   const media = latestMediaBlock(lastBot);
   // The live screen appears only while the bot works, so an idle call stays a small card.
   // A small live preview appears only while the bot is actually driving its browser or desktop.
@@ -115,6 +125,9 @@ export function CallView({
       if (messageId && spoken && !messageId.startsWith("narrate:")) {
         interruption.current = { messageId, heard: spoken };
       }
+      // Nothing of the reply talked over plays later, including sentences still streaming in.
+      const runId = messageId?.startsWith("run:") ? messageId.slice(4) : null;
+      if (runId) turnFor(runId).interrupt(streamedText(streamMessage(snapshotRef.current, runId)));
       speaker.stop();
     } else dictation.stop("cancel");
     void listen();
@@ -135,6 +148,7 @@ export function CallView({
       await dictation.listen({
         mode: "endpoint",
         transcribe,
+        endpointMs: endOfTurnSilenceMs,
         onFinal: (text) => void handleTranscript(text),
       });
     } catch (err) {
@@ -162,7 +176,7 @@ export function CallView({
     heardRef.current = "";
     setError(null);
     const askMessage = current?.messages.find((message) => message.id === askId);
-    const talkedOver = interruption.current ?? undefined;
+    const talkedOver = resolveInterruption(current, interruption.current);
     interruption.current = null;
     try {
       if (askMessage) {
@@ -180,16 +194,40 @@ export function CallView({
   }
 
   function say(text: string, messageId: string) {
-    // A newer reply replaces the one talked over; narration does not.
-    if (!messageId.startsWith("narrate:")) interruption.current = null;
-    dictation.stop("cancel");
+    replyStarts(messageId);
     void speaker.speak(text, { botId, messageId });
+  }
+
+  /** Queue reply sentences as they become ready; one speech key per run keeps them in one queue. */
+  function sayQueued(utterances: string[], messageId: string) {
+    if (!utterances.length) return;
+    replyStarts(messageId);
+    speaker.enqueue(utterances, { botId, messageId });
+  }
+
+  function replyStarts(messageId: string) {
+    // A newer reply replaces the one talked over; narration and the rest of that reply do not.
+    if (!messageId.startsWith("narrate:") && interruption.current?.messageId !== messageId) {
+      interruption.current = null;
+    }
+    dictation.stop("cancel");
+  }
+
+  function turnFor(runId: string | null): SpeechTurn {
+    if (speechTurn.current.runId !== runId) {
+      speechTurn.current = { runId, turn: new SpeechTurn() };
+    }
+    return speechTurn.current.turn;
   }
 
   useEffect(() => {
     closing.current = false;
     spokenMessage.current = latestBotId(snapshotRef.current);
     narrated.current.clear();
+    // A call opened mid-run starts with what streams next, not what was already on screen.
+    const openRun = snapshotRef.current?.run?.id ?? null;
+    if (openRun)
+      turnFor(openRun).interrupt(streamedText(streamMessage(snapshotRef.current, openRun)));
     // Talking over the bot stops it and hands the turn back to the person.
     let stopBargeIn: (() => void) | null = null;
     let bargeInStarting = false;
@@ -256,38 +294,50 @@ export function CallView({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Speak each new reply once. Replies are never dropped because the call is listening; they wait
-  // only while the person is mid-sentence (heard is non-empty) and play once they pause.
+  // Speak replies as they stream, sentence by sentence, then only what the finished message adds.
+  // Replies are never dropped because the call is listening; they wait only while the person is
+  // mid-sentence (heard is non-empty) and play once they pause.
   useEffect(() => {
     if (closing.current || heard) return;
-    if (lastBot && lastBot.id !== spokenMessage.current) {
-      const text = speechFromBlocks(lastBot.blocks);
-      const ask = lastBot.blocks.find(
+    const run = snapshot?.run;
+    if (runActive && run) {
+      const stream = streamMessage(snapshot, run.id);
+      if (stream) sayQueued(turnFor(run.id).take(streamedText(stream), false), `run:${run.id}`);
+    }
+    if (lastReply && lastReply.id !== spokenMessage.current) {
+      const text = speechFromBlocks(lastReply.blocks);
+      const ask = lastReply.blocks.find(
         (block) => block.kind === "ask" && block.status !== "answered",
       );
       if (isSilentReply(text)) {
-        spokenMessage.current = lastBot.id;
+        spokenMessage.current = lastReply.id;
         return;
       }
       if (text) {
-        spokenMessage.current = lastBot.id;
+        spokenMessage.current = lastReply.id;
         const suffix =
           ask && isSecretAskBlock(ask)
             ? `. ${secretPromptRef.current}`
             : ask
               ? `. ${askPromptRef.current}`
               : "";
-        say(`${text}${suffix}`, lastBot.id);
+        const runId = lastReply.runId ?? null;
+        sayQueued(
+          turnFor(runId).take(`${text}${suffix}`, true),
+          runId ? `run:${runId}` : lastReply.id,
+        );
         return;
       }
-      if (!runActive) spokenMessage.current = lastBot.id;
+      if (!runActive) spokenMessage.current = lastReply.id;
     }
-    if (!runActive || phaseRef.current === "speaking") return;
+    if (!runActive || phaseRef.current === "speaking" || speaker.state.status !== "idle") return;
     const runId = snapshot?.run?.id ?? null;
     if (narrationRun.current.runId !== runId) narrationRun.current = { runId, count: 0 };
     if (narrationRun.current.count >= MAX_NARRATIONS_PER_RUN) return;
     for (const message of snapshot?.messages ?? []) {
       for (const block of message.blocks) {
+        // Assistant-written text streams through the sentence queue above; narrate only tool status.
+        if (block.kind === "progress" && !block.activity) continue;
         if (block.kind !== "progress" && block.kind !== "subagent") continue;
         const phrase =
           block.kind === "subagent"
@@ -305,7 +355,7 @@ export function CallView({
         return;
       }
     }
-  }, [snapshot, botId, heard, runActive, lastBot]);
+  }, [snapshot, botId, heard, runActive, lastReply]);
 
   useEffect(() => {
     if (!pendingSecretAsk(snapshot)) return;
@@ -497,9 +547,45 @@ function MediaBlock({
 function latestBotId(snapshot: ThreadSnapshot | null): string | null {
   const messages = snapshot?.messages ?? [];
   for (let i = messages.length - 1; i >= 0; i -= 1) {
-    if (messages[i]?.role === "bot") return messages[i]?.id ?? null;
+    const message = messages[i];
+    if (message?.role === "bot" && !isStreamMessage(message)) return message.id;
   }
   return null;
+}
+
+function isStreamMessage(message: ThreadMessage): boolean {
+  return message.id.startsWith("progress:");
+}
+
+function streamMessage(snapshot: ThreadSnapshot | null, runId: string): ThreadMessage | undefined {
+  return snapshot?.messages.find((message) => message.id === `progress:${runId}`);
+}
+
+/** What the run's assistant has written so far; tool status lines are not part of the reply. */
+function streamedText(message: ThreadMessage | undefined): string {
+  return (message?.blocks ?? [])
+    .map((block) =>
+      block.kind === "text" || (block.kind === "progress" && !block.activity) ? block.text : "",
+    )
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * A reply talked over while it streamed is keyed by its run; send it as that run's durable reply
+ * once one exists. Until then the server has no message to attach it to, so it is left out.
+ */
+function resolveInterruption(
+  snapshot: ThreadSnapshot | null,
+  talkedOver: LiveInterruption | null,
+): LiveInterruption | undefined {
+  if (!talkedOver) return undefined;
+  if (!talkedOver.messageId.startsWith("run:")) return talkedOver;
+  const runId = talkedOver.messageId.slice(4);
+  const reply = snapshot?.messages.findLast(
+    (message) => message.role === "bot" && message.runId === runId && !isStreamMessage(message),
+  );
+  return reply ? { messageId: reply.id, heard: talkedOver.heard } : undefined;
 }
 
 function pendingSecretAsk(snapshot: ThreadSnapshot | null) {

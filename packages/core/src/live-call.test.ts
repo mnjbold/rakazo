@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  couldBeSilentReply,
+  END_OF_TURN_SILENCE_MS,
+  endOfTurnSilenceMs,
   isSilentReply,
   LIVE_CALL_INSTRUCTION,
   liveCallInstruction,
   liveInterruptionInstruction,
   SILENT_REPLY_TOKEN,
+  TRAILING_OFF_SILENCE_MS,
 } from "./live-call.js";
 
 describe("live call", () => {
@@ -32,5 +36,25 @@ describe("live call", () => {
     expect(liveInterruptionInstruction(true, null)).toBeUndefined();
     // Quoted as data so embedded quotes cannot end the quotation.
     expect(liveInterruptionInstruction(true, 'say "hi"')).toContain(String.raw`"say \"hi\""`);
+  });
+
+  it("ends a turn fast unless it trails off", () => {
+    expect(endOfTurnSilenceMs("What's the weather tomorrow")).toBe(END_OF_TURN_SILENCE_MS);
+    expect(endOfTurnSilenceMs("Book the flight.")).toBe(END_OF_TURN_SILENCE_MS);
+    expect(endOfTurnSilenceMs("I need the report and")).toBe(TRAILING_OFF_SILENCE_MS);
+    expect(endOfTurnSilenceMs("Send it but")).toBe(TRAILING_OFF_SILENCE_MS);
+    expect(endOfTurnSilenceMs("So, um...")).toBe(TRAILING_OFF_SILENCE_MS);
+    expect(endOfTurnSilenceMs("Check the calendar, so")).toBe(TRAILING_OFF_SILENCE_MS);
+    // A word that merely ends like a conjunction does not count.
+    expect(endOfTurnSilenceMs("Call Brand")).toBe(END_OF_TURN_SILENCE_MS);
+    expect(END_OF_TURN_SILENCE_MS).toBeLessThan(TRAILING_OFF_SILENCE_MS);
+  });
+
+  it("treats a stream as possibly silent only while it is a prefix of the token", () => {
+    expect(couldBeSilentReply("")).toBe(true);
+    expect(couldBeSilentReply("NO_RES")).toBe(true);
+    expect(couldBeSilentReply("NO_RESPONSE")).toBe(true);
+    expect(couldBeSilentReply("No,")).toBe(false);
+    expect(couldBeSilentReply("NO_RESPONSE.")).toBe(false);
   });
 });
