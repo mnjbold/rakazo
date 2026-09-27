@@ -1,0 +1,1 @@
+ALTER TABLE "routines" ADD COLUMN "watch" BOOLEAN NOT NULL DEFAULT false;

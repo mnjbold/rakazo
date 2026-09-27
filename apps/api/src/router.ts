@@ -106,6 +106,8 @@ import {
   hasMixedOneShotSchedule,
   isOneShotRoutineCrons,
   nextCronDateAcrossStrict,
+  WATCH_MIN_INTERVAL_MINUTES,
+  watchScheduleAllowed,
 } from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
@@ -2627,6 +2629,7 @@ export function createRouter(deps: RouterDeps) {
             message: "One-shot schedules must be created from chat.",
           });
         }
+        assertWatchSchedule(input.watch, input.crons, input.timezone);
         const bot = await repos.getBot(context.actor, input.botId);
         // Validate every recurring cron even when inactive; @once and webhook-only have no next date.
         let nextRunAt: Date | null = null;
@@ -2648,6 +2651,7 @@ export function createRouter(deps: RouterDeps) {
             webhookEnabled: input.webhookEnabled,
             githubEnabled: input.githubEnabled,
             messageProvider: input.messageProvider,
+            watch: input.watch,
             nextRunAt,
           },
         });
@@ -2691,6 +2695,7 @@ export function createRouter(deps: RouterDeps) {
             message: "A one-time schedule can't be combined with other schedules.",
           });
         }
+        assertWatchSchedule(input.watch ?? existing.watch, crons, timezone);
         if (active && isOneShotRoutineCrons(crons)) {
           if (!isOneShotRoutineCrons(existing.crons)) {
             throw new ORPCError("BAD_REQUEST", {
@@ -2752,6 +2757,7 @@ export function createRouter(deps: RouterDeps) {
             webhookEnabled: input.webhookEnabled,
             githubEnabled: input.githubEnabled,
             messageProvider: input.messageProvider,
+            watch: input.watch,
             nextRunAt,
           },
         });
@@ -5596,6 +5602,14 @@ function nextRoutineDate(crons: string[], timezone: string): Date {
   return next;
 }
 
+function assertWatchSchedule(watch: boolean, crons: string[], timezone: string) {
+  if (watch && !watchScheduleAllowed(crons, timezone)) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `A watch can run at most every ${WATCH_MIN_INTERVAL_MINUTES} minutes.`,
+    });
+  }
+}
+
 function mapRoutine(row: {
   id: string;
   botId: string;
@@ -5608,6 +5622,7 @@ function mapRoutine(row: {
   webhookEnabled: boolean;
   githubEnabled: boolean;
   messageProvider: string | null;
+  watch: boolean;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
   createdAt: Date;
@@ -5624,6 +5639,7 @@ function mapRoutine(row: {
     webhookEnabled: row.webhookEnabled,
     githubEnabled: row.githubEnabled,
     messageProvider: row.messageProvider,
+    watch: row.watch,
     lastRunAt: row.lastRunAt?.toISOString() ?? null,
     nextRunAt: row.nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

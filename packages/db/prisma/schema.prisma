@@ -746,6 +746,8 @@ model Routine {
   webhookEnabled Boolean   @default(false)
   githubEnabled  Boolean   @default(false)
   messageProvider String?
+  /// Stays silent unless something new needs the owner; min 15-minute interval.
+  watch          Boolean   @default(false)
   lastRunAt      DateTime?
   nextRunAt      DateTime?
   createdAt      DateTime  @default(now())

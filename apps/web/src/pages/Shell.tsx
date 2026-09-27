@@ -426,6 +426,7 @@ export function ShellPage() {
   const [taughtSkillsBotId, setTaughtSkillsBotId] = useState<string | null>(null);
   const [agentSkills, setAgentSkills] = useState<AgentSkillCatalogEntry[]>([]);
   const [mentionRoutines, setMentionRoutines] = useState<Array<Routine & { botName?: string }>>([]);
+  const [connectedProviders, setConnectedProviders] = useState<string[]>([]);
   const [mentionConnectors, setMentionConnectors] = useState<
     Array<{
       id: string;
@@ -1874,6 +1875,7 @@ export function ShellPage() {
     ]).then(([connections, catalog]) => {
       if (cancelled) return;
       const connected = connections.filter((row) => row.status === "connected");
+      setConnectedProviders(connected.flatMap((row) => [row.provider, row.displayName]));
       const options: Array<{
         id: string;
         name: string;
@@ -3828,6 +3830,7 @@ export function ShellPage() {
                     : `/api/v1/bots/${active.id}/github`
                 }
                 messageProviders={messagingProviders}
+                connectedProviders={connectedProviders}
                 saving={savingRoutine}
                 running={runningRoutine}
                 error={routineError}
@@ -3888,6 +3891,7 @@ export function ShellPage() {
                         webhookEnabled: routineDraft.webhookEnabled,
                         githubEnabled: routineDraft.githubEnabled,
                         messageProvider: routineDraft.messageProvider,
+                        watch: routineDraft.watch,
                         ...(runAt ? { runAt } : {}),
                       });
                     } else {
@@ -3902,6 +3906,7 @@ export function ShellPage() {
                         webhookEnabled: routineDraft.webhookEnabled,
                         githubEnabled: routineDraft.githubEnabled,
                         messageProvider: routineDraft.messageProvider,
+                        watch: routineDraft.watch,
                       });
                     }
                     if (

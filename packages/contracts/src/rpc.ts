@@ -529,6 +529,7 @@ export const appContract = {
               .regex(/^[a-z0-9._-]+$/i)
               .nullable()
               .optional(),
+            watch: z.boolean().optional(),
             /** ISO datetime to arm a never-run one-shot. */
             runAt: IsoDate.optional(),
           })

@@ -327,6 +327,29 @@ describe("contracts", () => {
       }),
     ).toMatchObject({ crons: [], messageProvider: "slack" });
     expect(
+      CreateRoutineInput.parse({
+        botId: "bot-1",
+        name: "Daily",
+        prompt: "Summarize",
+        crons: ["0 9 * * *"],
+      }).watch,
+    ).toBe(false);
+    expect(
+      CreateRoutineInput.parse({
+        botId: "bot-1",
+        name: "Inbox watch",
+        prompt: "Check Gmail. If there is nothing, stay silent.",
+        crons: ["*/30 * * * *"],
+        watch: true,
+      }).watch,
+    ).toBe(true);
+    expect(
+      (appContract.routines.update["~orpc"].inputSchema as z.ZodType).safeParse({
+        routineId: "routine-1",
+        watch: true,
+      }).success,
+    ).toBe(true);
+    expect(
       CreateRoutineInput.safeParse({
         botId: "bot-1",
         name: "Unsafe provider",

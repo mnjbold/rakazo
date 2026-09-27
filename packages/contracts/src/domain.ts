@@ -404,6 +404,8 @@ export const RoutineSchema = z.object({
     .max(50)
     .regex(/^[a-z0-9._-]+$/i)
     .nullable(),
+  /** Silent unless something new needs the owner; runs no more often than every 15 minutes. */
+  watch: z.boolean(),
   lastRunAt: z.string().nullable(),
   nextRunAt: z.string().nullable(),
   createdAt: z.string(),
@@ -428,6 +430,7 @@ export const CreateRoutineInput = z
       .regex(/^[a-z0-9._-]+$/i)
       .nullable()
       .default(null),
+    watch: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     if (

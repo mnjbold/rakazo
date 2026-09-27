@@ -1,9 +1,9 @@
 import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Routine } from "@rakazo/contracts";
+import type { CronFreq, CronPreset, WatchPreset, WatchPresetId } from "@rakazo/core";
 import {
-  type CronFreq,
-  type CronPreset,
+  availableWatchPresets,
   cronFromPreset,
   defaultCronPreset,
   formatCron,
@@ -67,6 +67,7 @@ export type RoutineDraftState = {
   githubEnabled: boolean;
   messageProvider: string | null;
   active: boolean;
+  watch: boolean;
   runAtLocal: string;
 };
 
@@ -79,6 +80,7 @@ export function emptyRoutineDraft(): RoutineDraftState {
     githubEnabled: false,
     messageProvider: null,
     active: true,
+    watch: false,
     runAtLocal: "",
   };
 }
@@ -92,6 +94,7 @@ export function draftFromRoutine(routine: Routine): RoutineDraftState {
     githubEnabled: routine.githubEnabled,
     messageProvider: routine.messageProvider,
     active: routine.active,
+    watch: routine.watch,
     runAtLocal: routineNeedsOneShotArm(routine, routine.crons) ? defaultArmRunAtLocal() : "",
   };
 }
@@ -184,6 +187,7 @@ export function RoutineEditor({
   webhook,
   githubPath,
   messageProviders,
+  connectedProviders,
   saving,
   running,
   error,
@@ -201,6 +205,7 @@ export function RoutineEditor({
   webhook: { path: string; secret: string | null; configured: boolean };
   githubPath: string;
   messageProviders: string[];
+  connectedProviders: string[];
   saving: boolean;
   running: boolean;
   error: string | null;
@@ -247,6 +252,17 @@ export function RoutineEditor({
 
   function addMessageProvider(provider: string) {
     onChange({ ...draft, messageProvider: provider });
+  }
+
+  function applyWatchPreset(preset: WatchPreset) {
+    onChange({
+      ...draft,
+      name: watchPresetLabel(preset.id),
+      prompt: preset.prompt,
+      schedules: [presetFromCron(preset.cron)],
+      watch: true,
+      active: true,
+    });
   }
 
   return (
@@ -305,6 +321,22 @@ export function RoutineEditor({
           </Button>
         </div>
       </div>
+
+      {editing ? null : (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {availableWatchPresets(connectedProviders).map((preset) => (
+            <Button
+              key={preset.id}
+              variant="secondary"
+              size="sm"
+              data-testid={`watch-preset-${preset.id}`}
+              onClick={() => applyWatchPreset(preset)}
+            >
+              {watchPresetLabel(preset.id)}
+            </Button>
+          ))}
+        </div>
+      )}
 
       <label htmlFor={`${fieldId}-name`} className="block text-sm text-muted-foreground">
         <Trans>Name</Trans>
@@ -623,6 +655,17 @@ function InboundTriggerCard({
       </div>
     </div>
   );
+}
+
+function watchPresetLabel(id: WatchPresetId): string {
+  switch (id) {
+    case "important-email":
+      return t`Important email`;
+    case "meeting-prep":
+      return t`Meeting prep`;
+    case "deadline-watch":
+      return t`Deadline watch`;
+  }
 }
 
 function schedulePresetLabel(freq: CronFreq): string {

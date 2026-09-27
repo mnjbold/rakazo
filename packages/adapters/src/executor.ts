@@ -78,6 +78,8 @@ import {
   truncatedPlainText,
   unattendedTriggerToolRequiresApproval,
   userTurnMessageForRun,
+  WATCH_REPORTED_LIMIT,
+  watchRunInstruction,
 } from "@rakazo/core";
 import {
   approvalEffectKey,
@@ -3665,9 +3667,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
           { exposedToolNames: new Set(tools.map((tool) => tool.name)) },
         );
         const replyContext = await loadReplyContext(deps.prisma, thread.id, run.sourceMessageId);
+        const watchInstruction = await loadWatchInstruction(deps.prisma, run);
         const prompt = [
           replyContext,
           basePrompt,
+          watchInstruction,
           takeoverResume?.promptNote,
           approvalContinuation,
           // Per-turn, not in the system prompt: the timestamp changes every call and would break the cacheable prefix.
@@ -4791,6 +4795,44 @@ export const LONG_WORK_PROGRESS_GUIDANCE =
   "During long work, send a few short progress updates with message_user so the user can see what you are doing. Keep them brief and high-signal (a sentence or two, not a dump). Do not narrate every tool call. Thinking stays private. message_user is capped at 500 characters and will be silently cut off if you exceed it \u2014 never put your final answer, a report, or any long-form deliverable in it. Always put the complete final answer in your normal reply, never split across message_user calls, and never assume a message_user update already delivered your content.";
 
 export const ROUTINE_SILENT_REPLY_GUIDANCE = `If this routine's prompt says to stay silent when there is nothing to report, the entire final assistant reply must be exactly ${NO_RESPONSE} — no surrounding prose, no variants, no progress updates, no all-clear, and no meta note that you are staying silent. Do not call message_user unless you have something to report.`;
+
+/**
+ * Watch routines see their own earlier alerts so a still-unread email or an
+ * upcoming meeting is reported once, not on every run. The alerts are the bot
+ * messages those runs already posted, so no separate "seen" store can drift.
+ */
+async function loadWatchInstruction(
+  prisma: PrismaClient,
+  run: { id: string; trigger: string; routineId: string | null },
+): Promise<string | undefined> {
+  if (run.trigger !== "routine" || !run.routineId) return undefined;
+  const routine = await prisma.routine.findUnique({
+    where: { id: run.routineId },
+    select: { watch: true },
+  });
+  if (!routine?.watch) return undefined;
+  const earlierRuns = await prisma.run.findMany({
+    where: { routineId: run.routineId, id: { not: run.id } },
+    orderBy: { createdAt: "desc" },
+    take: WATCH_REPORTED_LIMIT,
+    select: { id: true },
+  });
+  const alerts =
+    earlierRuns.length === 0
+      ? []
+      : await prisma.message.findMany({
+          where: { runId: { in: earlierRuns.map((row) => row.id) }, role: "bot" },
+          orderBy: { createdAt: "desc" },
+          select: { blocks: true },
+        });
+  return watchRunInstruction(
+    alerts.map((alert) =>
+      Array.isArray(alert.blocks)
+        ? completionNotificationBody("", alert.blocks as MessageBlock[])
+        : "",
+    ),
+  );
+}
 
 export function runAllowsSilentEmpty(trigger: string): boolean {
   return trigger === "routine";
