@@ -10,6 +10,7 @@ import {
   Textarea,
 } from "@rakazo/ui-web";
 import { useEffect, useRef, useState } from "react";
+import { ShareMenu } from "../components/ShareMenu";
 import { downloadArtifactBytes } from "../lib/artifact-open";
 import { rpc } from "../lib/rpc";
 
@@ -437,6 +438,14 @@ function AgentSkills({
             >
               {open?.readOnly ? <Trans>Close</Trans> : <Trans>Cancel</Trans>}
             </Button>
+            {open && !open.readOnly ? (
+              <ShareMenu
+                label={t`Share ${open.name}`}
+                onShare={(visibility) =>
+                  rpc.marketplace.share({ kind: "skill", skillId: open.id, visibility })
+                }
+              />
+            ) : null}
             {open && !open.readOnly ? (
               <Button
                 variant="ghost"

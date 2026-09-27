@@ -342,6 +342,47 @@ export const UseBotTemplateInput = z.object({
 });
 export type UseBotTemplateInput = z.infer<typeof UseBotTemplateInput>;
 
+/** Shared skill or tool source. Plugins carry public config only; installers bring their own credentials. */
+export const MarketplaceItemSchema = z.object({
+  id: Id,
+  kind: z.enum(["skill", "plugin"]),
+  visibility: BotTemplateVisibilitySchema,
+  name: z.string(),
+  description: z.string(),
+  needsCredential: z.boolean(),
+  mine: z.boolean(),
+  createdAt: z.string(),
+});
+export type MarketplaceItem = z.infer<typeof MarketplaceItemSchema>;
+
+/** The only tool-source fields a shared plugin stores; unknown keys (headers, secrets) are stripped. */
+export const MarketplacePluginConfigSchema = z.object({
+  kind: z.enum(["mcp", "api"]),
+  source: z.string().url(),
+  auth: z.object({
+    type: z.enum(["none", "bearer", "header", "query"]).catch("none"),
+    name: z
+      .string()
+      .regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,120}$/)
+      .optional()
+      .catch(undefined),
+  }),
+  operations: z.array(z.record(z.string(), z.unknown())).max(100).optional(),
+});
+export type MarketplacePluginConfig = z.infer<typeof MarketplacePluginConfigSchema>;
+
+export const ShareMarketplaceItemInput = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("skill"), skillId: Id, visibility: BotTemplateVisibilitySchema }),
+  z.object({ kind: z.literal("plugin"), installId: Id, visibility: BotTemplateVisibilitySchema }),
+]);
+export type ShareMarketplaceItemInput = z.infer<typeof ShareMarketplaceItemInput>;
+
+export const InstallMarketplaceItemInput = z.object({
+  itemId: Id,
+  credential: z.string().max(16_384).optional(),
+});
+export type InstallMarketplaceItemInput = z.infer<typeof InstallMarketplaceItemInput>;
+
 export const UpdateBotInput = z
   .object({
     botId: Id,

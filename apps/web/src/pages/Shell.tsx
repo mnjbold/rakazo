@@ -264,6 +264,9 @@ const PeerMessagesOverlay = lazy(() =>
 const PluginsOverlay = lazy(() =>
   import("./PluginsOverlay").then((module) => ({ default: module.PluginsOverlay })),
 );
+const MarketplaceOverlay = lazy(() =>
+  import("./MarketplaceOverlay").then((module) => ({ default: module.MarketplaceOverlay })),
+);
 const McpServersOverlay = lazy(() =>
   import("./McpServersOverlay").then((module) => ({ default: module.McpServersOverlay })),
 );
@@ -492,6 +495,7 @@ export function ShellPage() {
   }
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
   const [messagingSettingsOpen, setMessagingSettingsOpen] = useState(false);
@@ -4330,6 +4334,19 @@ export function ShellPage() {
             onOpenMcp={() => {
               setPluginsOpen(false);
               setMcpOpen(true);
+            }}
+            onOpenMarketplace={() => {
+              setPluginsOpen(false);
+              setMarketplaceOpen(true);
+            }}
+          />
+        ) : null}
+        {marketplaceOpen ? (
+          <MarketplaceOverlay
+            onClose={() => setMarketplaceOpen(false)}
+            onUseBotTemplate={async (templateId) => {
+              await createBot(() => rpc.botTemplates.use({ templateId, computerMode: "team" }));
+              setMarketplaceOpen(false);
             }}
           />
         ) : null}

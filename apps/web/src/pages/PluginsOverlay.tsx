@@ -32,6 +32,7 @@ import { ChevronDown, ChevronLeft, ChevronUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IntegrationIcon } from "../components/integrations/IntegrationIcon";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
+import { ShareMenu } from "../components/ShareMenu";
 import { optionalCatalogFeedProbe } from "../lib/optional-catalog-feed";
 import { rpc } from "../lib/rpc";
 
@@ -75,10 +76,12 @@ function nextAccountLabel(itemName: string, existingCount: number) {
 export function PluginsOverlay({
   onClose,
   onOpenMcp,
+  onOpenMarketplace,
   activeBotId,
 }: {
   onClose: () => void;
   onOpenMcp?: () => void;
+  onOpenMarketplace?: () => void;
   activeBotId?: string;
 }) {
   const { t } = useLingui();
@@ -659,11 +662,24 @@ export function PluginsOverlay({
           <DialogTitle className="text-2xl text-foreground">
             <Trans>Integrations</Trans>
           </DialogTitle>
-          <DialogClose
-            render={<Button variant="ghost" size="icon-sm" aria-label={t`Close integrations`} />}
-          >
-            <X />
-          </DialogClose>
+          <div className="flex items-center gap-2">
+            {onOpenMarketplace ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-full"
+                onClick={onOpenMarketplace}
+              >
+                <Trans>Marketplace</Trans>
+              </Button>
+            ) : null}
+            <DialogClose
+              render={<Button variant="ghost" size="icon-sm" aria-label={t`Close integrations`} />}
+            >
+              <X />
+            </DialogClose>
+          </div>
         </DialogHeader>
 
         {!detailItem ? (
@@ -1118,6 +1134,18 @@ export function PluginsOverlay({
                             )}
                           </div>
                         </div>
+                        {source.kind === "mcp" || source.kind === "api" ? (
+                          <ShareMenu
+                            label={t`Share ${source.name}`}
+                            onShare={(visibility) =>
+                              rpc.marketplace.share({
+                                kind: "plugin",
+                                installId: source.id,
+                                visibility,
+                              })
+                            }
+                          />
+                        ) : null}
                         <Button
                           type="button"
                           variant="secondary"

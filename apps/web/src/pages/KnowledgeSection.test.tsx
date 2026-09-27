@@ -10,6 +10,7 @@ vi.mock("../lib/rpc", () => ({
   rpc: { agentSkills: api, memory: { list: async () => [] } },
 }));
 vi.mock("../lib/artifact-open", () => ({ downloadArtifactBytes: vi.fn() }));
+vi.mock("../components/ShareMenu", () => ({ ShareMenu: () => null }));
 vi.mock("@lingui/react/macro", () => {
   const t = (parts: TemplateStringsArray) => parts.join("");
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
