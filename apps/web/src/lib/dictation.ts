@@ -1,4 +1,5 @@
 import { readBoundedResponseBytes } from "@rakazo/core";
+import { markEndOfSpeech } from "./performance.js";
 import { selectedSpaceId, withSpaceHeaders } from "./rpc.js";
 
 export type DictationMode = "hold" | "endpoint";
@@ -120,7 +121,8 @@ export class Dictation {
   async listen(opts: {
     mode: DictationMode;
     transcribe?: boolean;
-    endpointMs?: number;
+    /** Silence that ends an endpoint turn, fixed or chosen from the words heard so far. */
+    endpointMs?: number | ((transcript: string) => number);
     onFinal: (text: string) => void;
   }): Promise<void> {
     this.stop("replace");
@@ -128,12 +130,15 @@ export class Dictation {
     const spaceId = selectedSpaceId();
     this.onFinal = opts.onFinal;
     this.set({ status: "listening", transcript: "" });
+    const { endpointMs = 850 } = opts;
+    const endpoint = typeof endpointMs === "function" ? endpointMs : () => endpointMs;
     if (webSpeechAvailable()) {
-      this.listenWebSpeech(opts.mode, opts.endpointMs ?? 850, mine);
+      this.listenWebSpeech(opts.mode, endpoint, mine);
       return;
     }
     if (opts.transcribe) {
-      await this.listenRecorder(mine, opts.mode, opts.endpointMs ?? 850, spaceId);
+      // The recorder has no words until it stops, so it waits the default silence.
+      await this.listenRecorder(mine, opts.mode, endpoint(""), spaceId);
       return;
     }
     this.set({
@@ -143,7 +148,11 @@ export class Dictation {
     });
   }
 
-  private listenWebSpeech(mode: DictationMode, endpointMs: number, mine: number) {
+  private listenWebSpeech(
+    mode: DictationMode,
+    endpointMs: (transcript: string) => number,
+    mine: number,
+  ) {
     const Ctor = speechRecognitionCtor();
     if (!Ctor) return;
     const rec = new Ctor();
@@ -162,8 +171,9 @@ export class Dictation {
       this.silenceTimer = setTimeout(() => {
         if (this.token !== mine) return;
         const text = this.snapshot.transcript.trim();
+        if (text) markEndOfSpeech();
         this.finish(text, mine);
-      }, endpointMs);
+      }, endpointMs(transcript.trim()));
     };
     rec.onerror = (event) => {
       if (this.token !== mine) return;
@@ -270,6 +280,7 @@ export class Dictation {
         if (!heardSpeech) return;
         silentFor += ENDPOINT_TICK_MS;
         if (silentFor < endpointMs) return;
+        markEndOfSpeech();
         this.stopVad();
         try {
           media.stop();

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   isNoiseUtterance,
   narrateTool,
+  readySentences,
+  SpeechTurn,
   speakable,
   speechFromBlocks,
   spokenDecision,
@@ -184,5 +186,69 @@ describe("isNoiseUtterance", () => {
     ]) {
       expect(isNoiseUtterance(turn), turn).toBe(false);
     }
+  });
+});
+
+describe("readySentences", () => {
+  it("holds back the sentence still streaming", () => {
+    expect(readySentences("Sure, I can do that. I'll start", false)).toEqual([
+      "Sure, I can do that.",
+    ]);
+    expect(readySentences("Sure, I can do that. ", false)).toEqual(["Sure, I can do that."]);
+    expect(readySentences("Sure, I can do that.", false)).toEqual([]);
+    expect(readySentences("Sure, I can do that.", true)).toEqual(["Sure, I can do that."]);
+  });
+});
+
+describe("SpeechTurn", () => {
+  it("speaks each streamed sentence once as it completes", () => {
+    const turn = new SpeechTurn();
+    expect(turn.take("Your flight", false)).toEqual([]);
+    expect(turn.take("Your flight leaves at nine. It is", false)).toEqual([
+      "Your flight leaves at nine.",
+    ]);
+    expect(turn.take("Your flight leaves at nine. It is on time. Gate", false)).toEqual([
+      "It is on time.",
+    ]);
+    // The final message repeats the stream; only the unspoken tail is new.
+    expect(turn.take("Your flight leaves at nine. It is on time. Gate twelve.", true)).toEqual([
+      "Gate twelve.",
+    ]);
+    expect(turn.take("Your flight leaves at nine. It is on time. Gate twelve.", true)).toEqual([]);
+  });
+
+  it("dedupes a final message whose markdown differs from the stream", () => {
+    const turn = new SpeechTurn();
+    expect(turn.take("The **build** passed. ", false)).toEqual(["The build passed."]);
+    expect(turn.take("The build passed!\n\nNothing else changed.", true)).toEqual([
+      "Nothing else changed.",
+    ]);
+  });
+
+  it("never speaks the silent token or a stream that could still become it", () => {
+    const turn = new SpeechTurn();
+    expect(turn.take("", false)).toEqual([]);
+    expect(turn.take("NO", false)).toEqual([]);
+    expect(turn.take("NO_RESP", false)).toEqual([]);
+    expect(turn.take("NO_RESPONSE", false)).toEqual([]);
+    expect(turn.take(" NO_RESPONSE\n", true)).toEqual([]);
+    expect(turn.take("No. I can't reach it. ", false)).toEqual(["No. I can't reach it."]);
+  });
+
+  it("glues a short sentence onto its neighbour in the same batch", () => {
+    const turn = new SpeechTurn();
+    expect(turn.take("Sure. Starting the build now.", true)).toEqual([
+      "Sure. Starting the build now.",
+    ]);
+  });
+
+  it("drops what streamed before an interruption, including the open sentence", () => {
+    const turn = new SpeechTurn();
+    expect(turn.take("First point is ready. Second", false)).toEqual(["First point is ready."]);
+    turn.interrupt("First point is ready. Second point is");
+    expect(turn.take("First point is ready. Second point is long. ", false)).toEqual([]);
+    expect(turn.take("First point is ready. Second point is long. Anything else?", true)).toEqual([
+      "Anything else?",
+    ]);
   });
 });

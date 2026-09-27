@@ -6,6 +6,29 @@ export function isSilentReply(text: string): boolean {
   return text.trim() === SILENT_REPLY_TOKEN;
 }
 
+/** True while a streaming reply is still empty or could still grow into exactly the silent token. */
+export function couldBeSilentReply(partial: string): boolean {
+  return SILENT_REPLY_TOKEN.startsWith(partial.trim());
+}
+
+/** Silence that ends a live-call turn. */
+export const END_OF_TURN_SILENCE_MS = 650;
+/** Silence that ends a turn trailing off on a filler or conjunction, when more is likely coming. */
+export const TRAILING_OFF_SILENCE_MS = 1_500;
+
+const TRAILING_OFF =
+  /\b(?:and|but|so|or|because|cause|then|like|um+|uh+|er+m*|hm+|the|a|an|to|of|with|if)$/i;
+
+/**
+ * How long a live call waits in silence before it treats the person's turn as finished: short by
+ * default so replies start fast, longer when the words so far trail off ("so I was thinking
+ * and"), so a pause mid-thought does not cut them off.
+ */
+export function endOfTurnSilenceMs(transcript: string): number {
+  const text = transcript.trim().replace(/[\s.,;:!?…-]+$/u, "");
+  return TRAILING_OFF.test(text) ? TRAILING_OFF_SILENCE_MS : END_OF_TURN_SILENCE_MS;
+}
+
 export const LIVE_CALL_INSTRUCTION = [
   "You are in a live voice call as the user's always-on assistant, not a chatbot.",
   `If the speech is not addressed to you, is background noise or other people talking, or needs no response, reply with exactly ${SILENT_REPLY_TOKEN} and nothing else.`,

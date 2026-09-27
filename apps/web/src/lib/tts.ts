@@ -1,4 +1,5 @@
 import { readBoundedResponseBytes } from "@rakazo/core";
+import { measureReplyLatency } from "./performance.js";
 import { rpc, selectedSpaceId, withSpaceHeaders } from "./rpc.js";
 
 export type SpeechStatus = "idle" | "preparing" | "speaking";
@@ -20,6 +21,15 @@ interface SpeakOptions {
 }
 
 type TtsErrorBody = { error?: string };
+type Rendered = { blob: Blob; error?: never } | { blob?: never; error: unknown };
+
+interface SpeechQueue {
+  opts: SpeakOptions;
+  utterances: string[];
+  renders: Promise<Rendered>[];
+  playing: number;
+  prefetch: () => void;
+}
 
 const IDLE: SpeechSnapshot = { status: "idle" };
 export const VOICE_RESPONSE_TIMEOUT_MS = 70_000;
@@ -34,6 +44,9 @@ export class Speaker {
   private objectUrl: string | null = null;
   private settlePlayback: ((finished: boolean) => void) | null = null;
   private request: AbortController | null = null;
+  private queue: SpeechQueue | null = null;
+  /** Utterances of one message spoken so far, kept across the queues that message spans. */
+  private heard: { messageId?: string; utterances: string[] } = { utterances: [] };
 
   subscribe(fn: (s: SpeechSnapshot) => void): () => void {
     this.watchers.add(fn);
@@ -61,6 +74,7 @@ export class Speaker {
     this.token += 1;
     this.request?.abort();
     this.request = null;
+    this.queue = null;
     if (this.settlePlayback) this.settlePlayback(false);
     else this.teardownAudio();
     if (this.snapshot.status !== "idle" || this.snapshot.error) this.set(IDLE);
@@ -100,52 +114,98 @@ export class Speaker {
       return;
     }
     if (!live()) return;
-    if (!utterances.length) {
-      this.set(IDLE);
-      if (this.request === controller) this.request = null;
+    this.heard = { messageId: opts.messageId, utterances: [] };
+    await this.drain(this.startQueue(utterances, opts, controller, spaceId), live, controller);
+  }
+
+  /**
+   * Speak utterances as they become ready, such as the sentences of a streaming reply. More
+   * utterances for the message already speaking join its queue, and `heard` keeps growing across
+   * them; anything else replaces what is playing.
+   */
+  enqueue(utterances: string[], opts: SpeakOptions = {}): void {
+    if (!utterances.length) return;
+    const current = this.queue;
+    if (current && opts.messageId && current.opts.messageId === opts.messageId) {
+      current.utterances.push(...utterances);
+      current.prefetch();
       return;
     }
+    this.stop();
+    if (!opts.messageId || this.heard.messageId !== opts.messageId) {
+      this.heard = { messageId: opts.messageId, utterances: [] };
+    }
+    const mine = this.token;
+    const controller = new AbortController();
+    this.request = controller;
+    const live = () => this.token === mine && !controller.signal.aborted;
+    this.set({ status: "preparing", botId: opts.botId, messageId: opts.messageId });
+    const queue = this.startQueue([...utterances], opts, controller, selectedSpaceId());
+    void this.drain(queue, live, controller);
+  }
 
-    type Rendered = { blob: Blob; error?: never } | { blob?: never; error: unknown };
-    const render = (utterance: string): Promise<Rendered> =>
-      this.render(utterance, opts, controller.signal, spaceId).then(
-        (blob) => ({ blob }),
-        (error: unknown) => ({ error }),
-      );
-    let next: Promise<Rendered> | null = render(utterances[0] ?? "");
-    for (let i = 0; i < utterances.length; i += 1) {
-      const current = next;
-      next = i + 1 < utterances.length ? render(utterances[i + 1] ?? "") : null;
-      if (!current) break;
-      const rendered = await current;
-      if ("error" in rendered) {
-        if (live()) {
-          this.set({
-            ...IDLE,
-            error:
-              rendered.error instanceof Error ? rendered.error.message : String(rendered.error),
-          });
+  private startQueue(
+    utterances: string[],
+    opts: SpeakOptions,
+    controller: AbortController,
+    spaceId: string | null,
+  ): SpeechQueue {
+    const queue: SpeechQueue = {
+      opts,
+      utterances,
+      renders: [],
+      playing: 0,
+      // Audio for the playing utterance and the next one only, so the next starts without a gap
+      // and a long reply does not flood the voice provider.
+      prefetch: () => {
+        const last = Math.min(queue.playing + 1, queue.utterances.length - 1);
+        for (let i = queue.playing; i <= last; i += 1) {
+          queue.renders[i] ??= this.render(
+            queue.utterances[i] ?? "",
+            opts,
+            controller.signal,
+            spaceId,
+          ).then(
+            (blob) => ({ blob }),
+            (error: unknown) => ({ error }),
+          );
         }
-        if (this.request === controller) this.request = null;
+      },
+    };
+    this.queue = queue;
+    return queue;
+  }
+
+  private async drain(queue: SpeechQueue, live: () => boolean, controller: AbortController) {
+    const finish = (next: SpeechSnapshot | null) => {
+      if (next && live()) this.set(next);
+      if (this.request === controller) this.request = null;
+      if (this.queue === queue) this.queue = null;
+    };
+    // Utterances appended while one plays are picked up here, so the length is read every turn.
+    for (let i = 0; i < queue.utterances.length; i += 1) {
+      queue.playing = i;
+      queue.prefetch();
+      const rendered = await queue.renders[i];
+      if (!rendered || "error" in rendered) {
+        const error = rendered?.error;
+        finish({ ...IDLE, error: error instanceof Error ? error.message : String(error) });
         return;
       }
-      if (!live()) return;
+      if (!live()) return finish(null);
+      this.heard.utterances.push(queue.utterances[i] ?? "");
       this.set({
         status: "speaking",
-        botId: opts.botId,
-        messageId: opts.messageId,
-        caption: utterances[i],
-        heard: utterances.slice(0, i + 1).join(" "),
+        botId: queue.opts.botId,
+        messageId: queue.opts.messageId,
+        caption: queue.utterances[i],
+        heard: this.heard.utterances.join(" "),
       });
+      measureReplyLatency();
       const finished = await this.play(rendered.blob, live);
-      if (!finished || !live()) {
-        if (live()) this.set(IDLE);
-        if (this.request === controller) this.request = null;
-        return;
-      }
+      if (!finished || !live()) return finish(IDLE);
     }
-    if (live()) this.set(IDLE);
-    if (this.request === controller) this.request = null;
+    finish(IDLE);
   }
 
   private async prepare(

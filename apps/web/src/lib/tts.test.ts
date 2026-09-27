@@ -65,6 +65,64 @@ describe("Speaker", () => {
     expect(speaker.state.error).toBe("ElevenLabs rejected that key.");
   });
 
+  it("queues streamed utterances and fetches only the next one while one plays", async () => {
+    const speaker = new Speaker();
+    const internals = speaker as unknown as {
+      render: (text: string) => Promise<Blob>;
+      play: () => Promise<boolean>;
+    };
+    const rendered: string[] = [];
+    vi.spyOn(internals, "render").mockImplementation(async (text) => {
+      rendered.push(text);
+      return new Blob([text]);
+    });
+    const plays: Array<(finished: boolean) => void> = [];
+    vi.spyOn(internals, "play").mockImplementation(
+      () => new Promise<boolean>((resolve) => plays.push(resolve)),
+    );
+    const heard: (string | undefined)[] = [];
+    speaker.subscribe((state) => {
+      if (state.status === "speaking") heard.push(state.heard);
+    });
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    speaker.enqueue(["One."], { messageId: "run:r1" });
+    await settle();
+    expect(rendered).toEqual(["One."]);
+    expect(plays).toHaveLength(1);
+
+    // Sentences that arrive mid-playback join the queue; only the next one is fetched early.
+    speaker.enqueue(["Two.", "Three."], { messageId: "run:r1" });
+    expect(rendered).toEqual(["One.", "Two."]);
+    plays[0]?.(true);
+    await settle();
+    expect(rendered).toEqual(["One.", "Two.", "Three."]);
+    expect(plays).toHaveLength(2);
+    plays[1]?.(true);
+    await settle();
+    plays[2]?.(true);
+    await settle();
+    expect(speaker.state.status).toBe("idle");
+
+    // A later batch of the same reply keeps what was already heard.
+    speaker.enqueue(["Four."], { messageId: "run:r1" });
+    await settle();
+    expect(heard.at(-1)).toBe("One. Two. Three. Four.");
+
+    // Another message replaces the queue and starts its own heard.
+    speaker.enqueue(["Other."], { messageId: "m2" });
+    await settle();
+    expect(speaker.state).toMatchObject({ messageId: "m2", heard: "Other." });
+    speaker.stop();
+    expect(heard).toEqual([
+      "One.",
+      "One. Two.",
+      "One. Two. Three.",
+      "One. Two. Three. Four.",
+      "Other.",
+    ]);
+  });
+
   it("keeps speak requests in the space where playback started", async () => {
     const changeSelectedSpace = stubSelectedSpace("space-support");
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
