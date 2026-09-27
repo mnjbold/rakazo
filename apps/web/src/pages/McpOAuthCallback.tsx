@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { PRODUCT_NAME } from "@rakazo/core";
-import { Button } from "@rakazo/ui-web";
+import { Button, JewlMark } from "@rakazo/ui-web";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MCP_OAUTH_CHANNEL } from "../lib/mcp-connect";
@@ -47,7 +47,8 @@ export function McpOAuthCallbackPage() {
   const showReturn = Boolean(error) && window.name !== POPUP_NAME;
   return (
     <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
-      <div>
+      <div className="flex flex-col items-center">
+        <JewlMark glow className="mb-6 size-12" />
         <div className="text-lg text-foreground">
           {error ? (
             <Trans>OAuth connection failed</Trans>

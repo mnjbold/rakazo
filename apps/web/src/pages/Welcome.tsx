@@ -1,5 +1,6 @@
 import { Trans } from "@lingui/react/macro";
 import { PRODUCT_MAKER, PRODUCT_NAME } from "@rakazo/core";
+import { JewlMark } from "@rakazo/ui-web";
 import { useNavigate } from "react-router-dom";
 import { WindowChrome } from "./WindowChrome";
 
@@ -10,17 +11,14 @@ export function WelcomePage() {
       <div className="app-drag flex gap-2 px-5 py-[18px]">
         <WindowChrome />
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center gap-11 pb-[90px]">
-        <div className="flex items-center gap-[26px]">
-          <div className="flex h-[88px] w-[88px] items-center justify-center gap-[13px] rounded-full bg-brand">
-            <span className="h-6 w-[11px] rounded-full bg-background" />
-            <span className="h-6 w-[11px] rounded-full bg-background" />
-          </div>
-          <div className="text-[76px] leading-none tracking-[-0.03em] text-foreground">
+      <div className="flex flex-1 flex-col items-center justify-center gap-10 px-6 pb-[90px]">
+        <div className="flex items-center gap-5 sm:gap-6">
+          <JewlMark glow className="size-16 sm:size-[88px]" />
+          <div className="text-[56px] font-semibold leading-none tracking-[-0.045em] text-foreground sm:text-[76px]">
             {PRODUCT_NAME}
           </div>
         </div>
-        <p className="max-w-[600px] text-center text-[27px] leading-[1.4] text-foreground/75">
+        <p className="max-w-[560px] text-center text-[20px] leading-[1.45] text-foreground/70 sm:text-[24px]">
           <Trans>
             Your team of always-on agents
             <br />
