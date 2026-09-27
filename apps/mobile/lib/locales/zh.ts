@@ -128,6 +128,8 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Check your email": "请查看邮箱",
   Clear: "清除",
   "Clear conversation": "清除对话",
+  "New chat": "新聊天",
+  "Could not start a new chat": "无法开始新聊天",
   "Clear conversation?": "要清除对话吗？",
   "Close chat organization": "关闭聊天整理",
   "Close computer": "关闭电脑",

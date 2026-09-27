@@ -43,7 +43,11 @@ export class ScriptedAgentRuntime implements AgentRuntime {
         yield { type: "done", text: "stopped" };
         return;
       }
-      const script = request.script ?? inferScript(request.prompt, request.resumeFromCheckpoint);
+      // The executor precomputes `script` from the prompt alone; this one also needs the history.
+      const script =
+        earlierChatsScript(request) ??
+        request.script ??
+        inferScript(request.prompt, request.resumeFromCheckpoint);
       // Per-run call index so repeated tools (e.g. message_agent) get distinct
       // executionIds — delivery keys and effect replays key off this value.
       let toolCallSeq = 0;
@@ -127,6 +131,24 @@ export class ScriptedAgentRuntime implements AgentRuntime {
       running.delete(request.runId);
     }
   }
+}
+
+/** Echoes the archived-chat context the run received, so offline tests can see it arrive. */
+function earlierChatsScript(request: AgentRunRequest): AgentRunRequest["script"] | undefined {
+  if (!request.prompt.toLowerCase().includes("what did we discuss in earlier chats")) {
+    return undefined;
+  }
+  const context = request.history.find((entry) =>
+    entry.content.includes("<previous_chat_sessions>"),
+  )?.content;
+  const inner = context
+    ?.split("<previous_chat_sessions>")[1]
+    ?.split("</previous_chat_sessions>")[0];
+  const text = inner
+    ?.replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return [{ assistant: text ? `earlier chats: ${text}` : "no earlier chats.", complete: true }];
 }
 
 export function inferScript(

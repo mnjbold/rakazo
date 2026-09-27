@@ -20,6 +20,7 @@ const payloadSchemas = {
   }),
   "skill.teaching-expire": z.object({ skillId: z.string().min(1) }),
   "history.compact": z.object({ threadId: z.string().min(1) }),
+  "chat.session.summarize": z.object({ sessionId: z.string().min(1) }),
   "messaging.deliver": z.object({ runId: z.string().min(1).optional() }),
   "cloud_agent.poll": z.object({ agentId: z.string().min(1) }),
 } satisfies { [Name in BackgroundJobName]: z.ZodType<BackgroundJobPayloads[Name]> };
@@ -137,6 +138,15 @@ export function historyCompactJob(threadId: string): BackgroundJob {
     name: "history.compact",
     payload: { threadId },
     replaceKey: historyCompactJobKey(threadId),
+    maxAttempts: HISTORY_COMPACT_MAX_ATTEMPTS,
+  };
+}
+
+export function chatSessionSummarizeJob(sessionId: string): BackgroundJob {
+  return {
+    name: "chat.session.summarize",
+    payload: { sessionId },
+    replaceKey: `chat.session.summarize:${sessionId}`,
     maxAttempts: HISTORY_COMPACT_MAX_ATTEMPTS,
   };
 }

@@ -12,20 +12,31 @@ export async function loadMessagePage(
   around?: { messageId?: string; seq?: number },
   includePeerRuns = false,
   includePeerReceipts = false,
+  /** One chat's seq bounds (inclusive); the thread's current chat when omitted by the caller. */
+  range: { minSeq: number; maxSeq?: number } = { minSeq: 0 },
 ): Promise<ThreadMessagePage> {
+  // Threads that never started a new chat keep their unbounded queries.
+  const seqWhere = (extra: { lt?: number } = {}) => {
+    const seq = {
+      ...(range.minSeq > 0 ? { gte: range.minSeq } : {}),
+      ...(range.maxSeq === undefined ? {} : { lte: range.maxSeq }),
+      ...extra,
+    };
+    return Object.keys(seq).length > 0 ? { seq } : {};
+  };
   if (around) {
     let targetSeq = around.seq;
     if (targetSeq === undefined && around.messageId) {
       const row = await prisma.message.findFirst({
-        where: { id: around.messageId, threadId },
+        where: { id: around.messageId, threadId, ...seqWhere() },
         select: { seq: true },
       });
       targetSeq = row?.seq;
     }
     if (targetSeq !== undefined) {
       const half = Math.floor(pageSize / 2);
-      const minSeq = Math.max(0, targetSeq - half);
-      const maxSeq = targetSeq + half;
+      const minSeq = Math.max(range.minSeq, targetSeq - half);
+      const maxSeq = Math.min(range.maxSeq ?? Number.MAX_SAFE_INTEGER, targetSeq + half);
       const rows = await prisma.message.findMany({
         where: { threadId, seq: { gte: minSeq, lte: maxSeq } },
         orderBy: { seq: "asc" },
@@ -33,7 +44,9 @@ export async function loadMessagePage(
       });
       const first = rows[0];
       const hasOlder = first
-        ? (await prisma.message.count({ where: { threadId, seq: { lt: first.seq } } })) > 0
+        ? (await prisma.message.count({
+            where: { threadId, ...seqWhere({ lt: first.seq }) },
+          })) > 0
         : false;
       // Peer text/activity stays out of the normal transcript (including the
       // around target). Receipts remain via withoutPeerRunMessages; full peer
@@ -52,7 +65,7 @@ export async function loadMessagePage(
     const rows = await prisma.message.findMany({
       where: {
         threadId,
-        ...(cursor === undefined ? {} : { seq: { lt: cursor } }),
+        ...seqWhere(cursor === undefined ? {} : { lt: cursor }),
       },
       orderBy: { seq: "desc" },
       take: pageSize + 1,

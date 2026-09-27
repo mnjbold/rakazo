@@ -319,7 +319,11 @@ export function createRepos(prisma: PrismaClient) {
       const checkedRunIds = new Set(candidateRunIds);
       return Promise.all(
         bots.map(async (bot) => {
-          let messages = bot.thread?.messages ?? [];
+          const sessionStartSeq = bot.thread?.sessionStartSeq ?? 0;
+          // Only the current chat previews; archived chats stay in history.
+          let messages = (bot.thread?.messages ?? []).filter(
+            (message) => sessionStartSeq === 0 || message.seq >= sessionStartSeq,
+          );
           let preview = "";
           for (let attempt = 0; attempt < 5; attempt++) {
             const windowRunIds = [
@@ -346,7 +350,10 @@ export function createRepos(prisma: PrismaClient) {
             const oldest = messages[messages.length - 1];
             if (!oldest) break;
             messages = await prisma.message.findMany({
-              where: { threadId: bot.thread.id, seq: { lt: oldest.seq } },
+              where: {
+                threadId: bot.thread.id,
+                seq: { lt: oldest.seq, ...(sessionStartSeq > 0 ? { gte: sessionStartSeq } : {}) },
+              },
               orderBy: { seq: "desc" },
               take: SIDEBAR_PREVIEW_MESSAGE_WINDOW,
             });

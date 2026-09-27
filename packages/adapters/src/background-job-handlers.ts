@@ -15,7 +15,7 @@ import { expireComputerControl } from "./computer-control.js";
 import { scheduleComputerSleep, sleepComputerIfIdle } from "./computer-idle.js";
 import { performComputerUpdate } from "./computer-update.js";
 import type { createRunExecutor } from "./executor.js";
-import { compactHistory } from "./history-compaction.js";
+import { compactHistory, summarizeChatSession } from "./history-compaction.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import { deliverMessagingOutbound, mirrorMessagingOutbound } from "./messaging-delivery.js";
 import type { EncryptedSecretStore } from "./secrets.js";
@@ -49,6 +49,15 @@ export function createBackgroundJobHandlers(deps: {
         signal: new AbortController().signal,
       },
     );
+  };
+
+  const summarizerDeps = {
+    prisma: deps.prisma,
+    runtime: deps.runtime,
+    jobs: deps.jobs,
+    memoryProviders: deps.memoryProviders,
+    deploymentModelKey: deps.deploymentModelKey,
+    ...(deps.executor.resolveModel ? { resolveModel: deps.executor.resolveModel } : {}),
   };
 
   return {
@@ -99,17 +108,10 @@ export function createBackgroundJobHandlers(deps: {
       );
     },
     "history.compact": async (payload) => {
-      await compactHistory(
-        {
-          prisma: deps.prisma,
-          runtime: deps.runtime,
-          jobs: deps.jobs,
-          memoryProviders: deps.memoryProviders,
-          deploymentModelKey: deps.deploymentModelKey,
-          ...(deps.executor.resolveModel ? { resolveModel: deps.executor.resolveModel } : {}),
-        },
-        payload.threadId,
-      );
+      await compactHistory(summarizerDeps, payload.threadId);
+    },
+    "chat.session.summarize": async (payload) => {
+      await summarizeChatSession(summarizerDeps, payload.sessionId);
     },
   };
 }

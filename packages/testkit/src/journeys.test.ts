@@ -533,6 +533,77 @@ describeJourneys("required product journeys", () => {
     expect(await prisma.message.count({ where: { threadId: thread.id } })).toBeGreaterThan(0);
   });
 
+  it("starts a new chat that keeps the old one readable and in the agent's context", async () => {
+    const cookie = await signup(app, `new-chat-j-${stamp}@rakazo.test`, "New Chat Journey");
+    const bot = await rpc<Bot>(app, cookie, "bots/create", {
+      name: "Sessions",
+      title: "",
+      description: "",
+      instructions: "",
+      notifyOnFinish: true,
+    });
+    await sendAndWait(app, cookie, bot.id, "plan the trip to marrakech-journey-keyword");
+    const thread = await prisma.thread.findUniqueOrThrow({ where: { botId: bot.id } });
+    const archivedCount = await prisma.message.count({ where: { threadId: thread.id } });
+
+    await rpc(app, cookie, "threads/newChat", { botId: bot.id });
+    // Empty chat: a second New chat is a no-op instead of an empty archive.
+    await rpc(app, cookie, "threads/newChat", { botId: bot.id });
+
+    const fresh = await rpc<Snap>(app, cookie, "threads/get", { botId: bot.id });
+    expect(fresh.messages).toEqual([]);
+    expect(await prisma.message.count({ where: { threadId: thread.id } })).toBe(archivedCount);
+    expect(
+      (await rpc<Bot[]>(app, cookie, "bots/list")).find((item) => item.id === bot.id),
+    ).toMatchObject({ preview: "" });
+    const sessions = await rpc<Array<{ id: string; title: string }>>(
+      app,
+      cookie,
+      "threads/sessions",
+      { botId: bot.id },
+    );
+    expect(sessions).toEqual([
+      expect.objectContaining({ title: "plan the trip to marrakech-journey-keyword" }),
+    ]);
+    const archived = await rpc<Snap>(app, cookie, "threads/messages", {
+      botId: bot.id,
+      sessionId: sessions[0]!.id,
+    });
+    expect(archived.messages).toHaveLength(archivedCount);
+    expect((await rpc<Snap>(app, cookie, "threads/messages", { botId: bot.id })).messages).toEqual(
+      [],
+    );
+
+    // Another user can neither list nor open this bot's archived chats.
+    const other = await signup(app, `new-chat-other-${stamp}@rakazo.test`, "Other");
+    const otherBot = await rpc<Bot>(app, other, "bots/create", {
+      name: "Other",
+      title: "",
+      description: "",
+      instructions: "",
+      notifyOnFinish: true,
+    });
+    await expect(rpc(app, other, "threads/sessions", { botId: bot.id })).rejects.toThrow();
+    await expect(
+      rpc(app, other, "threads/messages", { botId: bot.id, sessionId: sessions[0]!.id }),
+    ).rejects.toThrow();
+    await expect(
+      rpc(app, other, "threads/messages", { botId: otherBot.id, sessionId: sessions[0]!.id }),
+    ).rejects.toThrow();
+    await expect(rpc(app, other, "threads/newChat", { botId: bot.id })).rejects.toThrow();
+
+    // The new chat's run gets the archived chat as context, not as verbatim history.
+    const reply = await sendAndWait(app, cookie, bot.id, "what did we discuss in earlier chats");
+    const replyText = JSON.stringify(reply.messages);
+    expect(replyText).toContain("earlier chats:");
+    expect(replyText).toContain("marrakech-journey-keyword");
+    expect(reply.messages.every((message) => message.seq >= archivedCount)).toBe(true);
+
+    // Clearing removes archived chats with the rest of the conversation.
+    await rpc(app, cookie, "threads/clear", { botId: bot.id });
+    expect(await rpc(app, cookie, "threads/sessions", { botId: bot.id })).toEqual([]);
+  });
+
   it("2b: two Team bots send at once on distinct screens", async () => {
     const cookie = await signup(app, `parallel-j-${stamp}@rakazo.test`, "Parallel");
     const writer = await rpc<Bot>(app, cookie, "bots/create", {

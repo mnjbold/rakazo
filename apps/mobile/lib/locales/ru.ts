@@ -140,6 +140,8 @@ export const RU_MESSAGES: Record<string, string> = {
   "Check your email": "Проверьте свою электронную почту",
   Clear: "Очистить",
   "Clear conversation": "Очистить диалог",
+  "New chat": "Новый чат",
+  "Could not start a new chat": "Не удалось начать новый чат",
   "Clear conversation?": "Очистить диалог?",
   "Close chat organization": "Закрыть организацию чатов",
   "Close computer": "Закрыть компьютер",

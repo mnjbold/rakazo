@@ -11,6 +11,7 @@ import type {
   SandboxProvider,
 } from "@rakazo/adapter-kit";
 import {
+  chatSessionSummarizeJob,
   computerControlExpireJobKey,
   messagingDeliverJob,
   routineJobKey,
@@ -116,6 +117,7 @@ import {
   CannotDeleteDefaultSpaceError,
   CannotDeleteLastSpaceError,
   CannotDeleteSpaceAsNonOwnerError,
+  ChatSessionBusyError,
   ComputerLimitError,
   claimEmptySpaceDeletionForMember,
   createExternalConversationRepos,
@@ -126,6 +128,7 @@ import {
   defaultModelCredentialCandidates,
   deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
+  findChatSessionRange,
   findDefaultModelCredential,
   findDefaultVoiceCredential,
   findModelCredential,
@@ -134,6 +137,7 @@ import {
   InvalidSpaceNameError,
   IsolationError,
   issueMessagingLinkCode,
+  listChatSessions,
   lockOwnedGroup,
   newestModelCredentialOrder,
   newestVoiceCredentialOrder,
@@ -150,6 +154,7 @@ import {
   SpaceNotFoundError,
   selectSpaceModelPreference,
   selectSpaceVoicePreference,
+  startNewChatSession,
   touchGroupUpdatedAt,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -1843,6 +1848,17 @@ export function createRouter(deps: RouterDeps) {
       }),
       messages: authed.threads.messages.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        let range: { minSeq: number; maxSeq?: number } = {
+          minSeq: target.kind === "bot" ? (target.bot.thread?.sessionStartSeq ?? 0) : 0,
+        };
+        if (input.sessionId) {
+          const session =
+            target.kind === "bot"
+              ? await findChatSessionRange(deps.prisma, target.threadId, input.sessionId)
+              : null;
+          if (!session) throw new IsolationError();
+          range = { minSeq: session.startSeq, maxSeq: session.endSeq };
+        }
         return loadMessagePage(
           deps.prisma,
           target.threadId,
@@ -1851,7 +1867,36 @@ export function createRouter(deps: RouterDeps) {
           input.around,
           input.includePeerRuns,
           input.includePeerReceipts,
+          range,
         );
+      }),
+      sessions: authed.threads.sessions.handler(async ({ context, input }) => {
+        const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        return listChatSessions(deps.prisma, target.threadId);
+      }),
+      newChat: authed.threads.newChat.handler(async ({ context, input }) => {
+        const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        if (target.kind !== "bot") throw new IsolationError();
+        const started = await startNewChatSession(deps.prisma, {
+          spaceId: context.actor.spaceId,
+          threadId: target.threadId,
+          botId: target.botId,
+        }).catch((error) => {
+          if (error instanceof ChatSessionBusyError) {
+            throw new ORPCError("CONFLICT", { message: error.message });
+          }
+          throw error;
+        });
+        if (started) {
+          await deps.events.notify(target.threadId, started.eventSeq).catch((error) => {
+            getLogger().error("new chat realtime notification", error);
+          });
+          await deps.jobs.enqueue(chatSessionSummarizeJob(started.sessionId)).catch((error) => {
+            // The session keeps its transcript excerpt when the summary cannot be queued.
+            getLogger().error("chat.session.summarize enqueue failed", error);
+          });
+        }
+        return { ok: true as const };
       }),
       subscribe: authed.threads.subscribe.handler(async function* ({ context, input }) {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);

@@ -101,6 +101,8 @@ export const DE_MESSAGES: Record<string, string> = {
   Cancelled: "Abgebrochen",
   Clear: "Leeren",
   "Clear conversation": "Unterhaltung leeren",
+  "New chat": "Neuer Chat",
+  "Could not start a new chat": "Neuer Chat konnte nicht gestartet werden",
   "Clear conversation?": "Unterhaltung leeren?",
   "Cloud agent": "Cloud-Agent",
   Code: "Code",
