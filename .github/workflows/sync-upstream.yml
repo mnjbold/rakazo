@@ -1,0 +1,69 @@
+name: sync-upstream
+
+# Weekly, merge the official Rakazo main into a review branch. A clean merge opens a pull request;
+# a conflicting one opens an issue naming the files. Nothing lands on main without review.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM: https://github.com/elie222/rakazo.git
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Merge upstream into a review branch
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch "$UPSTREAM" main:refs/remotes/upstream/main
+          behind=$(git rev-list --count HEAD..upstream/main)
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          if [ "$behind" = "0" ]; then echo "Already up to date."; exit 0; fi
+          branch="sync/upstream-$(date -u +%Y%m%d)"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          git switch -c "$branch"
+          if git merge --no-edit upstream/main; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+            git push --force-with-lease origin "$branch"
+          else
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+            git diff --name-only --diff-filter=U > conflicts.txt
+            git merge --abort
+          fi
+      - name: Open a pull request for a clean merge
+        if: steps.merge.outputs.clean == 'true'
+        run: |
+          branch="${{ steps.merge.outputs.branch }}"
+          if gh pr list --head "$branch" --state open --json number --jq 'length' | grep -qx 0; then
+            gh pr create --base main --head "$branch" \
+              --title "Sync upstream Rakazo (${{ steps.merge.outputs.behind }} commits)" \
+              --body "Automated weekly merge of the official Rakazo main. Review, run CI (workflow_dispatch), then merge."
+          fi
+      - name: Open an issue when the merge conflicts
+        if: steps.merge.outputs.clean == 'false'
+        run: |
+          {
+            echo "The weekly upstream merge (${{ steps.merge.outputs.behind }} commits) conflicts in:"
+            echo
+            sed 's/^/- /' conflicts.txt
+            echo
+            echo "Resolve locally: fetch upstream main, merge on a branch, open a PR."
+          } > body.md
+          gh issue create --title "Upstream sync needs a manual merge" --body-file body.md

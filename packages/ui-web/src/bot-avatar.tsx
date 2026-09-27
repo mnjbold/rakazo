@@ -125,19 +125,13 @@ export const BotAvatar = memo(function BotAvatar({
         style={{
           width: size,
           height: size,
-          boxShadow: isWorking
-            ? "0 0 0 2px #3B82F6, 0 0 10px rgba(59,130,246,0.6)"
-            : "0 2px 5px rgba(0,0,0,0.5)",
+          boxShadow: isWorking ? "inset 0 0 0 2px #3B82F6" : "0 2px 5px rgba(0,0,0,0.5)",
         }}
       >
         {isWorking ? (
           <svg
             className="rakazo-bot-avatar-ring absolute pointer-events-none"
-            style={{
-              inset: -4,
-              width: size + 8,
-              height: size + 8,
-            }}
+            style={{ inset: 0, width: size, height: size }}
             viewBox="0 0 48 48"
             fill="none"
             aria-hidden="true"
@@ -184,11 +178,12 @@ export const BotAvatar = memo(function BotAvatar({
     >
       <svg
         className="rakazo-bot-avatar-ring absolute pointer-events-none"
+        // Working state stays inside the idle footprint: the ring is drawn within the box.
         style={{
-          inset: -4,
-          width: size + 8,
-          height: size + 8,
-          filter: `drop-shadow(0 0 6px ${colorDef.light}) drop-shadow(0 0 10px #ffffff)`,
+          inset: 0,
+          width: size,
+          height: size,
+          filter: `drop-shadow(0 0 1.5px ${colorDef.light})`,
         }}
         viewBox="0 0 48 48"
         fill="none"
@@ -220,12 +215,12 @@ export const BotAvatar = memo(function BotAvatar({
         className={cn(
           "overflow-visible transition-transform duration-300",
           isWorking
-            ? "animate-pulse scale-[1.04] motion-reduce:animate-none"
+            ? "animate-pulse scale-[0.8] motion-reduce:animate-none"
             : "hover:scale-[1.03] motion-reduce:hover:scale-100",
         )}
         style={{
           filter: isWorking
-            ? `drop-shadow(0 0 8px ${colorDef.light}) drop-shadow(0 0 2px #ffffff)`
+            ? `drop-shadow(0 0 2px ${colorDef.light})`
             : "drop-shadow(0 2px 4px rgba(0,0,0,0.45))",
         }}
       >
@@ -284,43 +279,45 @@ function OrganicAvatar({
         flex: "none",
       }}
     >
-      {(["idle", "working"] as const).map((mode) => (
-        <path
-          key={mode}
-          className={`rakazo-organic-avatar-body rakazo-organic-avatar-body-${mode}`}
-          d={shapeA}
-          fill={color}
-          style={
-            {
-              "--rakazo-organic-path": `path("${shapeA}")`,
-              filter:
-                mode === "working"
-                  ? `drop-shadow(0 0 ${Math.round(size * 0.16)}px ${color})`
-                  : "drop-shadow(0 2px 3px rgba(0,0,0,.34))",
-            } as CSSProperties
-          }
-        >
-          {!reducedMotion ? (
-            <animate
-              attributeName="d"
-              values={`${shapeA};${shapeB};${shapeA}`}
-              dur={duration}
-              repeatCount="indefinite"
-            />
-          ) : null}
-        </path>
-      ))}
-      <g transform={`rotate(${(seed % 9) - 4})`}>
+      <g transform={isWorking ? "scale(0.9)" : undefined}>
         {(["idle", "working"] as const).map((mode) => (
-          <g
+          <path
             key={mode}
-            className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
-            fill={tokens.background}
+            className={`rakazo-organic-avatar-body rakazo-organic-avatar-body-${mode}`}
+            d={shapeA}
+            fill={color}
+            style={
+              {
+                "--rakazo-organic-path": `path("${shapeA}")`,
+                filter:
+                  mode === "working"
+                    ? `drop-shadow(0 0 ${Math.max(1, Math.round(size * 0.05))}px ${color})`
+                    : "drop-shadow(0 2px 3px rgba(0,0,0,.34))",
+              } as CSSProperties
+            }
           >
-            <rect x="-14" y="-12" width="7" height="24" rx="3.5" />
-            <rect x="7" y="-12" width="7" height="24" rx="3.5" />
-          </g>
+            {!reducedMotion ? (
+              <animate
+                attributeName="d"
+                values={`${shapeA};${shapeB};${shapeA}`}
+                dur={duration}
+                repeatCount="indefinite"
+              />
+            ) : null}
+          </path>
         ))}
+        <g transform={`rotate(${(seed % 9) - 4})`}>
+          {(["idle", "working"] as const).map((mode) => (
+            <g
+              key={mode}
+              className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
+              fill={tokens.background}
+            >
+              <rect x="-14" y="-12" width="7" height="24" rx="3.5" />
+              <rect x="7" y="-12" width="7" height="24" rx="3.5" />
+            </g>
+          ))}
+        </g>
       </g>
     </svg>
   );
