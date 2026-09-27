@@ -88,6 +88,7 @@ import { requestLogging } from "@rakazo/logging/hono";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createBotImageDrafter } from "./bot-image-draft.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
 import { mountLocalSettings } from "./local-settings.js";
@@ -447,6 +448,11 @@ export async function createApp(
 
   const router = createRouter({
     cloudAgent,
+    botImageDrafter: createBotImageDrafter({
+      prisma,
+      runtime,
+      resolveModel: (scope) => executor.resolveModel(scope),
+    }),
     prisma,
     events,
     auth,

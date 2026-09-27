@@ -1,10 +1,14 @@
 import {
+  ATTACHMENT_IMAGE_MIME_TYPES,
   BOT_DESCRIPTION_MAX_LENGTH,
+  BOT_IMAGE_DRAFT_MAX_BYTES,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
+  type BotImageDraft,
   type ComputerMode,
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
+import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput } from "react-native";
@@ -22,6 +26,7 @@ export default function NewBot() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
+  const [color, setColor] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -37,6 +42,43 @@ export default function NewBot() {
     router.replace("/");
   }
 
+  async function draftFromImage() {
+    if (pending) return;
+    // quality < 1 makes iOS re-encode HEIC picks as JPEG.
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+      base64: true,
+    });
+    const asset = picked.canceled ? undefined : picked.assets[0];
+    if (!asset?.base64) return;
+    const mimeType = asset.mimeType ?? "image/jpeg";
+    if (!(ATTACHMENT_IMAGE_MIME_TYPES as readonly string[]).includes(mimeType)) {
+      setError(t("Use a PNG, JPEG, WebP, or GIF image."));
+      return;
+    }
+    if ((asset.base64.length * 3) / 4 > BOT_IMAGE_DRAFT_MAX_BYTES) {
+      setError(t("Image must be 5 MB or smaller."));
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      const draft = await rpc<BotImageDraft>("bots/draftFromImage", {
+        mimeType,
+        contentBase64: asset.base64,
+      });
+      setName(draft.name);
+      setTitle(draft.title);
+      setDescription(draft.instructions);
+      setColor(draft.color);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Could not create bot"));
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function create() {
     if (!name.trim() || pending) return;
     setPending(true);
@@ -49,6 +91,7 @@ export default function NewBot() {
         ...normalizeCreateBotProfile({ name, title, description }),
         notifyOnFinish: true,
         computerMode,
+        ...(color ? { color } : {}),
       });
       allowFocusPrompt(bot.id);
       router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
@@ -89,6 +132,14 @@ export default function NewBot() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        <Pressable
+          onPress={() => void draftFromImage()}
+          disabled={pending}
+          accessibilityRole="button"
+          style={{ alignSelf: "flex-start", paddingVertical: 8, marginBottom: 16 }}
+        >
+          <Text style={{ color: tokens.foreground, fontSize: 16 }}>{t("Create from image")}</Text>
+        </Pressable>
         <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
         <TextInput
           value={name}

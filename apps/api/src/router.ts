@@ -166,6 +166,7 @@ import {
   listArtifactVersions,
   listSpaceArtifacts,
 } from "./artifacts.js";
+import type { BotImageDrafter } from "./bot-image-draft.js";
 import { createBotTemplatesService } from "./bot-templates.js";
 import { botProfileLabelsChanged, commitBotUpdate } from "./bot-update.js";
 import {
@@ -498,6 +499,7 @@ function mcpAssignmentDto(row: {
 
 export interface RouterDeps {
   cloudAgent?: CloudAgentConnection | null;
+  botImageDrafter?: BotImageDrafter;
   prisma: PrismaClient;
   events: ThreadEvents;
   auth: Auth;
@@ -1330,6 +1332,10 @@ export function createRouter(deps: RouterDeps) {
           getLogger().error("bot intro run enqueue", error);
         });
         return bot;
+      }),
+      draftFromImage: authed.bots.draftFromImage.handler(async ({ context, input }) => {
+        if (!deps.botImageDrafter) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.botImageDrafter(context.actor, input, context.signal);
       }),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);

@@ -4,7 +4,7 @@ import type {
   AgentRuntime,
   AgentRuntimeEvent,
 } from "@rakazo/adapter-kit";
-import { abortableDelay, inferHandoffTargetName } from "@rakazo/core";
+import { abortableDelay, BOT_IMAGE_DRAFT_PROMPT, inferHandoffTargetName } from "@rakazo/core";
 
 const running = new Map<string, AbortController>();
 
@@ -129,6 +129,18 @@ export class ScriptedAgentRuntime implements AgentRuntime {
   }
 }
 
+/** Canned vision answer for the create-bot-from-image flow. */
+export const SCRIPTED_BOT_IMAGE_DRAFT = JSON.stringify({
+  name: "Harbor Scout",
+  title: "Tracks ships in port",
+  instructions: "You watch the harbor schedule and flag late arrivals.",
+  color: "cyan",
+  shape: "cloud",
+  routines: [
+    { name: "Arrivals", prompt: "Check today's arrivals and report delays.", cron: "0 * * * *" },
+  ],
+});
+
 export function inferScript(
   prompt: string,
   resumeFromCheckpoint?: string,
@@ -150,6 +162,9 @@ export function inferScript(
         complete: true,
       },
     ];
+  }
+  if (prompt === BOT_IMAGE_DRAFT_PROMPT) {
+    return [{ assistant: SCRIPTED_BOT_IMAGE_DRAFT, complete: true }];
   }
   // Before every content-based intent so payload text cannot steal the branch.
   if (lower.includes("message the bot named") || lower.includes("message bot named")) {

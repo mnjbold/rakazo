@@ -3804,13 +3804,30 @@ export function ShellPage() {
               <CreateBotForm
                 onCancel={() => setPanel(null)}
                 onCreate={(input) =>
-                  createBot(() =>
-                    rpc.bots.create({
+                  createBot(async () => {
+                    const bot = await rpc.bots.create({
                       ...normalizeCreateBotProfile(input),
                       notifyOnFinish: true,
                       computerMode: input.computerMode,
-                    }),
-                  )
+                      ...(input.color ? { color: input.color } : {}),
+                    });
+                    // Picked routine suggestions are extras: a failed one must not
+                    // fail the bot that already exists (settings show what was saved).
+                    await Promise.allSettled(
+                      input.routines.map((routine) =>
+                        rpc.routines.create({
+                          botId: bot.id,
+                          name: routine.name,
+                          prompt: routine.prompt,
+                          crons: [routine.cron],
+                          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                          active: true,
+                          watch: true,
+                        }),
+                      ),
+                    );
+                    return bot;
+                  })
                 }
                 onUseTemplate={(templateId, computerMode) =>
                   createBot(() => rpc.botTemplates.use({ templateId, computerMode }))

@@ -16,6 +16,39 @@ import {
 import { Check, Pencil, Upload, X } from "lucide-react";
 import { type ClipboardEvent, type DragEvent, useRef, useState } from "react";
 
+/** Crop an image file to the 256px round webp stored as a bot avatar. */
+export function imageFileToAvatar(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const targetSize = 256;
+      canvas.width = targetSize;
+      canvas.height = targetSize;
+      if (!ctx) {
+        reject(new Error("Canvas unavailable"));
+        return;
+      }
+      ctx.beginPath();
+      ctx.arc(targetSize / 2, targetSize / 2, targetSize / 2, 0, Math.PI * 2);
+      ctx.clip();
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width - minDim) / 2;
+      const sy = (img.height - minDim) / 2;
+      ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
+      resolve(canvas.toDataURL("image/webp", 0.9));
+    };
+    img.onerror = () => reject(new Error("Image could not be read"));
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.src = String(reader.result);
+    };
+    reader.onerror = () => reject(new Error("Image could not be read"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export interface AvatarStudioPopoverProps {
   value: string;
   identity?: string;
@@ -56,34 +89,12 @@ export function AvatarStudioPopover({
 
   function processImageFile(file: File) {
     if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const src = event.target?.result as string;
-      if (!src) return;
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const targetSize = 256;
-        canvas.width = targetSize;
-        canvas.height = targetSize;
-        if (!ctx) return;
-
-        ctx.beginPath();
-        ctx.arc(targetSize / 2, targetSize / 2, targetSize / 2, 0, Math.PI * 2);
-        ctx.clip();
-
-        const minDim = Math.min(img.width, img.height);
-        const sx = (img.width - minDim) / 2;
-        const sy = (img.height - minDim) / 2;
-        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
-
-        onChange(canvas.toDataURL("image/webp", 0.9));
+    void imageFileToAvatar(file)
+      .then((avatar) => {
+        onChange(avatar);
         setOpen(false);
-      };
-      img.src = src;
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch(() => undefined);
   }
 
   function handleDrop(event: DragEvent<HTMLButtonElement>) {

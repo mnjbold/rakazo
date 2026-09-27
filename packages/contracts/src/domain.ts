@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { ATTACHMENT_IMAGE_MIME_TYPES } from "./attachments.js";
 import { BotAvatarValueSchema } from "./bot-avatar.js";
 import { ThreadMessageSchema } from "./events.js";
 import { Id, MemoryScope, RunStatus, SandboxKind } from "./ids.js";
@@ -300,6 +301,38 @@ export const CreateBotInput = z.object({
   spawnKey: z.string().trim().min(1).max(120).optional(),
 });
 export type CreateBotInput = z.infer<typeof CreateBotInput>;
+
+/** Images sent to draft a bot are read once by the model and never stored. */
+export const BOT_IMAGE_DRAFT_MAX_BYTES = 5 * 1024 * 1024;
+export const BOT_IMAGE_DRAFT_MAX_ROUTINES = 3;
+export const BOT_IMAGE_DRAFT_ROUTINE_PROMPT_MAX_LENGTH = 1000;
+
+export const BotImageDraftInput = z.object({
+  mimeType: z.enum(ATTACHMENT_IMAGE_MIME_TYPES),
+  contentBase64: z
+    .string()
+    .min(1)
+    .max(Math.ceil(BOT_IMAGE_DRAFT_MAX_BYTES / 3) * 4)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+});
+export type BotImageDraftInput = z.infer<typeof BotImageDraftInput>;
+
+export const BotImageDraftRoutineSchema = z.object({
+  name: z.string().min(1).max(80),
+  prompt: z.string().min(1).max(BOT_IMAGE_DRAFT_ROUTINE_PROMPT_MAX_LENGTH),
+  cron: z.string().min(1),
+});
+export type BotImageDraftRoutine = z.infer<typeof BotImageDraftRoutineSchema>;
+
+/** Suggested profile only: the person edits and confirms it in the create form. */
+export const BotImageDraftSchema = z.object({
+  name: z.string().min(1).max(BOT_NAME_MAX_LENGTH),
+  title: z.string().max(BOT_TITLE_MAX_LENGTH),
+  instructions: z.string().max(BOT_DESCRIPTION_MAX_LENGTH),
+  color: BotAvatarValueSchema,
+  routines: z.array(BotImageDraftRoutineSchema).max(BOT_IMAGE_DRAFT_MAX_ROUTINES),
+});
+export type BotImageDraft = z.infer<typeof BotImageDraftSchema>;
 
 export function normalizeCreateBotProfile(
   input: Pick<CreateBotInput, "name" | "title" | "description">,

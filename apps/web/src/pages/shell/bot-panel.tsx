@@ -3,6 +3,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentSkillCatalogEntry,
   Bot,
+  BotImageDraftInput,
+  BotImageDraftRoutine,
   BotTemplate,
   ComputerMode,
   Me,
@@ -12,10 +14,13 @@ import type {
   VoiceInfo,
 } from "@rakazo/contracts";
 import {
+  ATTACHMENT_IMAGE_MIME_TYPES,
   BOT_DESCRIPTION_MAX_LENGTH,
+  BOT_IMAGE_DRAFT_MAX_BYTES,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
 } from "@rakazo/contracts";
+import { formatCron } from "@rakazo/core";
 import {
   BotAvatar,
   Button,
@@ -26,10 +31,10 @@ import {
   Textarea,
   Toggle,
 } from "@rakazo/ui-web";
-import { Trash2, X } from "lucide-react";
+import { ImagePlus, Trash2, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { rpc } from "../../lib/rpc";
-import { AvatarStudioPopover } from "./avatar-studio-popover";
+import { AvatarStudioPopover, imageFileToAvatar } from "./avatar-studio-popover";
 
 const ScratchpadSection = lazy(() =>
   import("../ScratchpadSection").then((module) => ({ default: module.ScratchpadSection })),
@@ -87,6 +92,8 @@ export function CreateBotForm({
     title: string;
     description: string;
     computerMode: ComputerMode;
+    color?: string;
+    routines: BotImageDraftRoutine[];
   }) => Promise<void>;
   onUseTemplate: (templateId: string, computerMode: ComputerMode) => Promise<void>;
   onCancel: () => void;
@@ -100,6 +107,11 @@ export function CreateBotForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<BotTemplate[]>([]);
+  const [color, setColor] = useState<string>();
+  const [imageAvatar, setImageAvatar] = useState<string>();
+  const [suggestedRoutines, setSuggestedRoutines] = useState<BotImageDraftRoutine[]>([]);
+  const [pickedRoutines, setPickedRoutines] = useState<Set<number>>(new Set());
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,8 +147,35 @@ export function CreateBotForm({
         title: title.trim(),
         description: description.trim(),
         computerMode,
+        color,
+        routines: suggestedRoutines.filter((_, index) => pickedRoutines.has(index)),
       }),
     );
+  }
+
+  async function draftFromImage(file: File) {
+    if (!(ATTACHMENT_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
+      setError(t`Use a PNG, JPEG, WebP, or GIF image.`);
+      return;
+    }
+    if (file.size > BOT_IMAGE_DRAFT_MAX_BYTES) {
+      setError(t`Image must be 5 MB or smaller.`);
+      return;
+    }
+    await run(async () => {
+      const dataUrl = await readAsDataUrl(file);
+      const draft = await rpc.bots.draftFromImage({
+        mimeType: file.type as BotImageDraftInput["mimeType"],
+        contentBase64: dataUrl.slice(dataUrl.indexOf(",") + 1),
+      });
+      setName(draft.name);
+      setTitle(draft.title);
+      setDescription(draft.instructions);
+      setColor(draft.color);
+      setSuggestedRoutines(draft.routines);
+      setPickedRoutines(new Set());
+      setImageAvatar(await imageFileToAvatar(file).catch(() => undefined));
+    });
   }
 
   async function removeTemplate(templateId: string) {
@@ -147,14 +186,57 @@ export function CreateBotForm({
   }
 
   return (
-    <div data-testid="create-bot-form">
+    <fieldset
+      data-testid="create-bot-form"
+      aria-label={t`New bot`}
+      className="m-0 min-w-0 border-0 p-0"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        const file = imageFrom(event.dataTransfer.items);
+        if (!file) return;
+        event.preventDefault();
+        void draftFromImage(file);
+      }}
+      onPaste={(event) => {
+        const file = imageFrom(event.clipboardData.items);
+        if (!file) return;
+        event.preventDefault();
+        void draftFromImage(file);
+      }}
+    >
       <div className="mb-4 flex items-center justify-between">
         <span className="text-[13.5px] text-muted-foreground">
           <Trans>New bot</Trans>
         </span>
-        <Button variant="ghost" size="icon-sm" aria-label={t`Cancel new bot`} onClick={onCancel}>
-          <X size={16} strokeWidth={1.8} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t`Create from image`}
+            data-testid="create-bot-from-image"
+            disabled={submitting}
+            onClick={() => imageInputRef.current?.click()}
+          >
+            <ImagePlus size={16} strokeWidth={1.8} />
+          </Button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept={ATTACHMENT_IMAGE_MIME_TYPES.join(",")}
+            className="hidden"
+            data-testid="create-bot-image-input"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void draftFromImage(file);
+            }}
+          />
+          <Button variant="ghost" size="icon-sm" aria-label={t`Cancel new bot`} onClick={onCancel}>
+            <X size={16} strokeWidth={1.8} />
+          </Button>
+        </div>
       </div>
       {error ? (
         <p
@@ -213,6 +295,24 @@ export function CreateBotForm({
           </ul>
         </section>
       ) : null}
+      {color ? (
+        <div className="mt-6 flex items-center gap-3" data-testid="create-bot-avatar">
+          <AvatarStudioPopover value={color} identity={name} size={48} onChange={setColor} />
+          {imageAvatar ? (
+            <Toggle
+              variant="outline"
+              size="sm"
+              pressed={color === imageAvatar}
+              data-testid="create-bot-use-image"
+              onPressedChange={(pressed) => {
+                if (pressed) setColor(imageAvatar);
+              }}
+            >
+              <Trans>Use image as avatar</Trans>
+            </Toggle>
+          ) : null}
+        </div>
+      ) : null}
       <label htmlFor={`${ids}-name`} className="mt-6 block text-[14px] text-muted-foreground">
         <Trans>Name</Trans>
         <Input
@@ -247,6 +347,40 @@ export function CreateBotForm({
           className="mt-2"
         />
       </label>
+      {suggestedRoutines.length ? (
+        <fieldset className="mt-4" data-testid="create-bot-routines">
+          <legend className="text-[14px] text-muted-foreground">
+            <Trans>Routines</Trans>
+          </legend>
+          {suggestedRoutines.map((routine, index) => (
+            <div
+              key={`${routine.name}-${routine.cron}`}
+              className="mt-2 flex items-center justify-between gap-3 text-[14px]"
+            >
+              <span className="min-w-0">
+                <span dir="auto" className="block truncate">
+                  {routine.name}
+                </span>
+                <span className="block truncate text-[12.5px] text-muted-foreground">
+                  {formatCron(routine.cron)}
+                </span>
+              </span>
+              <Switch
+                aria-label={routine.name}
+                checked={pickedRoutines.has(index)}
+                onCheckedChange={(checked) =>
+                  setPickedRoutines((current) => {
+                    const next = new Set(current);
+                    if (checked) next.add(index);
+                    else next.delete(index);
+                    return next;
+                  })
+                }
+              />
+            </div>
+          ))}
+        </fieldset>
+      ) : null}
       <div data-testid="create-bot-computer">
         <ComputerModePicker
           value={computerMode}
@@ -262,8 +396,24 @@ export function CreateBotForm({
       >
         {submitting ? <Trans>Creating…</Trans> : <Trans>Create</Trans>}
       </Button>
-    </div>
+    </fieldset>
   );
+}
+
+function readAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("Image could not be read"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function imageFrom(items: DataTransferItemList | undefined): File | null {
+  for (const item of Array.from(items ?? [])) {
+    if (item.kind === "file" && item.type.startsWith("image/")) return item.getAsFile();
+  }
+  return null;
 }
 
 export function BotSettings({

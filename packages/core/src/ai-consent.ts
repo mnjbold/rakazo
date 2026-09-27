@@ -32,6 +32,7 @@ export function aiDataUsesForProcedure(procedure: string, input?: unknown): AiDa
     ].includes(path)
   )
     return ["model", "memory"];
+  if (path === "bots/draftFromImage") return ["model"];
   if (["voice/prepare", "voice/speak", "voice/transcribe"].includes(path)) return ["voice"];
   return [];
 }
