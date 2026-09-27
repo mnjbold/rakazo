@@ -182,7 +182,7 @@ msgstr "Access token (optional)"
 msgid "Account"
 msgstr "Account"
 
-#: src/pages/shell/bot-panel.tsx:819
+#: src/pages/shell/bot-panel.tsx:821
 msgid "Account default"
 msgstr "Account default"
 
@@ -330,7 +330,7 @@ msgstr "Adding…"
 #: src/pages/Onboarding.tsx:503
 #: src/pages/PluginsOverlay.tsx:834
 #: src/pages/RoutineSchedule.tsx:44
-#: src/pages/shell/bot-panel.tsx:710
+#: src/pages/shell/bot-panel.tsx:712
 msgid "Advanced"
 msgstr "Advanced"
 
@@ -691,7 +691,7 @@ msgstr "Can't reach the server."
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/pages/shell/bot-panel.tsx:236
+#: src/pages/shell/bot-panel.tsx:237
 msgid "Cancel new bot"
 msgstr "Cancel new bot"
 
@@ -808,7 +808,7 @@ msgid "Clear {0}’s conversation?"
 msgstr "Clear {0}’s conversation?"
 
 #: src/pages/BotContextMenu.tsx:163
-#: src/pages/shell/bot-panel.tsx:854
+#: src/pages/shell/bot-panel.tsx:856
 msgid "Clear conversation"
 msgstr "Clear conversation"
 
@@ -932,7 +932,7 @@ msgstr "Compose"
 
 #: src/pages/SettingsOverlay.tsx:88
 #: src/pages/Shell.tsx:6783
-#: src/pages/shell/bot-panel.tsx:63
+#: src/pages/shell/bot-panel.tsx:64
 msgid "Computer"
 msgstr "Computer"
 
@@ -1161,7 +1161,7 @@ msgstr "Could not connect to the computer screen"
 msgid "Could not continue"
 msgstr "Could not continue"
 
-#: src/pages/shell/bot-panel.tsx:136
+#: src/pages/shell/bot-panel.tsx:137
 msgid "Could not create bot"
 msgstr "Could not create bot"
 
@@ -1374,7 +1374,7 @@ msgstr "Could not run routine"
 
 #: src/pages/ExternalConversationSettings.tsx:250
 #: src/pages/KnowledgeSection.tsx:133
-#: src/pages/shell/bot-panel.tsx:606
+#: src/pages/shell/bot-panel.tsx:607
 msgid "Could not save"
 msgstr "Could not save"
 
@@ -1484,7 +1484,7 @@ msgid "Couldn't update messaging settings"
 msgstr "Couldn't update messaging settings"
 
 #: src/pages/Shell.tsx:2865
-#: src/pages/shell/bot-panel.tsx:397
+#: src/pages/shell/bot-panel.tsx:398
 #: src/pages/shell/dialogs.tsx:202
 msgid "Create"
 msgstr "Create"
@@ -1498,7 +1498,7 @@ msgstr "Create a section and move {0} into it."
 msgid "Create account"
 msgstr "Create account"
 
-#: src/pages/shell/bot-panel.tsx:217
+#: src/pages/shell/bot-panel.tsx:218
 msgid "Create from image"
 msgstr "Create from image"
 
@@ -1538,7 +1538,7 @@ msgid "Created"
 msgstr "Created"
 
 #: src/pages/GroupPanel.tsx:144
-#: src/pages/shell/bot-panel.tsx:397
+#: src/pages/shell/bot-panel.tsx:398
 #: src/pages/shell/dialogs.tsx:91
 #: src/pages/shell/dialogs.tsx:202
 msgid "Creating…"
@@ -1614,7 +1614,7 @@ msgid "Default"
 msgstr "Default"
 
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
-#: src/pages/shell/bot-panel.tsx:762
+#: src/pages/shell/bot-panel.tsx:764
 msgid "Default ({0})"
 msgstr "Default ({0})"
 
@@ -1697,12 +1697,12 @@ msgstr "Deployment default"
 msgid "Deployments and rollback"
 msgstr "Deployments and rollback"
 
-#: src/pages/shell/bot-panel.tsx:334
+#: src/pages/shell/bot-panel.tsx:335
 msgid "Describe what this bot does"
 msgstr "Describe what this bot does"
 
-#: src/pages/shell/bot-panel.tsx:339
-#: src/pages/shell/bot-panel.tsx:667
+#: src/pages/shell/bot-panel.tsx:340
+#: src/pages/shell/bot-panel.tsx:668
 msgid "Description"
 msgstr "Description"
 
@@ -1813,7 +1813,7 @@ msgstr "Drag, drop, or paste an image"
 msgid "Duplicate"
 msgstr "Duplicate"
 
-#: src/pages/shell/bot-panel.tsx:662
+#: src/pages/shell/bot-panel.tsx:663
 msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
 msgstr "e.g. Hivenet Agent, Presales, Timesheets bot"
 
@@ -1913,7 +1913,7 @@ msgstr "Expand"
 msgid "Expand {0}"
 msgstr "Expand {0}"
 
-#: src/pages/shell/bot-panel.tsx:846
+#: src/pages/shell/bot-panel.tsx:848
 msgid "Export"
 msgstr "Export"
 
@@ -1928,7 +1928,7 @@ msgstr "External conversation"
 
 #: src/pages/ModelSettingsOverlay.tsx:591
 #: src/pages/Onboarding.tsx:514
-#: src/pages/shell/bot-panel.tsx:866
+#: src/pages/shell/bot-panel.tsx:906
 msgid "Extra high"
 msgstr "Extra high"
 
@@ -2026,7 +2026,7 @@ msgstr "General"
 msgid "Get credentials"
 msgstr "Get credentials"
 
-#: src/pages/shell/bot-panel.tsx:687
+#: src/pages/shell/bot-panel.tsx:688
 msgid "Get notified when this Bot finishes or needs input"
 msgstr "Get notified when this Bot finishes or needs input"
 
@@ -2039,6 +2039,10 @@ msgstr "Getting ready"
 #: src/pages/RoutineEditor.tsx:618
 msgid "Git event"
 msgstr "Git event"
+
+#: src/pages/shell/bot-panel.tsx:882
+msgid "Good"
+msgstr "Good"
 
 #: src/pages/MessagingSettingsOverlay.tsx:206
 #: src/pages/Shell.tsx:3512
@@ -2107,7 +2111,7 @@ msgstr "Hide password"
 
 #: src/pages/ModelSettingsOverlay.tsx:590
 #: src/pages/Onboarding.tsx:513
-#: src/pages/shell/bot-panel.tsx:869
+#: src/pages/shell/bot-panel.tsx:909
 msgid "High"
 msgstr "High"
 
@@ -2140,7 +2144,7 @@ msgstr "If you heard that, voice is ready."
 msgid "Ignore"
 msgstr "Ignore"
 
-#: src/pages/shell/bot-panel.tsx:162
+#: src/pages/shell/bot-panel.tsx:163
 msgid "Image must be 5 MB or smaller."
 msgstr "Image must be 5 MB or smaller."
 
@@ -2160,7 +2164,7 @@ msgstr "Important email"
 msgid "Inbox & email"
 msgstr "Inbox & email"
 
-#: src/pages/shell/bot-panel.tsx:778
+#: src/pages/shell/bot-panel.tsx:780
 msgid "Inherit default"
 msgstr "Inherit default"
 
@@ -2220,7 +2224,7 @@ msgid "Interval unit"
 msgstr "Interval unit"
 
 #: src/pages/MemorySettingsOverlay.tsx:49
-#: src/pages/shell/bot-panel.tsx:779
+#: src/pages/shell/bot-panel.tsx:781
 msgid "Isolated"
 msgstr "Isolated"
 
@@ -2405,7 +2409,7 @@ msgstr "Logs"
 
 #: src/pages/ModelSettingsOverlay.tsx:588
 #: src/pages/Onboarding.tsx:511
-#: src/pages/shell/bot-panel.tsx:867
+#: src/pages/shell/bot-panel.tsx:907
 msgid "Low"
 msgstr "Low"
 
@@ -2450,7 +2454,7 @@ msgstr "Marketplace"
 
 #: src/pages/ModelSettingsOverlay.tsx:592
 #: src/pages/Onboarding.tsx:515
-#: src/pages/shell/bot-panel.tsx:871
+#: src/pages/shell/bot-panel.tsx:911
 msgid "Max"
 msgstr "Max"
 
@@ -2480,7 +2484,7 @@ msgstr "MCP servers"
 
 #: src/pages/ModelSettingsOverlay.tsx:589
 #: src/pages/Onboarding.tsx:512
-#: src/pages/shell/bot-panel.tsx:868
+#: src/pages/shell/bot-panel.tsx:908
 msgid "Medium"
 msgstr "Medium"
 
@@ -2502,7 +2506,7 @@ msgstr "Members (pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})"
 msgid "Memory"
 msgstr "Memory"
 
-#: src/pages/shell/bot-panel.tsx:774
+#: src/pages/shell/bot-panel.tsx:776
 msgid "Memory scope"
 msgstr "Memory scope"
 
@@ -2561,7 +2565,7 @@ msgstr "Microphone failed"
 
 #: src/pages/ModelSettingsOverlay.tsx:587
 #: src/pages/Onboarding.tsx:510
-#: src/pages/shell/bot-panel.tsx:870
+#: src/pages/shell/bot-panel.tsx:910
 msgid "Minimal"
 msgstr "Minimal"
 
@@ -2582,13 +2586,17 @@ msgstr "minute"
 msgid "minutes"
 msgstr "minutes"
 
+#: src/pages/shell/bot-panel.tsx:884
+msgid "Mixed"
+msgstr "Mixed"
+
 #: src/pages/ModelSettingsOverlay.tsx:519
 #: src/pages/ModelSettingsOverlay.tsx:629
 #: src/pages/ModelSettingsOverlay.tsx:1093
 #: src/pages/Onboarding.tsx:439
 #: src/pages/Onboarding.tsx:536
 #: src/pages/Onboarding.tsx:548
-#: src/pages/shell/bot-panel.tsx:724
+#: src/pages/shell/bot-panel.tsx:726
 msgid "Model"
 msgstr "Model"
 
@@ -2658,15 +2666,15 @@ msgstr "Muted"
 #: src/pages/GroupPanel.tsx:119
 #: src/pages/GroupPanel.tsx:212
 #: src/pages/RoutineEditor.tsx:342
-#: src/pages/shell/bot-panel.tsx:317
-#: src/pages/shell/bot-panel.tsx:644
+#: src/pages/shell/bot-panel.tsx:318
+#: src/pages/shell/bot-panel.tsx:645
 #: src/pages/shell/dialogs.tsx:72
 #: src/pages/shell/dialogs.tsx:187
 #: src/pages/shell/dialogs.tsx:250
 msgid "Name"
 msgstr "Name"
 
-#: src/pages/shell/bot-panel.tsx:323
+#: src/pages/shell/bot-panel.tsx:324
 msgid "Name this bot"
 msgstr "Name this bot"
 
@@ -2686,12 +2694,16 @@ msgstr "Needs input"
 msgid "Needs takeover"
 msgstr "Needs takeover"
 
+#: src/pages/shell/bot-panel.tsx:886
+msgid "Needs work"
+msgstr "Needs work"
+
 #: src/pages/Shell.tsx:4583
 msgid "Needs you"
 msgstr "Needs you"
 
-#: src/pages/shell/bot-panel.tsx:191
-#: src/pages/shell/bot-panel.tsx:211
+#: src/pages/shell/bot-panel.tsx:192
+#: src/pages/shell/bot-panel.tsx:212
 msgid "New bot"
 msgstr "New bot"
 
@@ -2859,7 +2871,7 @@ msgstr "Nothing remembered yet"
 msgid "Nothing shared yet"
 msgstr "Nothing shared yet"
 
-#: src/pages/shell/bot-panel.tsx:684
+#: src/pages/shell/bot-panel.tsx:685
 msgid "Notifications"
 msgstr "Notifications"
 
@@ -3071,7 +3083,7 @@ msgstr "Preview full stack"
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "Preview isn't available for this file type — download it to view it."
 
-#: src/pages/shell/bot-panel.tsx:77
+#: src/pages/shell/bot-panel.tsx:78
 msgid "Private"
 msgstr "Private"
 
@@ -3118,7 +3130,7 @@ msgstr "React"
 msgid "Reactions"
 msgstr "Reactions"
 
-#: src/pages/shell/bot-panel.tsx:808
+#: src/pages/shell/bot-panel.tsx:810
 msgid "Read replies aloud"
 msgstr "Read replies aloud"
 
@@ -3263,7 +3275,7 @@ msgid "Remove skill {0}"
 msgstr "Remove skill {0}"
 
 #. placeholder {0}: template.name
-#: src/pages/shell/bot-panel.tsx:277
+#: src/pages/shell/bot-panel.tsx:278
 msgid "Remove template {0}"
 msgstr "Remove template {0}"
 
@@ -3313,6 +3325,10 @@ msgstr "Reply"
 #: src/pages/Shell.tsx:5760
 msgid "Reply cancelled"
 msgstr "Reply cancelled"
+
+#: src/pages/shell/bot-panel.tsx:878
+msgid "Reply quality"
+msgstr "Reply quality"
 
 #. placeholder {0}: replyNameRef.current
 #: src/pages/Shell.tsx:5698
@@ -3433,7 +3449,7 @@ msgid "Routine"
 msgstr "Routine"
 
 #: src/pages/RoutineEditor.tsx:119
-#: src/pages/shell/bot-panel.tsx:353
+#: src/pages/shell/bot-panel.tsx:354
 msgid "Routines"
 msgstr "Routines"
 
@@ -3478,7 +3494,7 @@ msgstr "Runs when this bot receives a verified message from this provider."
 #: src/pages/KnowledgeSection.tsx:424
 #: src/pages/ModelSettingsOverlay.tsx:827
 #: src/pages/RoutineEditor.tsx:521
-#: src/pages/shell/bot-panel.tsx:843
+#: src/pages/shell/bot-panel.tsx:845
 #: src/pages/shell/dialogs.tsx:266
 msgid "Save"
 msgstr "Save"
@@ -3686,7 +3702,7 @@ msgstr "Share as template"
 
 #: src/components/ShareMenu.tsx:42
 #: src/pages/MemorySettingsOverlay.tsx:49
-#: src/pages/shell/bot-panel.tsx:780
+#: src/pages/shell/bot-panel.tsx:782
 msgid "Shared"
 msgstr "Shared"
 
@@ -3795,7 +3811,7 @@ msgstr "Software update"
 msgid "Something went wrong"
 msgstr "Something went wrong"
 
-#: src/pages/shell/bot-panel.tsx:735
+#: src/pages/shell/bot-panel.tsx:737
 msgid "Space default"
 msgstr "Space default"
 
@@ -3923,7 +3939,7 @@ msgstr "Teach a task"
 msgid "Teaching in progress. Stop teaching before sending a new message."
 msgstr "Teaching in progress. Stop teaching before sending a new message."
 
-#: src/pages/shell/bot-panel.tsx:77
+#: src/pages/shell/bot-panel.tsx:78
 msgid "Team"
 msgstr "Team"
 
@@ -3945,7 +3961,7 @@ msgstr "Teams message"
 msgid "Teams not enabled"
 msgstr "Teams not enabled"
 
-#: src/pages/shell/bot-panel.tsx:253
+#: src/pages/shell/bot-panel.tsx:254
 msgid "Templates"
 msgstr "Templates"
 
@@ -3965,7 +3981,7 @@ msgstr "The API did not come back. Refresh this page."
 msgid "The selected memory provider is not available in this build."
 msgstr "The selected memory provider is not available in this build."
 
-#: src/pages/shell/bot-panel.tsx:754
+#: src/pages/shell/bot-panel.tsx:756
 msgid "Thinking"
 msgstr "Thinking"
 
@@ -4049,8 +4065,8 @@ msgstr "This week"
 msgid "Time of day"
 msgstr "Time of day"
 
-#: src/pages/shell/bot-panel.tsx:328
-#: src/pages/shell/bot-panel.tsx:655
+#: src/pages/shell/bot-panel.tsx:329
+#: src/pages/shell/bot-panel.tsx:656
 msgid "Title"
 msgstr "Title"
 
@@ -4178,7 +4194,7 @@ msgid "Usage"
 msgstr "Usage"
 
 #: src/pages/MarketplaceOverlay.tsx:117
-#: src/pages/shell/bot-panel.tsx:291
+#: src/pages/shell/bot-panel.tsx:292
 msgid "Use"
 msgstr "Use"
 
@@ -4191,7 +4207,7 @@ msgstr "Use {hostLabel}"
 msgid "Use a found model"
 msgstr "Use a found model"
 
-#: src/pages/shell/bot-panel.tsx:158
+#: src/pages/shell/bot-panel.tsx:159
 msgid "Use a PNG, JPEG, WebP, or GIF image."
 msgstr "Use a PNG, JPEG, WebP, or GIF image."
 
@@ -4200,13 +4216,13 @@ msgstr "Use a PNG, JPEG, WebP, or GIF image."
 msgid "Use default guidance"
 msgstr "Use default guidance"
 
-#: src/pages/shell/bot-panel.tsx:311
+#: src/pages/shell/bot-panel.tsx:312
 msgid "Use image as avatar"
 msgstr "Use image as avatar"
 
 #. placeholder {0}: template.name
 #: src/pages/MarketplaceOverlay.tsx:113
-#: src/pages/shell/bot-panel.tsx:287
+#: src/pages/shell/bot-panel.tsx:288
 msgid "Use template {0}"
 msgstr "Use template {0}"
 
@@ -4232,7 +4248,7 @@ msgid "Version"
 msgstr "Version"
 
 #: src/pages/SettingsOverlay.tsx:86
-#: src/pages/shell/bot-panel.tsx:812
+#: src/pages/shell/bot-panel.tsx:814
 #: src/pages/VoiceSettingsOverlay.tsx:170
 #: src/pages/VoiceSettingsOverlay.tsx:305
 msgid "Voice"
@@ -4284,7 +4300,7 @@ msgstr "What result will you demonstrate?"
 msgid "What should this routine do each time it runs?"
 msgstr "What should this routine do each time it runs?"
 
-#: src/pages/shell/bot-panel.tsx:345
+#: src/pages/shell/bot-panel.tsx:346
 msgid "What this bot is for"
 msgstr "What this bot is for"
 

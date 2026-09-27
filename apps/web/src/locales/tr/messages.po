@@ -182,7 +182,7 @@ msgstr "Erişim token'ı (isteğe bağlı)"
 msgid "Account"
 msgstr "Hesap"
 
-#: src/pages/shell/bot-panel.tsx:819
+#: src/pages/shell/bot-panel.tsx:821
 msgid "Account default"
 msgstr "Hesap varsayılanı"
 
@@ -330,7 +330,7 @@ msgstr "Ekleniyor…"
 #: src/pages/Onboarding.tsx:503
 #: src/pages/PluginsOverlay.tsx:834
 #: src/pages/RoutineSchedule.tsx:44
-#: src/pages/shell/bot-panel.tsx:710
+#: src/pages/shell/bot-panel.tsx:712
 msgid "Advanced"
 msgstr "Gelişmiş"
 
@@ -691,7 +691,7 @@ msgstr "Sunucuya ulaşılamıyor."
 msgid "Cancel"
 msgstr "İptal"
 
-#: src/pages/shell/bot-panel.tsx:236
+#: src/pages/shell/bot-panel.tsx:237
 msgid "Cancel new bot"
 msgstr "Yeni botu iptal et"
 
@@ -808,7 +808,7 @@ msgid "Clear {0}’s conversation?"
 msgstr "{0} sohbeti temizlensin mi?"
 
 #: src/pages/BotContextMenu.tsx:163
-#: src/pages/shell/bot-panel.tsx:854
+#: src/pages/shell/bot-panel.tsx:856
 msgid "Clear conversation"
 msgstr "Sohbeti temizle"
 
@@ -932,7 +932,7 @@ msgstr ""
 
 #: src/pages/SettingsOverlay.tsx:88
 #: src/pages/Shell.tsx:6783
-#: src/pages/shell/bot-panel.tsx:63
+#: src/pages/shell/bot-panel.tsx:64
 msgid "Computer"
 msgstr "Bilgisayar"
 
@@ -1161,7 +1161,7 @@ msgstr ""
 msgid "Could not continue"
 msgstr "Devam edilemedi"
 
-#: src/pages/shell/bot-panel.tsx:136
+#: src/pages/shell/bot-panel.tsx:137
 msgid "Could not create bot"
 msgstr "Bot oluşturulamadı"
 
@@ -1374,7 +1374,7 @@ msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx:250
 #: src/pages/KnowledgeSection.tsx:133
-#: src/pages/shell/bot-panel.tsx:606
+#: src/pages/shell/bot-panel.tsx:607
 msgid "Could not save"
 msgstr "Kaydedilemedi"
 
@@ -1484,7 +1484,7 @@ msgid "Couldn't update messaging settings"
 msgstr ""
 
 #: src/pages/Shell.tsx:2865
-#: src/pages/shell/bot-panel.tsx:397
+#: src/pages/shell/bot-panel.tsx:398
 #: src/pages/shell/dialogs.tsx:202
 msgid "Create"
 msgstr "Oluştur"
@@ -1498,7 +1498,7 @@ msgstr "Bir bölüm oluştur ve {0} botunu içine taşı."
 msgid "Create account"
 msgstr "Hesap oluştur"
 
-#: src/pages/shell/bot-panel.tsx:217
+#: src/pages/shell/bot-panel.tsx:218
 msgid "Create from image"
 msgstr ""
 
@@ -1538,7 +1538,7 @@ msgid "Created"
 msgstr ""
 
 #: src/pages/GroupPanel.tsx:144
-#: src/pages/shell/bot-panel.tsx:397
+#: src/pages/shell/bot-panel.tsx:398
 #: src/pages/shell/dialogs.tsx:91
 #: src/pages/shell/dialogs.tsx:202
 msgid "Creating…"
@@ -1614,7 +1614,7 @@ msgid "Default"
 msgstr "Varsayılan"
 
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
-#: src/pages/shell/bot-panel.tsx:762
+#: src/pages/shell/bot-panel.tsx:764
 msgid "Default ({0})"
 msgstr "Varsayılan ({0})"
 
@@ -1697,12 +1697,12 @@ msgstr "Dağıtım varsayılanı"
 msgid "Deployments and rollback"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:334
+#: src/pages/shell/bot-panel.tsx:335
 msgid "Describe what this bot does"
 msgstr "Bu botun ne yaptığını açıkla"
 
-#: src/pages/shell/bot-panel.tsx:339
-#: src/pages/shell/bot-panel.tsx:667
+#: src/pages/shell/bot-panel.tsx:340
+#: src/pages/shell/bot-panel.tsx:668
 msgid "Description"
 msgstr "Açıklama"
 
@@ -1813,7 +1813,7 @@ msgstr "Görüntüyü sürükleyip bırakın veya yapıştırın"
 msgid "Duplicate"
 msgstr "Çoğalt"
 
-#: src/pages/shell/bot-panel.tsx:662
+#: src/pages/shell/bot-panel.tsx:663
 msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
 msgstr "örn. Hivenet Agent, Presales, puantaj botu"
 
@@ -1913,7 +1913,7 @@ msgstr "Genişlet"
 msgid "Expand {0}"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:846
+#: src/pages/shell/bot-panel.tsx:848
 msgid "Export"
 msgstr "Dışa aktar"
 
@@ -1928,7 +1928,7 @@ msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx:591
 #: src/pages/Onboarding.tsx:514
-#: src/pages/shell/bot-panel.tsx:866
+#: src/pages/shell/bot-panel.tsx:906
 msgid "Extra high"
 msgstr "Çok yüksek"
 
@@ -2026,7 +2026,7 @@ msgstr "Genel"
 msgid "Get credentials"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:687
+#: src/pages/shell/bot-panel.tsx:688
 msgid "Get notified when this Bot finishes or needs input"
 msgstr "Bu Bot bittiğinde veya girdi gerektiğinde bildirim al"
 
@@ -2038,6 +2038,10 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx:502
 #: src/pages/RoutineEditor.tsx:618
 msgid "Git event"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx:882
+msgid "Good"
 msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx:206
@@ -2107,7 +2111,7 @@ msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx:590
 #: src/pages/Onboarding.tsx:513
-#: src/pages/shell/bot-panel.tsx:869
+#: src/pages/shell/bot-panel.tsx:909
 msgid "High"
 msgstr "Yüksek"
 
@@ -2140,7 +2144,7 @@ msgstr "Bunu duyduysan ses hazır."
 msgid "Ignore"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:162
+#: src/pages/shell/bot-panel.tsx:163
 msgid "Image must be 5 MB or smaller."
 msgstr ""
 
@@ -2160,7 +2164,7 @@ msgstr ""
 msgid "Inbox & email"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:778
+#: src/pages/shell/bot-panel.tsx:780
 msgid "Inherit default"
 msgstr "Varsayılanı devral"
 
@@ -2220,7 +2224,7 @@ msgid "Interval unit"
 msgstr "Aralık birimi"
 
 #: src/pages/MemorySettingsOverlay.tsx:49
-#: src/pages/shell/bot-panel.tsx:779
+#: src/pages/shell/bot-panel.tsx:781
 msgid "Isolated"
 msgstr "Yalıtılmış"
 
@@ -2405,7 +2409,7 @@ msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx:588
 #: src/pages/Onboarding.tsx:511
-#: src/pages/shell/bot-panel.tsx:867
+#: src/pages/shell/bot-panel.tsx:907
 msgid "Low"
 msgstr "Düşük"
 
@@ -2450,7 +2454,7 @@ msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx:592
 #: src/pages/Onboarding.tsx:515
-#: src/pages/shell/bot-panel.tsx:871
+#: src/pages/shell/bot-panel.tsx:911
 msgid "Max"
 msgstr "Maksimum"
 
@@ -2480,7 +2484,7 @@ msgstr "MCP sunucuları"
 
 #: src/pages/ModelSettingsOverlay.tsx:589
 #: src/pages/Onboarding.tsx:512
-#: src/pages/shell/bot-panel.tsx:868
+#: src/pages/shell/bot-panel.tsx:908
 msgid "Medium"
 msgstr "Orta"
 
@@ -2502,7 +2506,7 @@ msgstr "Üyeler ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX} seç)"
 msgid "Memory"
 msgstr "Hafıza"
 
-#: src/pages/shell/bot-panel.tsx:774
+#: src/pages/shell/bot-panel.tsx:776
 msgid "Memory scope"
 msgstr "Hafıza kapsamı"
 
@@ -2561,7 +2565,7 @@ msgstr "Mikrofon hatası"
 
 #: src/pages/ModelSettingsOverlay.tsx:587
 #: src/pages/Onboarding.tsx:510
-#: src/pages/shell/bot-panel.tsx:870
+#: src/pages/shell/bot-panel.tsx:910
 msgid "Minimal"
 msgstr "Minimal"
 
@@ -2582,13 +2586,17 @@ msgstr "dakika"
 msgid "minutes"
 msgstr "dakika"
 
+#: src/pages/shell/bot-panel.tsx:884
+msgid "Mixed"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx:519
 #: src/pages/ModelSettingsOverlay.tsx:629
 #: src/pages/ModelSettingsOverlay.tsx:1093
 #: src/pages/Onboarding.tsx:439
 #: src/pages/Onboarding.tsx:536
 #: src/pages/Onboarding.tsx:548
-#: src/pages/shell/bot-panel.tsx:724
+#: src/pages/shell/bot-panel.tsx:726
 msgid "Model"
 msgstr "Model"
 
@@ -2658,15 +2666,15 @@ msgstr ""
 #: src/pages/GroupPanel.tsx:119
 #: src/pages/GroupPanel.tsx:212
 #: src/pages/RoutineEditor.tsx:342
-#: src/pages/shell/bot-panel.tsx:317
-#: src/pages/shell/bot-panel.tsx:644
+#: src/pages/shell/bot-panel.tsx:318
+#: src/pages/shell/bot-panel.tsx:645
 #: src/pages/shell/dialogs.tsx:72
 #: src/pages/shell/dialogs.tsx:187
 #: src/pages/shell/dialogs.tsx:250
 msgid "Name"
 msgstr "Ad"
 
-#: src/pages/shell/bot-panel.tsx:323
+#: src/pages/shell/bot-panel.tsx:324
 msgid "Name this bot"
 msgstr "Bota bir ad ver"
 
@@ -2686,12 +2694,16 @@ msgstr "Girdi bekliyor"
 msgid "Needs takeover"
 msgstr "Devralma bekliyor"
 
+#: src/pages/shell/bot-panel.tsx:886
+msgid "Needs work"
+msgstr ""
+
 #: src/pages/Shell.tsx:4583
 msgid "Needs you"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:191
-#: src/pages/shell/bot-panel.tsx:211
+#: src/pages/shell/bot-panel.tsx:192
+#: src/pages/shell/bot-panel.tsx:212
 msgid "New bot"
 msgstr "Yeni bot"
 
@@ -2859,7 +2871,7 @@ msgstr "Henüz hatırlanan bir şey yok"
 msgid "Nothing shared yet"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:684
+#: src/pages/shell/bot-panel.tsx:685
 msgid "Notifications"
 msgstr "Bildirimler"
 
@@ -3071,7 +3083,7 @@ msgstr ""
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:77
+#: src/pages/shell/bot-panel.tsx:78
 msgid "Private"
 msgstr "Özel"
 
@@ -3118,7 +3130,7 @@ msgstr "Tepki ver"
 msgid "Reactions"
 msgstr "Tepkiler"
 
-#: src/pages/shell/bot-panel.tsx:808
+#: src/pages/shell/bot-panel.tsx:810
 msgid "Read replies aloud"
 msgstr "Yanıtları sesli oku"
 
@@ -3263,7 +3275,7 @@ msgid "Remove skill {0}"
 msgstr "{0} becerisini kaldır"
 
 #. placeholder {0}: template.name
-#: src/pages/shell/bot-panel.tsx:277
+#: src/pages/shell/bot-panel.tsx:278
 msgid "Remove template {0}"
 msgstr "{0} şablonunu kaldır"
 
@@ -3312,6 +3324,10 @@ msgstr "Yanıtla"
 
 #: src/pages/Shell.tsx:5760
 msgid "Reply cancelled"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx:878
+msgid "Reply quality"
 msgstr ""
 
 #. placeholder {0}: replyNameRef.current
@@ -3433,7 +3449,7 @@ msgid "Routine"
 msgstr "Rutin"
 
 #: src/pages/RoutineEditor.tsx:119
-#: src/pages/shell/bot-panel.tsx:353
+#: src/pages/shell/bot-panel.tsx:354
 msgid "Routines"
 msgstr "Rutinler"
 
@@ -3478,7 +3494,7 @@ msgstr ""
 #: src/pages/KnowledgeSection.tsx:424
 #: src/pages/ModelSettingsOverlay.tsx:827
 #: src/pages/RoutineEditor.tsx:521
-#: src/pages/shell/bot-panel.tsx:843
+#: src/pages/shell/bot-panel.tsx:845
 #: src/pages/shell/dialogs.tsx:266
 msgid "Save"
 msgstr "Kaydet"
@@ -3686,7 +3702,7 @@ msgstr "Şablon olarak paylaş"
 
 #: src/components/ShareMenu.tsx:42
 #: src/pages/MemorySettingsOverlay.tsx:49
-#: src/pages/shell/bot-panel.tsx:780
+#: src/pages/shell/bot-panel.tsx:782
 msgid "Shared"
 msgstr "Ortak"
 
@@ -3795,7 +3811,7 @@ msgstr ""
 msgid "Something went wrong"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:735
+#: src/pages/shell/bot-panel.tsx:737
 msgid "Space default"
 msgstr "Alan varsayılanı"
 
@@ -3923,7 +3939,7 @@ msgstr "Görev öğret"
 msgid "Teaching in progress. Stop teaching before sending a new message."
 msgstr "Öğretme sürüyor. Yeni mesaj göndermeden önce öğretmeyi durdur."
 
-#: src/pages/shell/bot-panel.tsx:77
+#: src/pages/shell/bot-panel.tsx:78
 msgid "Team"
 msgstr "Takım"
 
@@ -3945,7 +3961,7 @@ msgstr ""
 msgid "Teams not enabled"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:253
+#: src/pages/shell/bot-panel.tsx:254
 msgid "Templates"
 msgstr "Şablonlar"
 
@@ -3965,7 +3981,7 @@ msgstr ""
 msgid "The selected memory provider is not available in this build."
 msgstr "Seçilen hafıza sağlayıcısı bu sürümde kullanılamıyor."
 
-#: src/pages/shell/bot-panel.tsx:754
+#: src/pages/shell/bot-panel.tsx:756
 msgid "Thinking"
 msgstr "Düşünüyor"
 
@@ -4049,8 +4065,8 @@ msgstr ""
 msgid "Time of day"
 msgstr "Günün saati"
 
-#: src/pages/shell/bot-panel.tsx:328
-#: src/pages/shell/bot-panel.tsx:655
+#: src/pages/shell/bot-panel.tsx:329
+#: src/pages/shell/bot-panel.tsx:656
 msgid "Title"
 msgstr "Başlık"
 
@@ -4178,7 +4194,7 @@ msgid "Usage"
 msgstr "Kullanım"
 
 #: src/pages/MarketplaceOverlay.tsx:117
-#: src/pages/shell/bot-panel.tsx:291
+#: src/pages/shell/bot-panel.tsx:292
 msgid "Use"
 msgstr "Kullan"
 
@@ -4191,7 +4207,7 @@ msgstr "{hostLabel} kullan"
 msgid "Use a found model"
 msgstr "Bulunan bir modeli kullan"
 
-#: src/pages/shell/bot-panel.tsx:158
+#: src/pages/shell/bot-panel.tsx:159
 msgid "Use a PNG, JPEG, WebP, or GIF image."
 msgstr ""
 
@@ -4200,13 +4216,13 @@ msgstr ""
 msgid "Use default guidance"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:311
+#: src/pages/shell/bot-panel.tsx:312
 msgid "Use image as avatar"
 msgstr ""
 
 #. placeholder {0}: template.name
 #: src/pages/MarketplaceOverlay.tsx:113
-#: src/pages/shell/bot-panel.tsx:287
+#: src/pages/shell/bot-panel.tsx:288
 msgid "Use template {0}"
 msgstr "{0} şablonunu kullan"
 
@@ -4232,7 +4248,7 @@ msgid "Version"
 msgstr ""
 
 #: src/pages/SettingsOverlay.tsx:86
-#: src/pages/shell/bot-panel.tsx:812
+#: src/pages/shell/bot-panel.tsx:814
 #: src/pages/VoiceSettingsOverlay.tsx:170
 #: src/pages/VoiceSettingsOverlay.tsx:305
 msgid "Voice"
@@ -4284,7 +4300,7 @@ msgstr "Hangi sonucu göstereceksin?"
 msgid "What should this routine do each time it runs?"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx:345
+#: src/pages/shell/bot-panel.tsx:346
 msgid "What this bot is for"
 msgstr "Bu botun amacı"
 
