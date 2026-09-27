@@ -28,8 +28,16 @@ test("the rail switches bots and stays usable with the sidebar collapsed", async
     "page",
   );
 
-  await page.getByTestId("minimize-bots-sidebar").click();
+  // The sidebar toggle sits at the top of the rail, above the bots, not in the chat header.
+  const appRail = page.getByTestId("app-rail");
+  const minimize = appRail.getByTestId("minimize-bots-sidebar");
+  const toggleBox = await minimize.boundingBox();
+  const firstBotBox = await rail.locator("[data-rail-bot-id]").first().boundingBox();
+  expect(toggleBox!.y + toggleBox!.height).toBeLessThanOrEqual(firstBotBox!.y);
+  await expect(page.locator("main").getByTestId("restore-bots-sidebar")).toHaveCount(0);
+  await minimize.click();
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
+  await expect(appRail.getByTestId("restore-bots-sidebar")).toBeVisible();
   await rail.getByRole("button", { name: "Scout" }).click();
   await page.waitForURL(`**/app/${scoutId}`);
   await expect(page.getByPlaceholder("Message Scout")).toBeVisible();
@@ -38,20 +46,25 @@ test("the rail switches bots and stays usable with the sidebar collapsed", async
   await page.reload();
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
   await expect(page.getByTestId("app-rail-bots").locator("[data-rail-bot-id]")).toHaveCount(2);
+
+  await page.getByTestId("app-rail").getByTestId("restore-bots-sidebar").click();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
+  await expect(page.getByTestId("app-rail").getByTestId("minimize-bots-sidebar")).toBeVisible();
+  await captureScreenshot(page, testInfo, "bot-rail-desktop-expanded");
 });
 
 test.describe("mobile", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
-  test("the rail fits a phone without horizontal scroll", async ({ page }, testInfo) => {
+  test("phones hide the rail; the list reaches every bot", async ({ page }, testInfo) => {
     const { chiefId } = await signupWithTwoBots(page, "mobile");
-    const rail = page.getByTestId("app-rail-bots");
-    const chief = rail.getByRole("button", { name: "Chief" });
-    const box = await chief.boundingBox();
-    expect(box?.width).toBeGreaterThanOrEqual(40);
-    expect(box?.height).toBeGreaterThanOrEqual(40);
+    await expect(page.getByTestId("app-rail")).toBeHidden();
+    await page.getByRole("button", { name: "Back" }).tap();
+    const list = page.getByTestId("bots-sidebar");
+    await expect(list).toBeInViewport();
+    await expect(page.getByTestId("app-rail")).toBeHidden();
 
-    await chief.tap();
+    await list.getByRole("button", { name: /^Chief/ }).tap();
     await page.waitForURL(`**/app/${chiefId}`);
     await expect(page.getByPlaceholder("Message Chief")).toBeInViewport();
     expect(

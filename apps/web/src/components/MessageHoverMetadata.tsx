@@ -9,10 +9,11 @@ export function MessageHoverMetadata({
   pinned?: boolean;
   children: ReactNode;
 }) {
-  // Touch exposes More; hover-capable pointers reveal the full rail on demand.
+  // Hover-capable pointers reveal the rail on hover; touch reveals it for the
+  // message the transcript marks open (long-press or tap on the bubble).
   const reveal = pinned
     ? "pointer-events-auto opacity-100"
-    : "pointer-events-auto opacity-100 [@media(hover:hover)_and_(pointer:fine)]:pointer-events-none [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover/message:pointer-events-auto [@media(hover:hover)_and_(pointer:fine)]:group-hover/message:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:focus-within:pointer-events-auto [@media(hover:hover)_and_(pointer:fine)]:focus-within:opacity-100";
+    : "pointer-events-none opacity-0 group-data-[touch-actions=open]/message:pointer-events-auto group-data-[touch-actions=open]/message:opacity-100 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover/message:pointer-events-auto [@media(hover:hover)_and_(pointer:fine)]:group-hover/message:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:focus-within:pointer-events-auto [@media(hover:hover)_and_(pointer:fine)]:focus-within:opacity-100";
 
   return (
     <div

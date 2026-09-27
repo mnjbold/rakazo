@@ -6,17 +6,24 @@ import { Link } from "react-router-dom";
 
 type AppRailProps = {
   active: "bots" | "artifacts";
+  /** Rendered above the section links (the bots sidebar toggle). */
+  top?: ReactNode;
+  /** Phones reach bots from the full-width list instead. */
+  hideOnPhone?: boolean;
   children?: ReactNode;
 };
 
-export function AppRail({ active, children }: AppRailProps) {
+export function AppRail({ active, top, hideOnPhone = false, children }: AppRailProps) {
   const { t } = useLingui();
   return (
     <nav
       data-testid="app-rail"
       aria-label={t`Sections`}
-      className="relative z-20 flex w-14 shrink-0 flex-col items-center gap-1 border-e border-sidebar-border bg-sidebar pt-3"
+      className={`relative z-20 w-14 shrink-0 flex-col items-center gap-1 border-e border-sidebar-border bg-sidebar pt-3 ${
+        hideOnPhone ? "hidden md:flex" : "flex"
+      }`}
     >
+      {top}
       <RailLink to="/app" label={t`Bots`} active={active === "bots"}>
         <Bot size={19} strokeWidth={1.75} />
       </RailLink>

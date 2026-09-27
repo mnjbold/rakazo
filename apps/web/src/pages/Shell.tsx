@@ -84,19 +84,20 @@ import {
 } from "@rakazo/ui-web";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   AudioLines,
   Bell,
   Box,
   ChevronDown,
   Clock,
+  Code2,
   Copy,
   Gauge,
   LayoutGrid,
   Lock,
   LogOut,
   Maximize2,
-  Menu,
   Mic,
   Monitor,
   MoreHorizontal,
@@ -123,6 +124,8 @@ import {
   lazy,
   type MutableRefObject,
   memo,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
   Suspense,
   useCallback,
@@ -306,6 +309,7 @@ const THREAD_SNAPSHOT_TIMEOUT_MS = 2_000;
 const VOICE_STATUS_REFRESH_TIMEOUT_MS = 10_000;
 const MOBILE_SIDEBAR_SWIPE_EDGE_PX = 32;
 const MOBILE_SIDEBAR_SWIPE_DISTANCE_PX = 56;
+const MESSAGE_LONG_PRESS_MS = 450;
 
 function threadSnapshotSignal(parent: AbortSignal): AbortSignal {
   return AbortSignal.any([parent, AbortSignal.timeout(THREAD_SNAPSHOT_TIMEOUT_MS)]);
@@ -523,7 +527,10 @@ export function ShellPage() {
   const [dismissedRunErrorIds, setDismissedRunErrorIds] =
     useState<ReadonlySet<string>>(readSeenRunErrorIds);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  // Phones open on the bot list, like the native app; a chat URL opens the chat.
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(
+    () => !botId && !groupId && !window.matchMedia("(min-width: 768px)").matches,
+  );
   const mobileSidebarSwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [draggedBotId, setDraggedBotId] = useState<string | null>(null);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -2765,14 +2772,6 @@ export function ShellPage() {
       {bootstrapMe !== undefined ? (
         <HostComputerPrompt initialMe={bootstrapMe ?? undefined} />
       ) : null}
-      {mobileSidebarOpen ? (
-        <button
-          type="button"
-          aria-label={t`Close navigation`}
-          onClick={() => setMobileSidebarOpen(false)}
-          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),316px)] z-30 bg-overlay md:hidden"
-        />
-      ) : null}
       {!mobileSidebarOpen ? (
         <div
           data-testid="mobile-sidebar-swipe-edge"
@@ -2780,7 +2779,26 @@ export function ShellPage() {
           className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
         />
       ) : null}
-      <AppRail active="bots">
+      <AppRail
+        active="bots"
+        hideOnPhone
+        top={
+          <button
+            type="button"
+            data-testid={botsSidebarCollapsed ? "restore-bots-sidebar" : "minimize-bots-sidebar"}
+            aria-label={botsSidebarCollapsed ? t`Show bots` : t`Minimize bots`}
+            title={botsSidebarCollapsed ? t`Show bots` : t`Minimize bots`}
+            onClick={() => setBotsSidebarCollapsedPref(!botsSidebarCollapsed)}
+            className="app-no-drag mb-1 grid size-10 shrink-0 place-items-center rounded-[11px] text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+          >
+            {botsSidebarCollapsed ? (
+              <PanelLeftOpen size={19} strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={19} strokeWidth={1.75} aria-hidden="true" />
+            )}
+          </button>
+        }
+      >
         {railBots.length > 0
           ? railBots.map(({ chat, spaceId }) => (
               <RailBot
@@ -2810,7 +2828,7 @@ export function ShellPage() {
         data-testid="bots-sidebar"
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
         inert={botsSidebarCollapsed && !mobileSidebarOpen ? true : undefined}
-        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[316px] shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
+        className={`absolute inset-y-0 start-0 z-40 flex w-full shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
         } ${
           botsSidebarCollapsed
@@ -2828,7 +2846,7 @@ export function ShellPage() {
               title={t`Activity`}
               data-activity-mode={activityMode ? "on" : "off"}
               onClick={toggleActivityMode}
-              className={`app-no-drag flex h-7 w-7 items-center justify-center rounded-full ${
+              className={`app-no-drag flex size-11 items-center justify-center rounded-full md:size-7 ${
                 activityMode
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground/70 hover:text-foreground/75"
@@ -2841,19 +2859,9 @@ export function ShellPage() {
                 aria-hidden="true"
               />
             </button>
-            <button
-              type="button"
-              className="app-no-drag hidden h-7 w-7 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground/75 md:inline-flex"
-              aria-label={t`Minimize bots`}
-              title={t`Minimize bots`}
-              data-testid="minimize-bots-sidebar"
-              onClick={() => setBotsSidebarCollapsedPref(true)}
-            >
-              <PanelLeftClose size={15} strokeWidth={1.8} aria-hidden="true" />
-            </button>
             <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
               <PopoverTrigger
-                className="app-no-drag text-[21px] text-muted-foreground/70 hover:text-foreground/75"
+                className="app-no-drag grid size-11 place-items-center rounded-full text-[21px] text-muted-foreground/70 hover:text-foreground/75 md:size-auto"
                 title={t`Create`}
                 data-testid="create-menu-trigger"
               >
@@ -3361,6 +3369,18 @@ export function ShellPage() {
               align="start"
               className="w-[calc(316px-1.5rem)] max-w-[calc(100vw-3rem)] gap-0 p-1 data-closed:animate-none"
             >
+              {/* Phones hide the app rail, so its other section lives here. */}
+              <Button
+                variant="ghost"
+                className="w-full justify-start font-normal md:hidden"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/app/artifacts");
+                }}
+              >
+                <Code2 className="text-muted-foreground" strokeWidth={1.75} />
+                <Trans>Artifacts</Trans>
+              </Button>
               <Button
                 variant="ghost"
                 className="w-full justify-start font-normal"
@@ -3455,30 +3475,18 @@ export function ShellPage() {
         inert={mobileSidebarOpen}
         className="flex min-w-0 flex-1 flex-col bg-background"
       >
-        <div className="app-drag flex items-center justify-between border-b border-sidebar-border px-3 py-[17px] md:px-[22px]">
+        <div className="app-drag flex items-center justify-between gap-2 border-b border-sidebar-border px-2 py-2 md:px-[22px] md:py-[17px]">
           <div className="flex min-w-0 items-center gap-2">
             {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
             {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
             <button
               type="button"
-              aria-label={t`Open navigation`}
+              aria-label={t`Back`}
               onClick={() => setMobileSidebarOpen(true)}
-              className="app-no-drag grid h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:hidden"
+              className="app-no-drag grid size-11 shrink-0 place-items-center rounded-full text-foreground/75 hover:bg-accent md:hidden"
             >
-              <Menu size={19} strokeWidth={1.7} />
+              <ArrowLeft size={21} strokeWidth={1.8} className="rtl:-scale-x-100" />
             </button>
-            {botsSidebarCollapsed ? (
-              <button
-                type="button"
-                data-testid="restore-bots-sidebar"
-                aria-label={t`Show bots`}
-                title={t`Show bots`}
-                onClick={() => setBotsSidebarCollapsedPref(false)}
-                className="app-no-drag hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:grid"
-              >
-                <PanelLeftOpen size={19} strokeWidth={1.7} aria-hidden="true" />
-              </button>
-            ) : null}
             <button
               type="button"
               data-testid="bot-settings-trigger"
@@ -3535,7 +3543,7 @@ export function ShellPage() {
                   }
                 }}
                 data-active={panel === "computer" ? "" : undefined}
-                className="app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-accent data-active:bg-accent"
+                className="app-no-drag grid size-11 place-items-center rounded-full hover:bg-accent data-active:bg-accent md:h-[30px] md:w-[34px] md:rounded-[9px]"
               >
                 <Monitor size={18} strokeWidth={1.6} className="text-foreground/75" />
               </button>
@@ -4765,6 +4773,67 @@ const Transcript = memo(function Transcript({
     range: Range;
   } | null>(null);
   const selectingWithMouse = useRef(false);
+  // Touch screens have no hover: long-press or tap a bubble to show its actions.
+  const [touchActionsId, setTouchActionsId] = useState<string | null>(null);
+  const longPress = useRef<{ x: number; y: number; timer: number; fired: boolean } | null>(null);
+  useEffect(() => {
+    if (!touchActionsId) return;
+    const hide = (event: PointerEvent) => {
+      const frame =
+        event.target instanceof Element
+          ? event.target.closest("[data-message-id]")?.getAttribute("data-message-id")
+          : null;
+      if (frame !== touchActionsId) setTouchActionsId(null);
+    };
+    document.addEventListener("pointerdown", hide, true);
+    return () => document.removeEventListener("pointerdown", hide, true);
+  }, [touchActionsId]);
+  const touchActionHandlers = useCallback((id: string) => {
+    const hoverPointer = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const cancel = () => {
+      if (longPress.current && !longPress.current.fired)
+        window.clearTimeout(longPress.current.timer);
+    };
+    return {
+      onPointerDown: (event: ReactPointerEvent) => {
+        cancel();
+        longPress.current = null;
+        if (event.pointerType === "mouse" || hoverPointer()) return;
+        const press = {
+          x: event.clientX,
+          y: event.clientY,
+          fired: false,
+          timer: window.setTimeout(() => {
+            press.fired = true;
+            setTouchActionsId(id);
+            navigator.vibrate?.(10);
+          }, MESSAGE_LONG_PRESS_MS),
+        };
+        longPress.current = press;
+      },
+      onPointerMove: (event: ReactPointerEvent) => {
+        const press = longPress.current;
+        if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancel();
+      },
+      onPointerUp: cancel,
+      onPointerCancel: cancel,
+      onClick: (event: ReactMouseEvent) => {
+        if (hoverPointer()) return;
+        if (longPress.current?.fired) return;
+        // Links, buttons, and cards keep their own taps; a selection is not a tap.
+        if (
+          event.target instanceof Element &&
+          event.target.closest(
+            "a, button, input, textarea, select, summary, label, [role=button], [role=link], [contenteditable=true]",
+          )
+        ) {
+          return;
+        }
+        if (window.getSelection()?.isCollapsed === false) return;
+        setTouchActionsId((open) => (open === id ? null : id));
+      },
+    };
+  }, []);
 
   const evaluateSelection = useCallback(() => {
     const selection = window.getSelection();
@@ -5006,14 +5075,19 @@ const Transcript = memo(function Transcript({
             <div
               key={message.id}
               data-message-id={message.id}
-              className={peerReceipt ? "relative py-0.5" : "group/message relative hover:z-20"}
+              data-touch-actions={touchActionsId === message.id ? "open" : undefined}
+              className={
+                peerReceipt
+                  ? "relative py-0.5"
+                  : "group/message relative hover:z-20 data-[touch-actions=open]:z-20"
+              }
             >
               {!peerReceipt && !message.id.startsWith("progress:") ? (
                 <time
                   dateTime={message.createdAt}
                   data-testid="message-hover-time"
                   className={cn(
-                    "pointer-events-none absolute top-1 z-10 text-xs tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 group-has-[[aria-expanded=true]]/message:opacity-100",
+                    "pointer-events-none absolute top-1 z-10 text-xs tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 group-has-[[aria-expanded=true]]/message:opacity-100 group-data-[touch-actions=open]/message:opacity-100",
                     message.role === "user" ? "start-0" : "end-0",
                   )}
                 >
@@ -5031,6 +5105,7 @@ const Transcript = memo(function Transcript({
                 }
               >
                 <div
+                  {...(peerReceipt ? {} : touchActionHandlers(message.id))}
                   data-testid={peerReceipt ? undefined : "message-bubble-frame"}
                   className={
                     peerReceipt
