@@ -3488,82 +3488,85 @@ export function ShellPage() {
             ) : null}
           </div>
         </div>
-        {!active && !activeGroup && initialBotsLoaded ? (
-          <div className="grid flex-1 place-items-center">
-            <Button onClick={() => setPanel("create")}>
-              <Plus size={16} aria-hidden="true" />
-              <Trans>Create new Bot</Trans>
-            </Button>
-          </div>
-        ) : (
-          <Transcript
-            key={activeSnapshot?.threadId}
-            scrollRef={messageScroll}
-            scrollRequest={scrollRequest}
-            onScrollRequestHandled={clearScrollRequest}
-            artifactTarget={transcriptArtifactTarget}
-            messages={transcriptMessages}
-            olderCursor={activeSnapshot?.olderCursor ?? null}
-            loadingOlder={loadingOlder}
-            answerableAskMessageId={answerableAskMessageId}
-            running={transcriptRunning}
-            workingBots={workingBots}
-            onLoadOlder={loadOlder}
-            onOpenBot={openBot}
-            onAnswer={answerMessage}
-            onReply={(message) => {
-              setReplyTarget(message);
-              setReplyQuote(null);
-            }}
-            onQuote={(message, quote) => {
-              setReplyTarget(message);
-              setReplyQuote(quote);
-            }}
-            onReact={reactToMessage}
-            onJumpToMessage={jumpToReplyMessage}
-            onOpenPeerMessages={(peer) => {
-              setPeerConversation(peer);
-            }}
-            memberName={resolveTranscriptMemberName}
-            peerBot={resolveTranscriptBot}
-            onRefresh={refreshActiveThread}
-            onBotChanged={refreshBots}
-            onAddRoutine={addSkillRoutine}
-            voiceReady={Boolean(voiceStatus?.ready)}
-            speakingMessageId={speakingMessageId}
-            onSpeak={speakMessage}
-            onOpenComputer={onOpenComputer}
-          />
-        )}
+        {/* The live call bar floats over the transcript, which stays visible and scrollable. */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          {!active && !activeGroup && initialBotsLoaded ? (
+            <div className="grid flex-1 place-items-center">
+              <Button onClick={() => setPanel("create")}>
+                <Plus size={16} aria-hidden="true" />
+                <Trans>Create new Bot</Trans>
+              </Button>
+            </div>
+          ) : (
+            <Transcript
+              key={activeSnapshot?.threadId}
+              scrollRef={messageScroll}
+              scrollRequest={scrollRequest}
+              onScrollRequestHandled={clearScrollRequest}
+              artifactTarget={transcriptArtifactTarget}
+              messages={transcriptMessages}
+              olderCursor={activeSnapshot?.olderCursor ?? null}
+              loadingOlder={loadingOlder}
+              answerableAskMessageId={answerableAskMessageId}
+              running={transcriptRunning}
+              workingBots={workingBots}
+              onLoadOlder={loadOlder}
+              onOpenBot={openBot}
+              onAnswer={answerMessage}
+              onReply={(message) => {
+                setReplyTarget(message);
+                setReplyQuote(null);
+              }}
+              onQuote={(message, quote) => {
+                setReplyTarget(message);
+                setReplyQuote(quote);
+              }}
+              onReact={reactToMessage}
+              onJumpToMessage={jumpToReplyMessage}
+              onOpenPeerMessages={(peer) => {
+                setPeerConversation(peer);
+              }}
+              memberName={resolveTranscriptMemberName}
+              peerBot={resolveTranscriptBot}
+              onRefresh={refreshActiveThread}
+              onBotChanged={refreshBots}
+              onAddRoutine={addSkillRoutine}
+              voiceReady={Boolean(voiceStatus?.ready)}
+              speakingMessageId={speakingMessageId}
+              onSpeak={speakMessage}
+              onOpenComputer={onOpenComputer}
+            />
+          )}
+          {callOpen && active ? (
+            <Suspense fallback={null}>
+              <CallView
+                botId={active.id}
+                botName={active.name}
+                botColor={active.color}
+                transcribe={Boolean(voiceStatus?.transcribe)}
+                snapshot={activeSnapshot}
+                screen={
+                  computer?.state === "running" &&
+                  computer.kind !== "desktop" &&
+                  embeddedScreenUrl &&
+                  !computerScreenError
+                    ? { url: embeddedScreenUrl, sandbox: screenIframeSandbox(embeddedScreenUrl) }
+                    : null
+                }
+                onSend={(text, interruption) => sendMessage(text, [], { live: true, interruption })}
+                onFollowUp={(text, interruption) => followUpMessage(text, true, interruption)}
+                onAnswer={answerMessage}
+                onOpenComputer={() => setPanel("computer")}
+                onOpenSettings={() => openSettings("voice")}
+                onClose={() => setCallOpen(false)}
+              />
+            </Suspense>
+          ) : null}
+        </div>
         {recordingSkill ? (
           <div className="px-6 pb-2 text-center text-[13px] text-destructive">
             <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
           </div>
-        ) : null}
-        {callOpen && active ? (
-          <Suspense fallback={null}>
-            <CallView
-              botId={active.id}
-              botName={active.name}
-              botColor={active.color}
-              transcribe={Boolean(voiceStatus?.transcribe)}
-              snapshot={activeSnapshot}
-              screen={
-                computer?.state === "running" &&
-                computer.kind !== "desktop" &&
-                embeddedScreenUrl &&
-                !computerScreenError
-                  ? { url: embeddedScreenUrl, sandbox: screenIframeSandbox(embeddedScreenUrl) }
-                  : null
-              }
-              artifactTarget={transcriptArtifactTarget}
-              onSend={(text, interruption) => sendMessage(text, [], { live: true, interruption })}
-              onFollowUp={(text, interruption) => followUpMessage(text, true, interruption)}
-              onAnswer={answerMessage}
-              onOpenComputer={() => setPanel("computer")}
-              onClose={() => setCallOpen(false)}
-            />
-          </Suspense>
         ) : null}
         {active || activeGroup ? (
           <Composer

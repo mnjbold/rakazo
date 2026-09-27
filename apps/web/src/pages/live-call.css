@@ -1,5 +1,42 @@
-/* Live call visuals. The avatar is the app's own BotAvatar; this wrapper scales it and the wave
-   with the mic level CallView writes to --live-level (0..1), and adds a halo while speaking. */
+/* Live call bar: a small pill floating over the top of the transcript. The avatar is the app's own
+   BotAvatar; CallView writes the mic level to --live-level (0..1) and scales the wave bars. */
+
+.live-bar {
+  position: absolute;
+  top: 8px;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 20;
+  margin-inline: auto;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Only the pill and its tiles take clicks; the transcript scrolls through the rest. */
+  pointer-events: none;
+  animation: live-rise 220ms ease-out both;
+}
+
+.live-pill {
+  pointer-events: auto;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+}
+
+.live-handle {
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  border-radius: 9999px;
+}
+
+.live-caption:empty {
+  visibility: hidden;
+}
 
 .live-orb {
   --live-level: 0;
@@ -8,13 +45,13 @@
   flex: none;
   place-items: center;
   border-radius: 9999px;
-  transform: scale(calc(1 + var(--live-level) * 0.16));
+  transform: scale(calc(1 + var(--live-level) * 0.12));
   transition: transform 90ms linear;
 }
 
 .live-orb-halo {
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 9999px;
   border: 1.5px solid color-mix(in oklab, var(--live-color) 55%, transparent);
   opacity: 0;
@@ -30,19 +67,27 @@
 
 .live-wave {
   display: flex;
-  flex: none;
+  min-width: 0;
+  flex: 1;
   align-items: center;
-  gap: 2px;
-  height: 14px;
+  justify-content: center;
+  gap: 3px;
+  height: 20px;
+  padding-inline: 6px;
+  overflow: hidden;
 }
 .live-wave > span {
-  width: 2.5px;
-  height: 14px;
+  flex: none;
+  width: 2px;
+  height: 20px;
   border-radius: 9999px;
   background: var(--live-color);
   transform-origin: center;
-  transform: scaleY(0.2);
+  transform: scaleY(0.14);
   transition: transform 90ms linear;
+}
+.live-wave[data-muted] > span {
+  opacity: 0.35;
 }
 
 .live-stage-enter {
@@ -62,12 +107,13 @@
 @keyframes live-rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(-6px);
   }
 }
 
-/* Same specificity as the phase rules above and later in the file, so these win without !important. */
+/* Same specificity as the phase rules above, so these win without !important. */
 @media (prefers-reduced-motion: reduce) {
+  .live-bar,
   .live-orb[data-phase],
   .live-orb[data-phase] .live-orb-halo,
   .live-wave > span,
