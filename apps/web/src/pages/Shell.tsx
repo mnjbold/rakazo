@@ -5112,8 +5112,8 @@ const Transcript = memo(function Transcript({
                       ? undefined
                       : `relative w-fit min-w-0 ${
                           message.role === "user"
-                            ? "max-w-[min(84%,calc(100%_-_6rem))]"
-                            : "max-w-[min(88%,calc(100%_-_6rem))]"
+                            ? "max-w-[85%] [@media(hover:hover)_and_(pointer:fine)]:max-w-[min(84%,calc(100%_-_6rem))]"
+                            : "max-w-[94%] [@media(hover:hover)_and_(pointer:fine)]:max-w-[min(88%,calc(100%_-_6rem))]"
                         }`
                   }
                 >
