@@ -118,6 +118,7 @@ import {
   formatAgentEnvironmentInstruction,
   redactAgentCommandResult,
 } from "./agent-environment.js";
+import { COMMUNICATION_GUIDANCE, PRODUCT_GUIDE, WORKING_GUIDANCE } from "./agent-guidance.js";
 import { buildApprovalAskBlock } from "./approval-ask.js";
 import {
   approvalPausedToolResult,
@@ -4726,6 +4727,9 @@ export function userTurnInstructions(parts: {
 }): (string | undefined)[] {
   return [
     parts.botInstructions,
+    COMMUNICATION_GUIDANCE,
+    WORKING_GUIDANCE,
+    PRODUCT_GUIDE,
     parts.groupContext,
     parts.messagingContext,
     parts.redactedMemoryContext,
