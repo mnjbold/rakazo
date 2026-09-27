@@ -122,6 +122,10 @@ msgstr "{name} पूरा हुआ"
 msgid "{name} stopped"
 msgstr "{name} रोक दिया गया"
 
+#: src/pages/Welcome.tsx:39
+msgid "{PRODUCT_NAME} by {PRODUCT_MAKER} · forked from Rakazo"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx:46
 #: src/components/teach/TeachRecordingChrome.tsx:64
 msgid "{remaining} left · bot is watching, not acting"
@@ -386,7 +390,7 @@ msgstr ""
 msgid "Allowed once"
 msgstr "एक बार अनुमति दी गई"
 
-#: src/pages/Auth.tsx:274
+#: src/pages/Auth.tsx:278
 msgid "Already have an account?"
 msgstr "पहले से खाता है?"
 
@@ -585,9 +589,9 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
-#: src/pages/Auth.tsx:152
-#: src/pages/Auth.tsx:281
-#: src/pages/Auth.tsx:366
+#: src/pages/Auth.tsx:156
+#: src/pages/Auth.tsx:285
+#: src/pages/Auth.tsx:370
 msgid "Back to sign in"
 msgstr "साइन इन पर वापस जाएँ"
 
@@ -748,7 +752,7 @@ msgstr ""
 msgid "Check in."
 msgstr "जांच करें।"
 
-#: src/pages/Auth.tsx:38
+#: src/pages/Auth.tsx:42
 msgid "Check your email"
 msgstr "अपना ईमेल देखें"
 
@@ -769,7 +773,7 @@ msgstr "बॉट का आकार और रंग चुनें, या �
 msgid "Choose a bot…"
 msgstr ""
 
-#: src/pages/Auth.tsx:327
+#: src/pages/Auth.tsx:331
 msgid "Choose a new password"
 msgstr "नया पासवर्ड चुनें"
 
@@ -778,8 +782,8 @@ msgid "Choose file"
 msgstr "फ़ाइल चुनें"
 
 #: src/pages/ModelSettingsOverlay.tsx:383
-msgid "Choose which connected model Rakazo uses."
-msgstr "चुनें कि Rakazo किस कनेक्टेड मॉडल का उपयोग करे।"
+msgid "Choose which connected model {PRODUCT_NAME} uses."
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx:319
 msgid "Clear"
@@ -959,7 +963,7 @@ msgid "Confirm delete"
 msgstr "डिलीट की पुष्टि करें"
 
 #: src/pages/AccountSettingsOverlay.tsx:339
-#: src/pages/Auth.tsx:347
+#: src/pages/Auth.tsx:351
 msgid "Confirm password"
 msgstr "पासवर्ड की पुष्टि करें"
 
@@ -1004,7 +1008,7 @@ msgstr "Treg कनेक्ट करें"
 
 #: src/components/integrations/IntegrationSetup.tsx:165
 #: src/components/integrations/IntegrationSetup.tsx:268
-#: src/pages/McpOAuthCallback.tsx:54
+#: src/pages/McpOAuthCallback.tsx:55
 #: src/pages/MemorySettingsOverlay.tsx:191
 #: src/pages/ModelSettingsOverlay.tsx:464
 #: src/pages/shell/message-cards.tsx:225
@@ -1062,7 +1066,7 @@ msgstr "जारी रखें"
 msgid "Continue in Background"
 msgstr ""
 
-#: src/pages/Auth.tsx:257
+#: src/pages/Auth.tsx:261
 msgid "Continue with email"
 msgstr "ईमेल से जारी रखें"
 
@@ -1106,7 +1110,7 @@ msgstr "बातचीत साफ़ नहीं की जा सकी"
 msgid "Could not complete action"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:43
+#: src/pages/McpOAuthCallback.tsx:44
 msgid "Could not complete OAuth"
 msgstr "OAuth पूरा नहीं हो सका"
 
@@ -1136,8 +1140,8 @@ msgstr "यह आवाज़ प्रोवाइडर कनेक्ट �
 msgid "Could not connect to the computer screen"
 msgstr ""
 
-#: src/pages/Auth.tsx:104
-#: src/pages/Auth.tsx:135
+#: src/pages/Auth.tsx:108
+#: src/pages/Auth.tsx:139
 #: src/pages/Shell.tsx:2605
 msgid "Could not continue"
 msgstr "जारी नहीं रखा जा सका"
@@ -1299,9 +1303,9 @@ msgid "Could not play a test clip"
 msgstr "टेस्ट क्लिप नहीं चलाई जा सकी"
 
 #: src/pages/AccountSettingsOverlay.tsx:304
-#: src/pages/Auth.tsx:120
-#: src/pages/Auth.tsx:140
-#: src/pages/Auth.tsx:320
+#: src/pages/Auth.tsx:124
+#: src/pages/Auth.tsx:144
+#: src/pages/Auth.tsx:324
 msgid "Could not reach the server"
 msgstr "सर्वर से संपर्क नहीं हो सका"
 
@@ -1338,7 +1342,7 @@ msgstr "अनुभाग का नाम नहीं बदला जा स
 msgid "Could not render chart"
 msgstr "चार्ट रेंडर नहीं हो सका"
 
-#: src/pages/Auth.tsx:315
+#: src/pages/Auth.tsx:319
 msgid "Could not reset password"
 msgstr "पासवर्ड रीसेट नहीं किया जा सका"
 
@@ -1397,7 +1401,7 @@ msgstr "यह विकल्प सहेजा नहीं जा सका"
 msgid "Could not search catalog"
 msgstr ""
 
-#: src/pages/Auth.tsx:89
+#: src/pages/Auth.tsx:93
 msgid "Could not send reset email"
 msgstr "रीसेट ईमेल नहीं भेजा जा सका"
 
@@ -1464,7 +1468,7 @@ msgstr "बनाएं"
 msgid "Create a section and move {0} into it."
 msgstr "एक सेक्शन बनाएं और {0} को उसमें ले जाएं।"
 
-#: src/pages/Auth.tsx:261
+#: src/pages/Auth.tsx:265
 msgid "Create account"
 msgstr "खाता बनाएं"
 
@@ -1495,9 +1499,9 @@ msgstr ""
 msgid "Create space"
 msgstr ""
 
-#: src/pages/Auth.tsx:42
-msgid "Create your Rakazo"
-msgstr "अपना Rakazo बनाएं"
+#: src/pages/Auth.tsx:46
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx:21
 msgid "Created"
@@ -1721,7 +1725,7 @@ msgstr "Docker"
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker अतिरिक्त सुरक्षा के लिए आपके कंप्यूटर तक पहुँच सीमित करता है। {hostLabel} चुनने पर बॉट्स आपकी स्थानीय फ़ाइलों और टूल्स के साथ काम कर सकते हैं।"
 
-#: src/pages/Auth.tsx:267
+#: src/pages/Auth.tsx:271
 msgid "Don’t have an account?"
 msgstr "खाता नहीं है?"
 
@@ -1785,7 +1789,7 @@ msgstr "पहले संपादित करें"
 msgid "Edit Profile"
 msgstr "प्रोफ़ाइल संपादित करें"
 
-#: src/pages/Auth.tsx:195
+#: src/pages/Auth.tsx:199
 msgid "Email"
 msgstr "ईमेल"
 
@@ -1948,7 +1952,7 @@ msgstr "पूर्ण"
 msgid "Finished."
 msgstr "पूरा हुआ।"
 
-#: src/pages/McpOAuthCallback.tsx:56
+#: src/pages/McpOAuthCallback.tsx:57
 msgid "Finishing MCP connection…"
 msgstr "MCP कनेक्शन पूरा हो रहा है…"
 
@@ -1956,7 +1960,7 @@ msgstr "MCP कनेक्शन पूरा हो रहा है…"
 msgid "Flag unexpected actions"
 msgstr ""
 
-#: src/pages/Auth.tsx:242
+#: src/pages/Auth.tsx:246
 msgid "Forgot password?"
 msgstr "पासवर्ड भूल गए?"
 
@@ -2056,7 +2060,7 @@ msgstr "नमस्ते, उत्तर पढ़कर सुनाते �
 msgid "Hide bots"
 msgstr ""
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Hide password"
 msgstr ""
 
@@ -2564,7 +2568,7 @@ msgid "Move to"
 msgstr "यहां ले जाएं"
 
 #: src/components/teach/SkillDraftCard.tsx:79
-#: src/pages/Auth.tsx:180
+#: src/pages/Auth.tsx:184
 #: src/pages/GroupPanel.tsx:119
 #: src/pages/GroupPanel.tsx:212
 #: src/pages/RoutineEditor.tsx:310
@@ -2613,7 +2617,7 @@ msgid "New open-work item"
 msgstr "नया खुला-कार्य आइटम"
 
 #: src/pages/AccountSettingsOverlay.tsx:333
-#: src/pages/Auth.tsx:341
+#: src/pages/Auth.tsx:345
 msgid "New password"
 msgstr "नया पासवर्ड"
 
@@ -2772,7 +2776,7 @@ msgstr "अभी"
 msgid "Now using {0}."
 msgstr "अब {0} उपयोग में है।"
 
-#: src/pages/McpOAuthCallback.tsx:24
+#: src/pages/McpOAuthCallback.tsx:25
 msgid "OAuth authorization was cancelled."
 msgstr "OAuth ऑथराइज़ेशन रद्द कर दिया गया।"
 
@@ -2780,7 +2784,7 @@ msgstr "OAuth ऑथराइज़ेशन रद्द कर दिया �
 msgid "OAuth connected"
 msgstr "OAuth कनेक्टेड"
 
-#: src/pages/McpOAuthCallback.tsx:52
+#: src/pages/McpOAuthCallback.tsx:53
 msgid "OAuth connection failed"
 msgstr "OAuth कनेक्शन विफल"
 
@@ -2860,7 +2864,7 @@ msgstr "वैकल्पिक नियंत्रण जिनकी अध
 msgid "Optional header value"
 msgstr "वैकल्पिक हेडर मान"
 
-#: src/pages/Auth.tsx:172
+#: src/pages/Auth.tsx:176
 msgid "or"
 msgstr ""
 
@@ -2898,22 +2902,22 @@ msgstr "पार्क करें"
 #: src/components/AskCard.tsx:43
 #: src/components/AskCard.tsx:68
 #: src/pages/AccountSettingsOverlay.tsx:313
-#: src/pages/Auth.tsx:212
-#: src/pages/Auth.tsx:221
+#: src/pages/Auth.tsx:216
+#: src/pages/Auth.tsx:225
 msgid "Password"
 msgstr "पासवर्ड"
 
-#: src/pages/Auth.tsx:81
+#: src/pages/Auth.tsx:85
 msgid "Password recovery is not configured for this server"
 msgstr "इस सर्वर के लिए पासवर्ड पुनर्प्राप्ति कॉन्फ़िगर नहीं है"
 
 #: src/pages/AccountSettingsOverlay.tsx:358
-#: src/pages/Auth.tsx:331
+#: src/pages/Auth.tsx:335
 msgid "Password updated"
 msgstr "पासवर्ड अपडेट हो गया"
 
 #: src/pages/AccountSettingsOverlay.tsx:283
-#: src/pages/Auth.tsx:307
+#: src/pages/Auth.tsx:311
 msgid "Passwords do not match"
 msgstr "पासवर्ड मेल नहीं खाते"
 
@@ -2922,8 +2926,8 @@ msgid "Paste a replacement key"
 msgstr "बदलने के लिए नई कुंजी पेस्ट करें"
 
 #: src/pages/ModelSettingsOverlay.tsx:503
-msgid "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
-msgstr "अपने सर्वर से OpenAI-संगत पता पेस्ट करें। ज़रूरत होने पर Rakazo /v1 जोड़ देता है।"
+msgid "Paste the OpenAI-compatible address from your server. {PRODUCT_NAME} adds /v1 if needed."
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx:260
 msgid "Paste your API key"
@@ -3242,11 +3246,11 @@ msgstr "कंप्यूटर रीसेट करें"
 msgid "Reset computer?"
 msgstr "कंप्यूटर रीसेट करें?"
 
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:367
 msgid "Reset password"
 msgstr "पासवर्ड रीसेट करें"
 
-#: src/pages/Auth.tsx:44
+#: src/pages/Auth.tsx:48
 msgid "Reset your password"
 msgstr "अपना पासवर्ड रीसेट करें"
 
@@ -3282,9 +3286,9 @@ msgstr "अभी पुनः प्रयास करें"
 msgid "Retry screen"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:62
-msgid "Return to Rakazo"
-msgstr "Rakazo पर लौटें"
+#: src/pages/McpOAuthCallback.tsx:63
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx:180
@@ -3491,7 +3495,7 @@ msgstr "उत्तर भेजें"
 msgid "Send it"
 msgstr "इसे भेजें"
 
-#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:263
 msgid "Send reset link"
 msgstr "रीसेट लिंक भेजें"
 
@@ -3602,7 +3606,7 @@ msgstr ""
 msgid "Show more"
 msgstr "और दिखाएँ"
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Show password"
 msgstr ""
 
@@ -3611,23 +3615,23 @@ msgid "Show settings"
 msgstr "सेटिंग्स दिखाएं"
 
 #: src/lib/localized-provider-hint.ts:7
-#: src/pages/Auth.tsx:276
-#: src/pages/Auth.tsx:334
+#: src/pages/Auth.tsx:280
+#: src/pages/Auth.tsx:338
 #: src/pages/ModelSettingsOverlay.tsx:764
 #: src/pages/Onboarding.tsx:187
 msgid "Sign in"
 msgstr "साइन इन करें"
 
-#: src/pages/Auth.tsx:40
-msgid "Sign in to Rakazo"
-msgstr "Rakazo में साइन इन करें"
+#: src/pages/Auth.tsx:44
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
-#: src/pages/Auth.tsx:168
+#: src/pages/Auth.tsx:172
 msgid "Sign in with Google"
 msgstr ""
 
-#: src/pages/Auth.tsx:269
-#: src/pages/Welcome.tsx:32
+#: src/pages/Auth.tsx:273
+#: src/pages/Welcome.tsx:35
 msgid "Sign up"
 msgstr "साइन अप करें"
 
@@ -3894,7 +3898,7 @@ msgstr ""
 msgid "This provider is managed by your server. No API key is needed here."
 msgstr ""
 
-#: src/pages/Auth.tsx:299
+#: src/pages/Auth.tsx:303
 msgid "This reset link is invalid or expired"
 msgstr "यह रीसेट लिंक अमान्य है या इसकी समय-सीमा समाप्त हो गई है"
 
@@ -4174,8 +4178,8 @@ msgstr "बॉट कहां चलने चाहिए?"
 msgid "Working"
 msgstr ""
 
-#: src/pages/Auth.tsx:255
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:367
 msgid "Working…"
 msgstr "काम चल रहा है…"
 
@@ -4189,11 +4193,11 @@ msgstr "कल"
 msgid "You"
 msgstr "आप"
 
-#: src/pages/McpOAuthCallback.tsx:69
+#: src/pages/McpOAuthCallback.tsx:70
 msgid "You can close this tab if it does not redirect automatically."
 msgstr "अगर यह अपने आप रीडायरेक्ट न हो तो आप यह टैब बंद कर सकते हैं।"
 
-#: src/pages/McpOAuthCallback.tsx:67
+#: src/pages/McpOAuthCallback.tsx:68
 msgid "You can close this window."
 msgstr "आप यह विंडो बंद कर सकते हैं।"
 
@@ -4201,14 +4205,14 @@ msgstr "आप यह विंडो बंद कर सकते हैं।
 msgid "You have control"
 msgstr "नियंत्रण आपके पास है"
 
-#: src/pages/Auth.tsx:203
+#: src/pages/Auth.tsx:207
 msgid "Your email address"
 msgstr "आपका ईमेल पता"
 
-#: src/pages/Auth.tsx:188
+#: src/pages/Auth.tsx:192
 msgid "Your name"
 msgstr "आपका नाम"
 
-#: src/pages/Welcome.tsx:21
+#: src/pages/Welcome.tsx:24
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "हमेशा चालू रहने वाले एजेंटों की आपकी टीम<0/>जिन्हें आप असली काम सौंप सकते हैं।"

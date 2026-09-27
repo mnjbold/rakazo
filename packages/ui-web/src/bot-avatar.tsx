@@ -6,6 +6,7 @@ import {
   GROK_BOT_COLORS,
   GROK_COLOR_LIST,
   organicAvatarPath,
+  PRODUCT_NAME,
   resolvePersonaColorDef,
   SHIPPED_BOT_AVATAR_CENTER,
   SHIPPED_BOT_AVATAR_SHAPE_KEYS,
@@ -377,12 +378,12 @@ export function GrokShapePreview({
 export function Wordmark({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <div className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full bg-card">
-        <span className="h-4 w-[7px] rounded-full bg-primary" />
-        <span className="h-4 w-[7px] rounded-full bg-primary" />
+      <div className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full bg-brand">
+        <span className="h-4 w-[7px] rounded-full bg-background" />
+        <span className="h-4 w-[7px] rounded-full bg-background" />
       </div>
       <span className="font-[Aeonik,ui-sans-serif] text-[28px] tracking-tight text-foreground">
-        Rakazo
+        {PRODUCT_NAME}
       </span>
     </div>
   );

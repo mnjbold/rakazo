@@ -122,6 +122,10 @@ msgstr "{name} terminó"
 msgid "{name} stopped"
 msgstr "{name} se detuvo"
 
+#: src/pages/Welcome.tsx:39
+msgid "{PRODUCT_NAME} by {PRODUCT_MAKER} · forked from Rakazo"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx:46
 #: src/components/teach/TeachRecordingChrome.tsx:64
 msgid "{remaining} left · bot is watching, not acting"
@@ -386,7 +390,7 @@ msgstr ""
 msgid "Allowed once"
 msgstr "Permitido una vez"
 
-#: src/pages/Auth.tsx:274
+#: src/pages/Auth.tsx:278
 msgid "Already have an account?"
 msgstr "¿Ya tienes una cuenta?"
 
@@ -585,9 +589,9 @@ msgstr "Avatares"
 msgid "Back"
 msgstr "Atrás"
 
-#: src/pages/Auth.tsx:152
-#: src/pages/Auth.tsx:281
-#: src/pages/Auth.tsx:366
+#: src/pages/Auth.tsx:156
+#: src/pages/Auth.tsx:285
+#: src/pages/Auth.tsx:370
 msgid "Back to sign in"
 msgstr "Volver a iniciar sesión"
 
@@ -748,7 +752,7 @@ msgstr "Buscar actualizaciones"
 msgid "Check in."
 msgstr "Regístrate."
 
-#: src/pages/Auth.tsx:38
+#: src/pages/Auth.tsx:42
 msgid "Check your email"
 msgstr "Revisa tu correo"
 
@@ -769,7 +773,7 @@ msgstr "Elige una forma y color del bot, o sube una imagen"
 msgid "Choose a bot…"
 msgstr "Elige un bot…"
 
-#: src/pages/Auth.tsx:327
+#: src/pages/Auth.tsx:331
 msgid "Choose a new password"
 msgstr "Elige una contraseña nueva"
 
@@ -778,8 +782,8 @@ msgid "Choose file"
 msgstr "Elegir archivo"
 
 #: src/pages/ModelSettingsOverlay.tsx:383
-msgid "Choose which connected model Rakazo uses."
-msgstr "Elige qué modelo conectado usa Rakazo."
+msgid "Choose which connected model {PRODUCT_NAME} uses."
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx:319
 msgid "Clear"
@@ -959,7 +963,7 @@ msgid "Confirm delete"
 msgstr "Confirmar eliminación"
 
 #: src/pages/AccountSettingsOverlay.tsx:339
-#: src/pages/Auth.tsx:347
+#: src/pages/Auth.tsx:351
 msgid "Confirm password"
 msgstr "Confirmar contraseña"
 
@@ -1004,7 +1008,7 @@ msgstr "Conectar Treg"
 
 #: src/components/integrations/IntegrationSetup.tsx:165
 #: src/components/integrations/IntegrationSetup.tsx:268
-#: src/pages/McpOAuthCallback.tsx:54
+#: src/pages/McpOAuthCallback.tsx:55
 #: src/pages/MemorySettingsOverlay.tsx:191
 #: src/pages/ModelSettingsOverlay.tsx:464
 #: src/pages/shell/message-cards.tsx:225
@@ -1062,7 +1066,7 @@ msgstr "Continuar"
 msgid "Continue in Background"
 msgstr ""
 
-#: src/pages/Auth.tsx:257
+#: src/pages/Auth.tsx:261
 msgid "Continue with email"
 msgstr "Continuar con el correo"
 
@@ -1106,7 +1110,7 @@ msgstr "No se pudo borrar la conversación"
 msgid "Could not complete action"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:43
+#: src/pages/McpOAuthCallback.tsx:44
 msgid "Could not complete OAuth"
 msgstr "No se pudo completar OAuth"
 
@@ -1136,8 +1140,8 @@ msgstr "No se pudo conectar este proveedor de voz"
 msgid "Could not connect to the computer screen"
 msgstr "No se pudo conectar a la pantalla de la computadora"
 
-#: src/pages/Auth.tsx:104
-#: src/pages/Auth.tsx:135
+#: src/pages/Auth.tsx:108
+#: src/pages/Auth.tsx:139
 #: src/pages/Shell.tsx:2605
 msgid "Could not continue"
 msgstr "No se pudo continuar"
@@ -1299,9 +1303,9 @@ msgid "Could not play a test clip"
 msgstr "No se pudo reproducir un clip de prueba"
 
 #: src/pages/AccountSettingsOverlay.tsx:304
-#: src/pages/Auth.tsx:120
-#: src/pages/Auth.tsx:140
-#: src/pages/Auth.tsx:320
+#: src/pages/Auth.tsx:124
+#: src/pages/Auth.tsx:144
+#: src/pages/Auth.tsx:324
 msgid "Could not reach the server"
 msgstr "No se pudo alcanzar el servidor"
 
@@ -1338,7 +1342,7 @@ msgstr "No se pudo renombrar la sección"
 msgid "Could not render chart"
 msgstr "No se pudo renderizar el gráfico"
 
-#: src/pages/Auth.tsx:315
+#: src/pages/Auth.tsx:319
 msgid "Could not reset password"
 msgstr "No se pudo restablecer la contraseña"
 
@@ -1397,7 +1401,7 @@ msgstr "No se pudo guardar esta opción"
 msgid "Could not search catalog"
 msgstr ""
 
-#: src/pages/Auth.tsx:89
+#: src/pages/Auth.tsx:93
 msgid "Could not send reset email"
 msgstr "No se pudo enviar el correo de restablecimiento"
 
@@ -1464,7 +1468,7 @@ msgstr "Crear"
 msgid "Create a section and move {0} into it."
 msgstr "Crea una sección y mueve {0} a ella."
 
-#: src/pages/Auth.tsx:261
+#: src/pages/Auth.tsx:265
 msgid "Create account"
 msgstr "Crear cuenta"
 
@@ -1495,9 +1499,9 @@ msgstr "Crear rutina"
 msgid "Create space"
 msgstr "Crear space"
 
-#: src/pages/Auth.tsx:42
-msgid "Create your Rakazo"
-msgstr "Crea tu Rakazo"
+#: src/pages/Auth.tsx:46
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx:21
 msgid "Created"
@@ -1721,7 +1725,7 @@ msgstr "Docker"
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker limita el acceso a tu computadora para mayor seguridad. Usar {hostLabel} permite que los bots trabajen con tus archivos y herramientas locales."
 
-#: src/pages/Auth.tsx:267
+#: src/pages/Auth.tsx:271
 msgid "Don’t have an account?"
 msgstr "¿No tienes una cuenta?"
 
@@ -1785,7 +1789,7 @@ msgstr "Editar primero"
 msgid "Edit Profile"
 msgstr "Editar perfil"
 
-#: src/pages/Auth.tsx:195
+#: src/pages/Auth.tsx:199
 msgid "Email"
 msgstr "Correo"
 
@@ -1948,7 +1952,7 @@ msgstr "finalizado"
 msgid "Finished."
 msgstr "Terminado."
 
-#: src/pages/McpOAuthCallback.tsx:56
+#: src/pages/McpOAuthCallback.tsx:57
 msgid "Finishing MCP connection…"
 msgstr "Finalizando conexión MCP…"
 
@@ -1956,7 +1960,7 @@ msgstr "Finalizando conexión MCP…"
 msgid "Flag unexpected actions"
 msgstr "Marcar acciones inesperadas"
 
-#: src/pages/Auth.tsx:242
+#: src/pages/Auth.tsx:246
 msgid "Forgot password?"
 msgstr "¿Olvidaste la contraseña?"
 
@@ -2056,7 +2060,7 @@ msgstr "Hola, así sonaré cuando lea las respuestas en voz alta."
 msgid "Hide bots"
 msgstr ""
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Hide password"
 msgstr "Ocultar contraseña"
 
@@ -2564,7 +2568,7 @@ msgid "Move to"
 msgstr "Mover a"
 
 #: src/components/teach/SkillDraftCard.tsx:79
-#: src/pages/Auth.tsx:180
+#: src/pages/Auth.tsx:184
 #: src/pages/GroupPanel.tsx:119
 #: src/pages/GroupPanel.tsx:212
 #: src/pages/RoutineEditor.tsx:310
@@ -2613,7 +2617,7 @@ msgid "New open-work item"
 msgstr "Nuevo elemento de trabajo abierto"
 
 #: src/pages/AccountSettingsOverlay.tsx:333
-#: src/pages/Auth.tsx:341
+#: src/pages/Auth.tsx:345
 msgid "New password"
 msgstr "Nueva contraseña"
 
@@ -2772,7 +2776,7 @@ msgstr "Ahora"
 msgid "Now using {0}."
 msgstr "Ahora usando {0}."
 
-#: src/pages/McpOAuthCallback.tsx:24
+#: src/pages/McpOAuthCallback.tsx:25
 msgid "OAuth authorization was cancelled."
 msgstr "Se canceló la autorización OAuth."
 
@@ -2780,7 +2784,7 @@ msgstr "Se canceló la autorización OAuth."
 msgid "OAuth connected"
 msgstr "OAuth conectado"
 
-#: src/pages/McpOAuthCallback.tsx:52
+#: src/pages/McpOAuthCallback.tsx:53
 msgid "OAuth connection failed"
 msgstr "Falló la conexión OAuth"
 
@@ -2860,7 +2864,7 @@ msgstr "Controles opcionales que la mayoría nunca necesita"
 msgid "Optional header value"
 msgstr "Valor de encabezado opcional"
 
-#: src/pages/Auth.tsx:172
+#: src/pages/Auth.tsx:176
 msgid "or"
 msgstr ""
 
@@ -2898,22 +2902,22 @@ msgstr "Aparcar"
 #: src/components/AskCard.tsx:43
 #: src/components/AskCard.tsx:68
 #: src/pages/AccountSettingsOverlay.tsx:313
-#: src/pages/Auth.tsx:212
-#: src/pages/Auth.tsx:221
+#: src/pages/Auth.tsx:216
+#: src/pages/Auth.tsx:225
 msgid "Password"
 msgstr "Contraseña"
 
-#: src/pages/Auth.tsx:81
+#: src/pages/Auth.tsx:85
 msgid "Password recovery is not configured for this server"
 msgstr "La recuperación de contraseña no está configurada para este servidor"
 
 #: src/pages/AccountSettingsOverlay.tsx:358
-#: src/pages/Auth.tsx:331
+#: src/pages/Auth.tsx:335
 msgid "Password updated"
 msgstr "Contraseña actualizada"
 
 #: src/pages/AccountSettingsOverlay.tsx:283
-#: src/pages/Auth.tsx:307
+#: src/pages/Auth.tsx:311
 msgid "Passwords do not match"
 msgstr "Las contraseñas no coinciden"
 
@@ -2922,8 +2926,8 @@ msgid "Paste a replacement key"
 msgstr "Pega una clave de reemplazo"
 
 #: src/pages/ModelSettingsOverlay.tsx:503
-msgid "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
-msgstr "Pega la dirección compatible con OpenAI de tu servidor. Rakazo agrega /v1 si es necesario."
+msgid "Paste the OpenAI-compatible address from your server. {PRODUCT_NAME} adds /v1 if needed."
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx:260
 msgid "Paste your API key"
@@ -3242,11 +3246,11 @@ msgstr "Restablecer computadora"
 msgid "Reset computer?"
 msgstr "¿Restablecer computadora?"
 
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:367
 msgid "Reset password"
 msgstr "Restablecer contraseña"
 
-#: src/pages/Auth.tsx:44
+#: src/pages/Auth.tsx:48
 msgid "Reset your password"
 msgstr "Restablece tu contraseña"
 
@@ -3282,9 +3286,9 @@ msgstr "Reintentar ahora"
 msgid "Retry screen"
 msgstr "Reintentar pantalla"
 
-#: src/pages/McpOAuthCallback.tsx:62
-msgid "Return to Rakazo"
-msgstr "Volver a Rakazo"
+#: src/pages/McpOAuthCallback.tsx:63
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx:180
@@ -3491,7 +3495,7 @@ msgstr "Enviar respuesta"
 msgid "Send it"
 msgstr "Enviarlo"
 
-#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:263
 msgid "Send reset link"
 msgstr "Enviar enlace de restablecimiento"
 
@@ -3602,7 +3606,7 @@ msgstr ""
 msgid "Show more"
 msgstr "Mostrar más"
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Show password"
 msgstr "Mostrar contraseña"
 
@@ -3611,23 +3615,23 @@ msgid "Show settings"
 msgstr "Mostrar configuración"
 
 #: src/lib/localized-provider-hint.ts:7
-#: src/pages/Auth.tsx:276
-#: src/pages/Auth.tsx:334
+#: src/pages/Auth.tsx:280
+#: src/pages/Auth.tsx:338
 #: src/pages/ModelSettingsOverlay.tsx:764
 #: src/pages/Onboarding.tsx:187
 msgid "Sign in"
 msgstr "Iniciar sesión"
 
-#: src/pages/Auth.tsx:40
-msgid "Sign in to Rakazo"
-msgstr "Inicia sesión en Rakazo"
+#: src/pages/Auth.tsx:44
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
-#: src/pages/Auth.tsx:168
+#: src/pages/Auth.tsx:172
 msgid "Sign in with Google"
 msgstr ""
 
-#: src/pages/Auth.tsx:269
-#: src/pages/Welcome.tsx:32
+#: src/pages/Auth.tsx:273
+#: src/pages/Welcome.tsx:35
 msgid "Sign up"
 msgstr "Registrarse"
 
@@ -3894,7 +3898,7 @@ msgstr "Esto elimina de forma permanente todos los mensajes y detiene el trabajo
 msgid "This provider is managed by your server. No API key is needed here."
 msgstr ""
 
-#: src/pages/Auth.tsx:299
+#: src/pages/Auth.tsx:303
 msgid "This reset link is invalid or expired"
 msgstr "Este enlace de restablecimiento no es válido o expiró"
 
@@ -4174,8 +4178,8 @@ msgstr "¿Dónde deben ejecutarse los bots?"
 msgid "Working"
 msgstr ""
 
-#: src/pages/Auth.tsx:255
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:367
 msgid "Working…"
 msgstr "Trabajando…"
 
@@ -4189,11 +4193,11 @@ msgstr "Ayer"
 msgid "You"
 msgstr "Tú"
 
-#: src/pages/McpOAuthCallback.tsx:69
+#: src/pages/McpOAuthCallback.tsx:70
 msgid "You can close this tab if it does not redirect automatically."
 msgstr "Puedes cerrar esta pestaña si no redirige automáticamente."
 
-#: src/pages/McpOAuthCallback.tsx:67
+#: src/pages/McpOAuthCallback.tsx:68
 msgid "You can close this window."
 msgstr "Puedes cerrar esta ventana."
 
@@ -4201,14 +4205,14 @@ msgstr "Puedes cerrar esta ventana."
 msgid "You have control"
 msgstr "Tienes el control"
 
-#: src/pages/Auth.tsx:203
+#: src/pages/Auth.tsx:207
 msgid "Your email address"
 msgstr "Tu dirección de correo"
 
-#: src/pages/Auth.tsx:188
+#: src/pages/Auth.tsx:192
 msgid "Your name"
 msgstr "Tu nombre"
 
-#: src/pages/Welcome.tsx:21
+#: src/pages/Welcome.tsx:24
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "Tu equipo de agentes siempre activos<0/>a los que puedes dar trabajo real."

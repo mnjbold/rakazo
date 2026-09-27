@@ -122,6 +122,10 @@ msgstr "{name} 已完成"
 msgid "{name} stopped"
 msgstr "{name} 已停止"
 
+#: src/pages/Welcome.tsx:39
+msgid "{PRODUCT_NAME} by {PRODUCT_MAKER} · forked from Rakazo"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx:46
 #: src/components/teach/TeachRecordingChrome.tsx:64
 msgid "{remaining} left · bot is watching, not acting"
@@ -386,7 +390,7 @@ msgstr ""
 msgid "Allowed once"
 msgstr "已允许一次"
 
-#: src/pages/Auth.tsx:274
+#: src/pages/Auth.tsx:278
 msgid "Already have an account?"
 msgstr "已有账户？"
 
@@ -585,9 +589,9 @@ msgstr "头像"
 msgid "Back"
 msgstr "返回"
 
-#: src/pages/Auth.tsx:152
-#: src/pages/Auth.tsx:281
-#: src/pages/Auth.tsx:366
+#: src/pages/Auth.tsx:156
+#: src/pages/Auth.tsx:285
+#: src/pages/Auth.tsx:370
 msgid "Back to sign in"
 msgstr "返回登录"
 
@@ -748,7 +752,7 @@ msgstr "检查更新"
 msgid "Check in."
 msgstr "报到。"
 
-#: src/pages/Auth.tsx:38
+#: src/pages/Auth.tsx:42
 msgid "Check your email"
 msgstr "请查看邮箱"
 
@@ -769,7 +773,7 @@ msgstr "选择机器人形状和颜色，或上传图片"
 msgid "Choose a bot…"
 msgstr "选择 Bot…"
 
-#: src/pages/Auth.tsx:327
+#: src/pages/Auth.tsx:331
 msgid "Choose a new password"
 msgstr "设置新密码"
 
@@ -778,8 +782,8 @@ msgid "Choose file"
 msgstr "选择文件"
 
 #: src/pages/ModelSettingsOverlay.tsx:383
-msgid "Choose which connected model Rakazo uses."
-msgstr "选择 Rakazo 使用的已连接模型。"
+msgid "Choose which connected model {PRODUCT_NAME} uses."
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx:319
 msgid "Clear"
@@ -959,7 +963,7 @@ msgid "Confirm delete"
 msgstr "确认删除"
 
 #: src/pages/AccountSettingsOverlay.tsx:339
-#: src/pages/Auth.tsx:347
+#: src/pages/Auth.tsx:351
 msgid "Confirm password"
 msgstr "确认密码"
 
@@ -1004,7 +1008,7 @@ msgstr "连接 Treg"
 
 #: src/components/integrations/IntegrationSetup.tsx:165
 #: src/components/integrations/IntegrationSetup.tsx:268
-#: src/pages/McpOAuthCallback.tsx:54
+#: src/pages/McpOAuthCallback.tsx:55
 #: src/pages/MemorySettingsOverlay.tsx:191
 #: src/pages/ModelSettingsOverlay.tsx:464
 #: src/pages/shell/message-cards.tsx:225
@@ -1062,7 +1066,7 @@ msgstr "继续"
 msgid "Continue in Background"
 msgstr ""
 
-#: src/pages/Auth.tsx:257
+#: src/pages/Auth.tsx:261
 msgid "Continue with email"
 msgstr "使用邮箱继续"
 
@@ -1106,7 +1110,7 @@ msgstr "无法清空对话"
 msgid "Could not complete action"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:43
+#: src/pages/McpOAuthCallback.tsx:44
 msgid "Could not complete OAuth"
 msgstr "无法完成 OAuth"
 
@@ -1136,8 +1140,8 @@ msgstr "无法连接此语音提供方"
 msgid "Could not connect to the computer screen"
 msgstr ""
 
-#: src/pages/Auth.tsx:104
-#: src/pages/Auth.tsx:135
+#: src/pages/Auth.tsx:108
+#: src/pages/Auth.tsx:139
 #: src/pages/Shell.tsx:2605
 msgid "Could not continue"
 msgstr "无法继续"
@@ -1299,9 +1303,9 @@ msgid "Could not play a test clip"
 msgstr "无法播放测试片段"
 
 #: src/pages/AccountSettingsOverlay.tsx:304
-#: src/pages/Auth.tsx:120
-#: src/pages/Auth.tsx:140
-#: src/pages/Auth.tsx:320
+#: src/pages/Auth.tsx:124
+#: src/pages/Auth.tsx:144
+#: src/pages/Auth.tsx:324
 msgid "Could not reach the server"
 msgstr "无法连接服务器"
 
@@ -1338,7 +1342,7 @@ msgstr "无法重命名分组"
 msgid "Could not render chart"
 msgstr "无法渲染图表"
 
-#: src/pages/Auth.tsx:315
+#: src/pages/Auth.tsx:319
 msgid "Could not reset password"
 msgstr "无法重置密码"
 
@@ -1397,7 +1401,7 @@ msgstr "无法保存此选择"
 msgid "Could not search catalog"
 msgstr ""
 
-#: src/pages/Auth.tsx:89
+#: src/pages/Auth.tsx:93
 msgid "Could not send reset email"
 msgstr "无法发送重置邮件"
 
@@ -1464,7 +1468,7 @@ msgstr "创建"
 msgid "Create a section and move {0} into it."
 msgstr "创建分组并把 {0} 移入。"
 
-#: src/pages/Auth.tsx:261
+#: src/pages/Auth.tsx:265
 msgid "Create account"
 msgstr "创建账户"
 
@@ -1495,9 +1499,9 @@ msgstr ""
 msgid "Create space"
 msgstr "创建工作区"
 
-#: src/pages/Auth.tsx:42
-msgid "Create your Rakazo"
-msgstr "创建你的 Rakazo"
+#: src/pages/Auth.tsx:46
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx:21
 msgid "Created"
@@ -1721,7 +1725,7 @@ msgstr "Docker"
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker 限制对你电脑的访问，以提高安全性。使用{hostLabel}时，Bot 可以处理你的本地文件并使用本地工具。"
 
-#: src/pages/Auth.tsx:267
+#: src/pages/Auth.tsx:271
 msgid "Don’t have an account?"
 msgstr "还没有账户？"
 
@@ -1785,7 +1789,7 @@ msgstr "先编辑"
 msgid "Edit Profile"
 msgstr "编辑资料"
 
-#: src/pages/Auth.tsx:195
+#: src/pages/Auth.tsx:199
 msgid "Email"
 msgstr "邮箱"
 
@@ -1948,7 +1952,7 @@ msgstr "已完成"
 msgid "Finished."
 msgstr "已完成。"
 
-#: src/pages/McpOAuthCallback.tsx:56
+#: src/pages/McpOAuthCallback.tsx:57
 msgid "Finishing MCP connection…"
 msgstr "正在完成 MCP 连接…"
 
@@ -1956,7 +1960,7 @@ msgstr "正在完成 MCP 连接…"
 msgid "Flag unexpected actions"
 msgstr "标记异常操作"
 
-#: src/pages/Auth.tsx:242
+#: src/pages/Auth.tsx:246
 msgid "Forgot password?"
 msgstr "忘记密码？"
 
@@ -2056,7 +2060,7 @@ msgstr "你好，这是我朗读回复时的声音。"
 msgid "Hide bots"
 msgstr ""
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Hide password"
 msgstr "隐藏密码"
 
@@ -2564,7 +2568,7 @@ msgid "Move to"
 msgstr "移动到"
 
 #: src/components/teach/SkillDraftCard.tsx:79
-#: src/pages/Auth.tsx:180
+#: src/pages/Auth.tsx:184
 #: src/pages/GroupPanel.tsx:119
 #: src/pages/GroupPanel.tsx:212
 #: src/pages/RoutineEditor.tsx:310
@@ -2613,7 +2617,7 @@ msgid "New open-work item"
 msgstr "新的待办"
 
 #: src/pages/AccountSettingsOverlay.tsx:333
-#: src/pages/Auth.tsx:341
+#: src/pages/Auth.tsx:345
 msgid "New password"
 msgstr "新密码"
 
@@ -2772,7 +2776,7 @@ msgstr "现在"
 msgid "Now using {0}."
 msgstr "正在使用 {0}。"
 
-#: src/pages/McpOAuthCallback.tsx:24
+#: src/pages/McpOAuthCallback.tsx:25
 msgid "OAuth authorization was cancelled."
 msgstr "OAuth 授权已取消。"
 
@@ -2780,7 +2784,7 @@ msgstr "OAuth 授权已取消。"
 msgid "OAuth connected"
 msgstr "OAuth 已连接"
 
-#: src/pages/McpOAuthCallback.tsx:52
+#: src/pages/McpOAuthCallback.tsx:53
 msgid "OAuth connection failed"
 msgstr "OAuth 连接失败"
 
@@ -2860,7 +2864,7 @@ msgstr "多数人用不到的可选项"
 msgid "Optional header value"
 msgstr "可选请求头值"
 
-#: src/pages/Auth.tsx:172
+#: src/pages/Auth.tsx:176
 msgid "or"
 msgstr ""
 
@@ -2898,22 +2902,22 @@ msgstr "搁置"
 #: src/components/AskCard.tsx:43
 #: src/components/AskCard.tsx:68
 #: src/pages/AccountSettingsOverlay.tsx:313
-#: src/pages/Auth.tsx:212
-#: src/pages/Auth.tsx:221
+#: src/pages/Auth.tsx:216
+#: src/pages/Auth.tsx:225
 msgid "Password"
 msgstr "密码"
 
-#: src/pages/Auth.tsx:81
+#: src/pages/Auth.tsx:85
 msgid "Password recovery is not configured for this server"
 msgstr "此服务器未配置密码恢复"
 
 #: src/pages/AccountSettingsOverlay.tsx:358
-#: src/pages/Auth.tsx:331
+#: src/pages/Auth.tsx:335
 msgid "Password updated"
 msgstr "密码已更新"
 
 #: src/pages/AccountSettingsOverlay.tsx:283
-#: src/pages/Auth.tsx:307
+#: src/pages/Auth.tsx:311
 msgid "Passwords do not match"
 msgstr "两次密码不一致"
 
@@ -2922,8 +2926,8 @@ msgid "Paste a replacement key"
 msgstr "粘贴替换密钥"
 
 #: src/pages/ModelSettingsOverlay.tsx:503
-msgid "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
-msgstr "粘贴服务器的 OpenAI 兼容地址。需要时 Rakazo 会补上 /v1。"
+msgid "Paste the OpenAI-compatible address from your server. {PRODUCT_NAME} adds /v1 if needed."
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx:260
 msgid "Paste your API key"
@@ -3242,11 +3246,11 @@ msgstr "重置电脑"
 msgid "Reset computer?"
 msgstr "重置电脑？"
 
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:367
 msgid "Reset password"
 msgstr "重置密码"
 
-#: src/pages/Auth.tsx:44
+#: src/pages/Auth.tsx:48
 msgid "Reset your password"
 msgstr "重置你的密码"
 
@@ -3282,9 +3286,9 @@ msgstr "立即重试"
 msgid "Retry screen"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:62
-msgid "Return to Rakazo"
-msgstr "返回 Rakazo"
+#: src/pages/McpOAuthCallback.tsx:63
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx:180
@@ -3491,7 +3495,7 @@ msgstr "发送回答"
 msgid "Send it"
 msgstr "发送"
 
-#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:263
 msgid "Send reset link"
 msgstr "发送重置链接"
 
@@ -3602,7 +3606,7 @@ msgstr ""
 msgid "Show more"
 msgstr "显示更多"
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Show password"
 msgstr "显示密码"
 
@@ -3611,23 +3615,23 @@ msgid "Show settings"
 msgstr "显示设置"
 
 #: src/lib/localized-provider-hint.ts:7
-#: src/pages/Auth.tsx:276
-#: src/pages/Auth.tsx:334
+#: src/pages/Auth.tsx:280
+#: src/pages/Auth.tsx:338
 #: src/pages/ModelSettingsOverlay.tsx:764
 #: src/pages/Onboarding.tsx:187
 msgid "Sign in"
 msgstr "登录"
 
-#: src/pages/Auth.tsx:40
-msgid "Sign in to Rakazo"
-msgstr "登录 Rakazo"
+#: src/pages/Auth.tsx:44
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
-#: src/pages/Auth.tsx:168
+#: src/pages/Auth.tsx:172
 msgid "Sign in with Google"
 msgstr ""
 
-#: src/pages/Auth.tsx:269
-#: src/pages/Welcome.tsx:32
+#: src/pages/Auth.tsx:273
+#: src/pages/Welcome.tsx:35
 msgid "Sign up"
 msgstr "注册"
 
@@ -3894,7 +3898,7 @@ msgstr "将永久删除全部消息并停止当前工作。聊天仍可使用。
 msgid "This provider is managed by your server. No API key is needed here."
 msgstr ""
 
-#: src/pages/Auth.tsx:299
+#: src/pages/Auth.tsx:303
 msgid "This reset link is invalid or expired"
 msgstr "此重置链接无效或已过期"
 
@@ -4174,8 +4178,8 @@ msgstr "Bot 应在哪里运行？"
 msgid "Working"
 msgstr ""
 
-#: src/pages/Auth.tsx:255
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:367
 msgid "Working…"
 msgstr "处理中…"
 
@@ -4189,11 +4193,11 @@ msgstr "昨天"
 msgid "You"
 msgstr "你"
 
-#: src/pages/McpOAuthCallback.tsx:69
+#: src/pages/McpOAuthCallback.tsx:70
 msgid "You can close this tab if it does not redirect automatically."
 msgstr "如果没有自动跳转，可以关闭此标签页。"
 
-#: src/pages/McpOAuthCallback.tsx:67
+#: src/pages/McpOAuthCallback.tsx:68
 msgid "You can close this window."
 msgstr "可以关闭此窗口。"
 
@@ -4201,14 +4205,14 @@ msgstr "可以关闭此窗口。"
 msgid "You have control"
 msgstr "你已接管"
 
-#: src/pages/Auth.tsx:203
+#: src/pages/Auth.tsx:207
 msgid "Your email address"
 msgstr "你的邮箱"
 
-#: src/pages/Auth.tsx:188
+#: src/pages/Auth.tsx:192
 msgid "Your name"
 msgstr "你的名字"
 
-#: src/pages/Welcome.tsx:21
+#: src/pages/Welcome.tsx:24
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "你的一支随时在线的 Agent 团队<0/>可以交给它们真正的工作。"

@@ -122,6 +122,10 @@ msgstr "{name} 완료"
 msgid "{name} stopped"
 msgstr "{name} 중지됨"
 
+#: src/pages/Welcome.tsx:39
+msgid "{PRODUCT_NAME} by {PRODUCT_MAKER} · forked from Rakazo"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx:46
 #: src/components/teach/TeachRecordingChrome.tsx:64
 msgid "{remaining} left · bot is watching, not acting"
@@ -386,7 +390,7 @@ msgstr ""
 msgid "Allowed once"
 msgstr "한 번 허용됨"
 
-#: src/pages/Auth.tsx:274
+#: src/pages/Auth.tsx:278
 msgid "Already have an account?"
 msgstr "이미 계정이 있나요?"
 
@@ -585,9 +589,9 @@ msgstr "아바타"
 msgid "Back"
 msgstr "뒤로"
 
-#: src/pages/Auth.tsx:152
-#: src/pages/Auth.tsx:281
-#: src/pages/Auth.tsx:366
+#: src/pages/Auth.tsx:156
+#: src/pages/Auth.tsx:285
+#: src/pages/Auth.tsx:370
 msgid "Back to sign in"
 msgstr "로그인으로 돌아가기"
 
@@ -748,7 +752,7 @@ msgstr "업데이트 확인"
 msgid "Check in."
 msgstr "확인해 주세요."
 
-#: src/pages/Auth.tsx:38
+#: src/pages/Auth.tsx:42
 msgid "Check your email"
 msgstr "이메일을 확인하세요"
 
@@ -769,7 +773,7 @@ msgstr "봇 모양과 색을 고르거나 이미지를 업로드하세요"
 msgid "Choose a bot…"
 msgstr "Bot 선택…"
 
-#: src/pages/Auth.tsx:327
+#: src/pages/Auth.tsx:331
 msgid "Choose a new password"
 msgstr "새 비밀번호 선택"
 
@@ -778,8 +782,8 @@ msgid "Choose file"
 msgstr "파일 선택"
 
 #: src/pages/ModelSettingsOverlay.tsx:383
-msgid "Choose which connected model Rakazo uses."
-msgstr "Rakazo에서 기본으로 사용할 연결된 모델을 선택하세요."
+msgid "Choose which connected model {PRODUCT_NAME} uses."
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx:319
 msgid "Clear"
@@ -959,7 +963,7 @@ msgid "Confirm delete"
 msgstr "삭제 확인"
 
 #: src/pages/AccountSettingsOverlay.tsx:339
-#: src/pages/Auth.tsx:347
+#: src/pages/Auth.tsx:351
 msgid "Confirm password"
 msgstr "비밀번호 확인"
 
@@ -1004,7 +1008,7 @@ msgstr "Treg 연결"
 
 #: src/components/integrations/IntegrationSetup.tsx:165
 #: src/components/integrations/IntegrationSetup.tsx:268
-#: src/pages/McpOAuthCallback.tsx:54
+#: src/pages/McpOAuthCallback.tsx:55
 #: src/pages/MemorySettingsOverlay.tsx:191
 #: src/pages/ModelSettingsOverlay.tsx:464
 #: src/pages/shell/message-cards.tsx:225
@@ -1062,7 +1066,7 @@ msgstr "계속"
 msgid "Continue in Background"
 msgstr ""
 
-#: src/pages/Auth.tsx:257
+#: src/pages/Auth.tsx:261
 msgid "Continue with email"
 msgstr "이메일로 계속하기"
 
@@ -1106,7 +1110,7 @@ msgstr "대화 내용을 비우지 못했습니다."
 msgid "Could not complete action"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:43
+#: src/pages/McpOAuthCallback.tsx:44
 msgid "Could not complete OAuth"
 msgstr "OAuth 인증을 완료하지 못했습니다."
 
@@ -1136,8 +1140,8 @@ msgstr "음성 서비스에 연결하지 못했습니다."
 msgid "Could not connect to the computer screen"
 msgstr ""
 
-#: src/pages/Auth.tsx:104
-#: src/pages/Auth.tsx:135
+#: src/pages/Auth.tsx:108
+#: src/pages/Auth.tsx:139
 #: src/pages/Shell.tsx:2605
 msgid "Could not continue"
 msgstr "계속 진행하지 못했습니다."
@@ -1299,9 +1303,9 @@ msgid "Could not play a test clip"
 msgstr "샘플 음성을 재생하지 못했습니다."
 
 #: src/pages/AccountSettingsOverlay.tsx:304
-#: src/pages/Auth.tsx:120
-#: src/pages/Auth.tsx:140
-#: src/pages/Auth.tsx:320
+#: src/pages/Auth.tsx:124
+#: src/pages/Auth.tsx:144
+#: src/pages/Auth.tsx:324
 msgid "Could not reach the server"
 msgstr "서버에 연결할 수 없습니다"
 
@@ -1338,7 +1342,7 @@ msgstr "섹션 이름을 바꿀 수 없습니다"
 msgid "Could not render chart"
 msgstr "차트를 만들지 못했습니다."
 
-#: src/pages/Auth.tsx:315
+#: src/pages/Auth.tsx:319
 msgid "Could not reset password"
 msgstr "비밀번호를 재설정할 수 없습니다"
 
@@ -1397,7 +1401,7 @@ msgstr "선택 내용을 저장하지 못했습니다."
 msgid "Could not search catalog"
 msgstr ""
 
-#: src/pages/Auth.tsx:89
+#: src/pages/Auth.tsx:93
 msgid "Could not send reset email"
 msgstr "재설정 이메일을 보낼 수 없습니다"
 
@@ -1464,7 +1468,7 @@ msgstr "만들기"
 msgid "Create a section and move {0} into it."
 msgstr "새 섹션을 만들고 {0}을 옮깁니다."
 
-#: src/pages/Auth.tsx:261
+#: src/pages/Auth.tsx:265
 msgid "Create account"
 msgstr "계정 만들기"
 
@@ -1495,9 +1499,9 @@ msgstr "자동 실행 만들기"
 msgid "Create space"
 msgstr "스페이스 만들기"
 
-#: src/pages/Auth.tsx:42
-msgid "Create your Rakazo"
-msgstr "Rakazo 계정 만들기"
+#: src/pages/Auth.tsx:46
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx:21
 msgid "Created"
@@ -1721,7 +1725,7 @@ msgstr "Docker"
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker는 보안을 위해 컴퓨터 접근을 제한합니다. {hostLabel}에서는 Bot이 로컬 파일과 도구로 작업할 수 있습니다."
 
-#: src/pages/Auth.tsx:267
+#: src/pages/Auth.tsx:271
 msgid "Don’t have an account?"
 msgstr "계정이 없나요?"
 
@@ -1785,7 +1789,7 @@ msgstr "수정 후 보내기"
 msgid "Edit Profile"
 msgstr "Bot 정보 수정"
 
-#: src/pages/Auth.tsx:195
+#: src/pages/Auth.tsx:199
 msgid "Email"
 msgstr "이메일"
 
@@ -1948,7 +1952,7 @@ msgstr "완료"
 msgid "Finished."
 msgstr "완료되었습니다."
 
-#: src/pages/McpOAuthCallback.tsx:56
+#: src/pages/McpOAuthCallback.tsx:57
 msgid "Finishing MCP connection…"
 msgstr "MCP 연결을 마무리하는 중…"
 
@@ -1956,7 +1960,7 @@ msgstr "MCP 연결을 마무리하는 중…"
 msgid "Flag unexpected actions"
 msgstr "예상하지 못한 작업 표시"
 
-#: src/pages/Auth.tsx:242
+#: src/pages/Auth.tsx:246
 msgid "Forgot password?"
 msgstr "비밀번호를 잊으셨나요?"
 
@@ -2056,7 +2060,7 @@ msgstr "안녕하세요. 답변을 소리 내어 읽을 때 이런 목소리로 
 msgid "Hide bots"
 msgstr ""
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Hide password"
 msgstr "비밀번호 숨기기"
 
@@ -2564,7 +2568,7 @@ msgid "Move to"
 msgstr "섹션으로 이동"
 
 #: src/components/teach/SkillDraftCard.tsx:79
-#: src/pages/Auth.tsx:180
+#: src/pages/Auth.tsx:184
 #: src/pages/GroupPanel.tsx:119
 #: src/pages/GroupPanel.tsx:212
 #: src/pages/RoutineEditor.tsx:310
@@ -2613,7 +2617,7 @@ msgid "New open-work item"
 msgstr "새 진행 작업"
 
 #: src/pages/AccountSettingsOverlay.tsx:333
-#: src/pages/Auth.tsx:341
+#: src/pages/Auth.tsx:345
 msgid "New password"
 msgstr "새 비밀번호"
 
@@ -2772,7 +2776,7 @@ msgstr "지금"
 msgid "Now using {0}."
 msgstr "이제 {0} 모델을 사용합니다."
 
-#: src/pages/McpOAuthCallback.tsx:24
+#: src/pages/McpOAuthCallback.tsx:25
 msgid "OAuth authorization was cancelled."
 msgstr "OAuth 인증이 취소되었습니다."
 
@@ -2780,7 +2784,7 @@ msgstr "OAuth 인증이 취소되었습니다."
 msgid "OAuth connected"
 msgstr "OAuth 연결됨"
 
-#: src/pages/McpOAuthCallback.tsx:52
+#: src/pages/McpOAuthCallback.tsx:53
 msgid "OAuth connection failed"
 msgstr "OAuth 연결 실패"
 
@@ -2860,7 +2864,7 @@ msgstr "필요할 때만 쓰는 세부 설정"
 msgid "Optional header value"
 msgstr "선택 사항인 헤더 값"
 
-#: src/pages/Auth.tsx:172
+#: src/pages/Auth.tsx:176
 msgid "or"
 msgstr ""
 
@@ -2898,22 +2902,22 @@ msgstr "보류"
 #: src/components/AskCard.tsx:43
 #: src/components/AskCard.tsx:68
 #: src/pages/AccountSettingsOverlay.tsx:313
-#: src/pages/Auth.tsx:212
-#: src/pages/Auth.tsx:221
+#: src/pages/Auth.tsx:216
+#: src/pages/Auth.tsx:225
 msgid "Password"
 msgstr "비밀번호"
 
-#: src/pages/Auth.tsx:81
+#: src/pages/Auth.tsx:85
 msgid "Password recovery is not configured for this server"
 msgstr "이 서버에는 비밀번호 복구가 설정되어 있지 않습니다"
 
 #: src/pages/AccountSettingsOverlay.tsx:358
-#: src/pages/Auth.tsx:331
+#: src/pages/Auth.tsx:335
 msgid "Password updated"
 msgstr "비밀번호가 업데이트되었습니다"
 
 #: src/pages/AccountSettingsOverlay.tsx:283
-#: src/pages/Auth.tsx:307
+#: src/pages/Auth.tsx:311
 msgid "Passwords do not match"
 msgstr "비밀번호가 일치하지 않습니다"
 
@@ -2922,8 +2926,8 @@ msgid "Paste a replacement key"
 msgstr "새 API 키를 붙여넣으세요"
 
 #: src/pages/ModelSettingsOverlay.tsx:503
-msgid "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
-msgstr "서버의 OpenAI 호환 주소를 붙여넣으세요. 필요하면 Rakazo가 /v1을 추가합니다."
+msgid "Paste the OpenAI-compatible address from your server. {PRODUCT_NAME} adds /v1 if needed."
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx:260
 msgid "Paste your API key"
@@ -3242,11 +3246,11 @@ msgstr "컴퓨터 재설정"
 msgid "Reset computer?"
 msgstr "컴퓨터를 재설정할까요?"
 
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:367
 msgid "Reset password"
 msgstr "비밀번호 재설정"
 
-#: src/pages/Auth.tsx:44
+#: src/pages/Auth.tsx:48
 msgid "Reset your password"
 msgstr "비밀번호를 재설정하세요"
 
@@ -3282,9 +3286,9 @@ msgstr "지금 다시 시도"
 msgid "Retry screen"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx:62
-msgid "Return to Rakazo"
-msgstr "Rakazo로 돌아가기"
+#: src/pages/McpOAuthCallback.tsx:63
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx:180
@@ -3491,7 +3495,7 @@ msgstr "답변 보내기"
 msgid "Send it"
 msgstr "보내기"
 
-#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:263
 msgid "Send reset link"
 msgstr "재설정 링크 보내기"
 
@@ -3602,7 +3606,7 @@ msgstr ""
 msgid "Show more"
 msgstr "더 보기"
 
-#: src/pages/Auth.tsx:232
+#: src/pages/Auth.tsx:236
 msgid "Show password"
 msgstr "비밀번호 표시"
 
@@ -3611,23 +3615,23 @@ msgid "Show settings"
 msgstr "설정 보기"
 
 #: src/lib/localized-provider-hint.ts:7
-#: src/pages/Auth.tsx:276
-#: src/pages/Auth.tsx:334
+#: src/pages/Auth.tsx:280
+#: src/pages/Auth.tsx:338
 #: src/pages/ModelSettingsOverlay.tsx:764
 #: src/pages/Onboarding.tsx:187
 msgid "Sign in"
 msgstr "로그인"
 
-#: src/pages/Auth.tsx:40
-msgid "Sign in to Rakazo"
-msgstr "Rakazo 로그인"
+#: src/pages/Auth.tsx:44
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
-#: src/pages/Auth.tsx:168
+#: src/pages/Auth.tsx:172
 msgid "Sign in with Google"
 msgstr ""
 
-#: src/pages/Auth.tsx:269
-#: src/pages/Welcome.tsx:32
+#: src/pages/Auth.tsx:273
+#: src/pages/Welcome.tsx:35
 msgid "Sign up"
 msgstr "가입하기"
 
@@ -3894,7 +3898,7 @@ msgstr "모든 메시지를 영구적으로 삭제하고 진행 중인 작업을
 msgid "This provider is managed by your server. No API key is needed here."
 msgstr ""
 
-#: src/pages/Auth.tsx:299
+#: src/pages/Auth.tsx:303
 msgid "This reset link is invalid or expired"
 msgstr "이 재설정 링크는 유효하지 않거나 만료되었습니다"
 
@@ -4174,8 +4178,8 @@ msgstr "Bot을 어디에서 실행할까요?"
 msgid "Working"
 msgstr ""
 
-#: src/pages/Auth.tsx:255
-#: src/pages/Auth.tsx:363
+#: src/pages/Auth.tsx:259
+#: src/pages/Auth.tsx:367
 msgid "Working…"
 msgstr "처리 중…"
 
@@ -4189,11 +4193,11 @@ msgstr "어제"
 msgid "You"
 msgstr "나"
 
-#: src/pages/McpOAuthCallback.tsx:69
+#: src/pages/McpOAuthCallback.tsx:70
 msgid "You can close this tab if it does not redirect automatically."
 msgstr "자동으로 이동하지 않으면 이 탭을 닫아도 됩니다."
 
-#: src/pages/McpOAuthCallback.tsx:67
+#: src/pages/McpOAuthCallback.tsx:68
 msgid "You can close this window."
 msgstr "이 창을 닫아도 됩니다."
 
@@ -4201,14 +4205,14 @@ msgstr "이 창을 닫아도 됩니다."
 msgid "You have control"
 msgstr "직접 조작 중"
 
-#: src/pages/Auth.tsx:203
+#: src/pages/Auth.tsx:207
 msgid "Your email address"
 msgstr "이메일 주소"
 
-#: src/pages/Auth.tsx:188
+#: src/pages/Auth.tsx:192
 msgid "Your name"
 msgstr "이름"
 
-#: src/pages/Welcome.tsx:21
+#: src/pages/Welcome.tsx:24
 msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr "언제든 실제 작업을 맡길 수 있는<0/>나만의 Agent 팀"
