@@ -6,6 +6,7 @@ import type {
   AgentSkillCatalogEntry,
   Bot,
   BotSection,
+  ChatSession,
   ComputerReleaseReason,
   ComputerStatus,
   Connection,
@@ -110,6 +111,7 @@ import {
   Settings,
   Smile,
   Square,
+  SquarePen,
   TextQuote,
   Trash2,
   Volume2,
@@ -228,6 +230,7 @@ import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
+import { ChatHistoryMenu, ChatSessionOverlay } from "./shell/chat-sessions";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import {
   ClearConversationDialog,
@@ -423,6 +426,15 @@ export function ShellPage() {
     peerBotId: string;
     peerBotName: string;
   } | null>(null);
+  const [chatSessions, setChatSessions] = useState<{
+    botId: string;
+    sessions: ChatSession[];
+  } | null>(null);
+  const [openChatSession, setOpenChatSession] = useState<ChatSession | null>(null);
+  const refreshChatSessions = useCallback(async (targetBotId: string) => {
+    const sessions = await rpc.threads.sessions({ botId: targetBotId }).catch(() => null);
+    if (sessions) setChatSessions({ botId: targetBotId, sessions });
+  }, []);
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [routinesBotId, setRoutinesBotId] = useState<string | null>(null);
   const [taughtSkills, setTaughtSkills] = useState<TaughtSkill[]>([]);
@@ -1320,6 +1332,7 @@ export function ShellPage() {
           expandedHistoryThread.current = null;
           pinnedAroundRef.current = null;
           historyEpoch.current += 1;
+          void refreshChatSessions(active.id);
         }
         if (event.type === "bot.archived") {
           void refreshBots(true).catch(() => undefined);
@@ -2226,6 +2239,33 @@ export function ShellPage() {
     },
     [],
   );
+  const activeChatBotId = inGroup ? undefined : active?.id;
+  useEffect(() => {
+    setOpenChatSession(null);
+    if (activeChatBotId) void refreshChatSessions(activeChatBotId);
+  }, [activeChatBotId, refreshChatSessions]);
+
+  async function startNewChat(targetBotId: string) {
+    setSendError(null);
+    try {
+      await rpc.threads.newChat({ botId: targetBotId });
+    } catch (error) {
+      if (activeBotId.current === targetBotId) {
+        setSendError(error instanceof Error ? error.message : t`Could not start a new chat`);
+      }
+      return;
+    }
+    if (activeBotId.current === targetBotId) {
+      expandedHistoryThread.current = null;
+      pinnedAroundRef.current = null;
+      historyEpoch.current += 1;
+      updateSnapshot((current) =>
+        current ? { ...current, messages: [], olderCursor: null, run: null } : current,
+      );
+    }
+    await refreshChatSessions(targetBotId);
+  }
+
   const stopRun = useCallback(async () => {
     if (sending) return;
     setSending(true);
@@ -3468,6 +3508,20 @@ export function ShellPage() {
             </button>
           </div>
           <div className="flex items-center gap-1">
+            {!inGroup && active && transcriptMessages.length > 0 && !composerRunning ? (
+              <button
+                type="button"
+                aria-label={t`New chat`}
+                title={t`New chat`}
+                onClick={() => void startNewChat(active.id)}
+                className="app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-accent"
+              >
+                <SquarePen size={18} strokeWidth={1.6} className="text-foreground/75" />
+              </button>
+            ) : null}
+            {!inGroup && active && chatSessions?.botId === active.id ? (
+              <ChatHistoryMenu sessions={chatSessions.sessions} onOpen={setOpenChatSession} />
+            ) : null}
             {!inGroup && active ? (
               <button
                 type="button"
@@ -4448,6 +4502,14 @@ export function ShellPage() {
               setSettingsOpen(false);
               setSettingsSection("general");
             }}
+          />
+        ) : null}
+        {openChatSession && active ? (
+          <ChatSessionOverlay
+            botId={active.id}
+            botName={active.name}
+            session={openChatSession}
+            onClose={() => setOpenChatSession(null)}
           />
         ) : null}
         {peerConversation && active ? (

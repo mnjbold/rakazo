@@ -533,8 +533,11 @@ model Thread {
   historyCompactedUpToSeq     Int?
   historyCompactionSummary    String?    @db.Text
   historyCompactionGeneration Int        @default(0)
+  /// First message seq of the chat currently shown. Earlier messages belong to archived ChatSessions.
+  sessionStartSeq             Int        @default(0)
   unread                      Boolean    @default(false)
   messages                    Message[]
+  chatSessions                ChatSession[]
   events                      Event[]
   tasks                       Task[]
   runs                        Run[]
@@ -542,6 +545,23 @@ model Thread {
 
   @@index([spaceId])
   @@map("threads")
+}
+
+/// An archived chat of a bot's thread: messages with seq in [startSeq, endSeq]. Messages stay in
+/// the thread; the thread's sessionStartSeq moves past them when the user starts a new chat.
+model ChatSession {
+  id        String   @id @default(cuid())
+  threadId  String
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  startSeq  Int
+  endSeq    Int
+  title     String
+  /// Untrusted historical context for later chats: a model summary, or a transcript excerpt.
+  summary   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([threadId, startSeq])
+  @@map("chat_sessions")
 }
 
 model Message {

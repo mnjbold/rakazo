@@ -990,6 +990,14 @@ export const ThreadMessagePageSchema = z.object({
 });
 export type ThreadMessagePage = z.infer<typeof ThreadMessagePageSchema>;
 
+/** An archived chat of a bot; `createdAt` is when it was archived by starting a new chat. */
+export const ChatSessionSchema = z.object({
+  id: Id,
+  title: z.string(),
+  createdAt: z.string(),
+});
+export type ChatSession = z.infer<typeof ChatSessionSchema>;
+
 export const ThreadSnapshotSchema = z.object({
   threadId: Id,
   cursor: z.number().int().min(-1),

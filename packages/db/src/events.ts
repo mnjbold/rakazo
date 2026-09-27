@@ -295,6 +295,8 @@ export async function clearThread(
     });
     await tx.message.deleteMany({ where: { threadId: input.threadId } });
     await tx.event.deleteMany({ where: { threadId: input.threadId } });
+    // Archived chats and their summaries are conversation history too.
+    await tx.chatSession.deleteMany({ where: { threadId: input.threadId } });
     if (thread.nextMessageSeq > 0) {
       // nextMessageSeq is not reset, so mark every deleted message as already compacted.
       // Leaving the cursor behind would let compaction re-summarize deleted history (or, reset

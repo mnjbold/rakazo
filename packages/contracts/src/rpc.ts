@@ -26,6 +26,7 @@ import {
   BotSectionSchema,
   BotTemplateSchema,
   CapabilityInstallSchema,
+  ChatSessionSchema,
   ComputerModeSchema,
   ComputerReleaseReasonSchema,
   ComputerStatusSchema,
@@ -395,6 +396,8 @@ export const appContract = {
       .input(
         threadTarget.safeExtend({
           before: z.number().int().nonnegative().optional(),
+          /** An archived chat from `threads.sessions`; omitted means the current chat. */
+          sessionId: Id.optional(),
           includePeerRuns: z.boolean().optional(),
           includePeerReceipts: z.boolean().optional(),
           around: z
@@ -439,6 +442,9 @@ export const appContract = {
       )
       .output(z.object({ ok: z.literal(true) })),
     clear: oc.input(threadTarget).output(z.object({ ok: z.literal(true) })),
+    /** Archive the bot's current chat and start an empty one. Messages are kept. */
+    newChat: oc.input(botId).output(z.object({ ok: z.literal(true) })),
+    sessions: oc.input(botId).output(z.array(ChatSessionSchema)),
     answer: oc
       .input(
         threadTarget.safeExtend({

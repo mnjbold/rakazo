@@ -97,6 +97,7 @@ import {
   findModelCredential,
   InvalidSpaceNameError,
   isTooManyDatabaseConnections,
+  loadPreviousChatSessions,
   loadRunHistoryMessages,
   type McpServer,
   type Prisma,
@@ -212,6 +213,7 @@ import { handoffToGroupBot, loadGroupContext } from "./group-handoff.js";
 import {
   COMPACTION_BATCH_SIZE,
   formatCompactedSummary,
+  formatPreviousChatSessions,
   formatRecalledMemory,
   HISTORY_WINDOW_SIZE,
   historyWindowSize,
@@ -1215,7 +1217,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const [
           bot,
           thread,
-          messages,
+          threadMessages,
           peerMessage,
           task,
           storedConnections,
@@ -1265,6 +1267,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
             },
           }),
         ]);
+        // Earlier chats of this bot stay out of the verbatim history; their summaries are added below.
+        const messages =
+          thread.sessionStartSeq > 0
+            ? threadMessages.filter((message) => message.seq >= thread.sessionStartSeq)
+            : threadMessages;
         const agentEnvironment = decryptAgentEnvironment(agentSecretRows, deps.secretStore);
         runSecrets.push(...Object.values(agentEnvironment));
         const agentEnvironmentInstruction = formatAgentEnvironmentInstruction(agentEnvironment);
@@ -1405,21 +1412,30 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 context,
               )
             : Promise.resolve(null);
-        const [discovered, currentTurnImages, memoryContext, scratchpadContext, recalled] =
-          await Promise.all([
-            discoveredPromise,
-            loadCurrentTurnImages(deps, turnBlocks, context),
-            messagingChannelRun
-              ? Promise.resolve("")
-              : loadAgentMemoryContext(deps.memory, bot.id, context),
-            messagingChannelRun
-              ? Promise.resolve("")
-              : loadAgentScratchpadContext(deps, {
-                  spaceId: run.spaceId,
-                  botId: bot.id,
-                }),
-            recallPromise,
-          ]);
+        const [
+          discovered,
+          currentTurnImages,
+          memoryContext,
+          scratchpadContext,
+          recalled,
+          previousChats,
+        ] = await Promise.all([
+          discoveredPromise,
+          loadCurrentTurnImages(deps, turnBlocks, context),
+          messagingChannelRun
+            ? Promise.resolve("")
+            : loadAgentMemoryContext(deps.memory, bot.id, context),
+          messagingChannelRun
+            ? Promise.resolve("")
+            : loadAgentScratchpadContext(deps, {
+                spaceId: run.spaceId,
+                botId: bot.id,
+              }),
+          recallPromise,
+          threadContext.includeSemanticRecall && thread.sessionStartSeq > 0
+            ? loadPreviousChatSessions(deps.prisma, thread.id)
+            : Promise.resolve([]),
+        ]);
         const semanticMemoryEnabled = Boolean(semanticMemory) && !messagingChannelRun;
         let recalledMemory = "";
         let recallSucceeded = false;
@@ -3680,6 +3696,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
           .filter(Boolean)
           .join("\n\n");
         const historicalContext: AgentRunRequest["history"] = [];
+        const previousChatContext = formatPreviousChatSessions(previousChats);
+        if (previousChatContext) {
+          historicalContext.push({
+            role: "user",
+            content: redactSecrets(previousChatContext, runSecrets),
+          });
+        }
         if (compactedHistory.usedLocalSummary && compactedHistory.summary) {
           historicalContext.push({
             role: "user",

@@ -343,9 +343,19 @@ export async function threadSnapshot(
         botName: target.bot.name,
       }),
       deps.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR SHARE`;
+        const locked = await tx.$queryRaw<Array<{ sessionStartSeq: number }>>`
+          SELECT "sessionStartSeq" FROM threads WHERE id = ${target.threadId} FOR SHARE`;
         const [messagePage, last, waitingRun, busyOrFailed] = await Promise.all([
-          loadMessagePage(tx, target.threadId, undefined, THREAD_MESSAGE_PAGE_SIZE),
+          loadMessagePage(
+            tx,
+            target.threadId,
+            undefined,
+            THREAD_MESSAGE_PAGE_SIZE,
+            undefined,
+            false,
+            false,
+            { minSeq: locked?.[0]?.sessionStartSeq ?? 0 },
+          ),
           tx.event.findFirst({
             where: { threadId: target.threadId },
             orderBy: { seq: "desc" },

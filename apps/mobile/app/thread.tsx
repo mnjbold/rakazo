@@ -684,7 +684,27 @@ function Thread() {
       );
   }
 
+  function startNewChat() {
+    if (!botId) return;
+    setError(null);
+    void rpc("threads/newChat", { botId })
+      .then(() => {
+        expandedHistoryThread.current = null;
+        pinnedAroundRef.current = null;
+        historyEpoch.current += 1;
+        commitSnap(
+          snapRef.current
+            ? { ...snapRef.current, messages: [], olderCursor: null, run: null }
+            : snapRef.current,
+        );
+      })
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : t("Could not start a new chat")),
+      );
+  }
+
   const botActions = [
+    { text: t("New chat"), onPress: startNewChat },
     {
       text: t("Chat settings"),
       onPress: () =>
