@@ -1,6 +1,12 @@
 import { useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
-import type { MessageBlock, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
+import type {
+  LiveInterruption,
+  MessageBlock,
+  ThreadMessage,
+  ThreadSnapshot,
+} from "@rakazo/contracts";
+import { LIVE_INTERRUPTION_HEARD_MAX_LENGTH } from "@rakazo/contracts";
 import {
   isNoiseUtterance,
   isSecretAskBlock,
@@ -49,8 +55,8 @@ export function CallView({
   /** The bot's live computer screen, when it is running and embeddable. */
   screen: { url: string; sandbox?: string } | null;
   artifactTarget: ArtifactTarget;
-  onSend: (text: string) => Promise<void>;
-  onFollowUp: (text: string) => Promise<void>;
+  onSend: (text: string, interruption?: LiveInterruption) => Promise<void>;
+  onFollowUp: (text: string, interruption?: LiveInterruption) => Promise<void>;
   onAnswer: (message: ThreadMessage, text: string) => Promise<void>;
   onOpenComputer: () => void;
   onClose: () => void;
@@ -64,6 +70,8 @@ export function CallView({
   const phaseRef = useRef<Phase>("listening");
   const heardRef = useRef("");
   const spokenMessage = useRef<string | null>(null);
+  // The bot reply the person last talked over, sent with their next turn and then cleared.
+  const interruption = useRef<LiveInterruption | null>(null);
   const narrated = useRef(new Set<string>());
   const narrationRun = useRef<{ runId: string | null; count: number }>({ runId: null, count: 0 });
   const closing = useRef(false);
@@ -101,8 +109,14 @@ export function CallView({
   }
 
   function interrupt() {
-    if (phaseRef.current === "speaking") speaker.stop();
-    else dictation.stop("cancel");
+    if (phaseRef.current === "speaking") {
+      const { messageId } = speaker.state;
+      const spoken = speaker.state.heard?.trim().slice(0, LIVE_INTERRUPTION_HEARD_MAX_LENGTH);
+      if (messageId && spoken && !messageId.startsWith("narrate:")) {
+        interruption.current = { messageId, heard: spoken };
+      }
+      speaker.stop();
+    } else dictation.stop("cancel");
     void listen();
   }
 
@@ -148,13 +162,15 @@ export function CallView({
     heardRef.current = "";
     setError(null);
     const askMessage = current?.messages.find((message) => message.id === askId);
+    const talkedOver = interruption.current ?? undefined;
+    interruption.current = null;
     try {
       if (askMessage) {
         await onAnswer(askMessage, spokenDecision(text) ?? text);
       } else if (current?.run && RUN_ACTIVE.includes(current.run.status)) {
-        await onFollowUp(text);
+        await onFollowUp(text, talkedOver);
       } else {
-        await onSend(text);
+        await onSend(text, talkedOver);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t`Could not send that`);
@@ -164,6 +180,8 @@ export function CallView({
   }
 
   function say(text: string, messageId: string) {
+    // A newer reply replaces the one talked over; narration does not.
+    if (!messageId.startsWith("narrate:")) interruption.current = null;
     dictation.stop("cancel");
     void speaker.speak(text, { botId, messageId });
   }

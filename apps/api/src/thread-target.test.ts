@@ -966,6 +966,94 @@ function groupTarget() {
 }
 
 describe("sendThreadMessage", () => {
+  async function sendLive(input: {
+    live?: boolean;
+    interruption?: { messageId: string; heard: string };
+  }) {
+    const botMessages = [{ id: "bot-msg-1", threadId: "thread-1", role: "bot" }];
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
+      thread: {
+        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown } }) =>
+          data.nextMessageSeq ? { nextMessageSeq: 2 } : { nextEventSeq: 3 },
+        ),
+      },
+      message: {
+        create: vi.fn().mockResolvedValue({
+          id: "msg-1",
+          threadId: "thread-1",
+          seq: 1,
+          role: "user",
+          blocks: [{ kind: "text", text: "wait" }],
+          botId: null,
+          replyToMessageId: null,
+          runId: null,
+          createdAt: new Date(),
+        }),
+        findFirst: vi.fn(
+          async ({ where }: { where: { id: string; threadId: string; role: string } }) =>
+            botMessages.find(
+              (message) =>
+                message.id === where.id &&
+                message.threadId === where.threadId &&
+                message.role === where.role,
+            ) ?? null,
+        ),
+        update: vi.fn(),
+      },
+      run: {
+        findMany: vi.fn().mockResolvedValue([]),
+        findUnique: vi.fn().mockResolvedValue({ status: "queued" }),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          id: "run-new",
+          taskId: "task-new",
+          botId: "bot-1",
+          status: "queued",
+          ...data,
+        })),
+      },
+      event: { create: vi.fn().mockResolvedValue({ seq: 2, threadId: "thread-1" }) },
+      task: { create: vi.fn().mockResolvedValue({ id: "task-new" }) },
+    };
+    const prisma = {
+      message: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+    await sendThreadMessage(
+      {
+        prisma,
+        events: { notify: vi.fn().mockResolvedValue(undefined) } as never,
+        jobs: { enqueue: vi.fn().mockResolvedValue(undefined) } as never,
+      },
+      { spaceId: "workspace-1", userId: "user-1" } as Actor,
+      {
+        kind: "bot",
+        botId: "bot-1",
+        threadId: "thread-1",
+        bot: { computer: null },
+      } as ThreadTarget,
+      { text: "wait", clientNonce: "nonce-live", ...input },
+    );
+    return tx.run.create.mock.calls[0]?.[0].data.interruptedHeard;
+  }
+
+  it("keeps what was heard only for a live turn that interrupted a bot reply in this thread", async () => {
+    const heard = "Your flight leaves at nine.";
+    await expect(
+      sendLive({ live: true, interruption: { messageId: "bot-msg-1", heard } }),
+    ).resolves.toBe(heard);
+    // Another thread's message, the user's own message, or a non-live send are ignored.
+    await expect(
+      sendLive({ live: true, interruption: { messageId: "other-thread-msg", heard } }),
+    ).resolves.toBeUndefined();
+    await expect(
+      sendLive({ live: true, interruption: { messageId: "msg-1", heard } }),
+    ).resolves.toBeUndefined();
+    await expect(
+      sendLive({ live: false, interruption: { messageId: "bot-msg-1", heard } }),
+    ).resolves.toBeUndefined();
+  });
+
   it("answers a waiting question with a free-text chat message", async () => {
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),

@@ -129,3 +129,24 @@ export async function assertRunIsCancelled(
     throw new RunHistoryWriteError();
   }
 }
+
+/**
+ * What the person heard of a bot reply they talked over, kept only for a live turn whose
+ * interrupted message is a bot reply in this same thread. Anything else is ignored so a stale
+ * or foreign id never blocks the send.
+ */
+export async function resolveLiveInterruption(
+  tx: Prisma.TransactionClient,
+  input: {
+    threadId: string;
+    live?: boolean;
+    interruption?: { messageId: string; heard: string };
+  },
+): Promise<string | undefined> {
+  if (!input.live || !input.interruption) return undefined;
+  const message = await tx.message.findFirst({
+    where: { id: input.interruption.messageId, threadId: input.threadId, role: "bot" },
+    select: { id: true },
+  });
+  return message ? input.interruption.heard : undefined;
+}

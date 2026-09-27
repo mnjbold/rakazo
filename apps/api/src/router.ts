@@ -139,6 +139,7 @@ import {
   parseComputerMode,
   releaseSpaceDeletionClaim,
   renewSpaceDeletionClaim,
+  resolveLiveInterruption,
   restoreBotUnderComputerQuota,
   SPACE_DELETION_CLAIM_TIMEOUT_MS,
   SpaceDeletionInProgressError,
@@ -1808,6 +1809,7 @@ export function createRouter(deps: RouterDeps) {
             prompt: input.text,
             trigger: "follow_up",
             live: input.live,
+            interruption: input.interruption,
           });
           if (sent.taskId && sent.runId) {
             await deps.jobs.enqueue(runContinueJob(sent.runId)).catch((error) => {
@@ -1864,6 +1866,11 @@ export function createRouter(deps: RouterDeps) {
                 status: "queued",
                 trigger: "follow_up",
                 live: input.live,
+                interruptedHeard: await resolveLiveInterruption(tx, {
+                  threadId: target.threadId,
+                  live: input.live,
+                  interruption: input.interruption,
+                }),
                 sourceMessageId: message.id,
               },
               select: { id: true },

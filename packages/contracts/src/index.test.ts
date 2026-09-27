@@ -9,6 +9,7 @@ import {
   CreateGroupInput,
   CreateRoutineInput,
   canReactToThreadMessage,
+  LIVE_INTERRUPTION_HEARD_MAX_LENGTH,
   McpServerConfigInput,
   MessageBlock,
   ModelConnectInputSchema,
@@ -240,6 +241,34 @@ describe("contracts", () => {
     expect(send.safeParse({ ...target, text: "hi", live: "yes" }).success).toBe(false);
     expect(followUp.parse({ ...target, text: "hi", live: true })).toMatchObject({ live: true });
     expect(followUp.safeParse({ ...target, text: "hi", live: 1 }).success).toBe(false);
+  });
+
+  it("accepts a bounded live interruption on send and follow-up", () => {
+    const send = appContract.threads.send["~orpc"].inputSchema as z.ZodType;
+    const followUp = appContract.threads.followUp["~orpc"].inputSchema as z.ZodType;
+    const base = { botId: "bot_1", text: "wait", live: true };
+    const interruption = { messageId: "msg_1", heard: " Your flight leaves at nine. " };
+    for (const schema of [send, followUp]) {
+      expect(schema.parse({ ...base, interruption })).toMatchObject({
+        interruption: { messageId: "msg_1", heard: "Your flight leaves at nine." },
+      });
+      expect(schema.parse(base)).not.toHaveProperty("interruption");
+      expect(schema.safeParse({ ...base, interruption: { messageId: "msg_1" } }).success).toBe(
+        false,
+      );
+      expect(
+        schema.safeParse({ ...base, interruption: { messageId: "msg_1", heard: "  " } }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          ...base,
+          interruption: {
+            messageId: "msg_1",
+            heard: "a".repeat(LIVE_INTERRUPTION_HEARD_MAX_LENGTH + 1),
+          },
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it("exposes the product rpc surface", () => {

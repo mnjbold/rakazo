@@ -8,6 +8,8 @@ export interface SpeechSnapshot {
   botId?: string;
   messageId?: string;
   caption?: string;
+  /** While speaking: every utterance of this message spoken so far, including the current one. */
+  heard?: string;
   error?: string;
 }
 
@@ -133,6 +135,7 @@ export class Speaker {
         botId: opts.botId,
         messageId: opts.messageId,
         caption: utterances[i],
+        heard: utterances.slice(0, i + 1).join(" "),
       });
       const finished = await this.play(rendered.blob, live);
       if (!finished || !live()) {

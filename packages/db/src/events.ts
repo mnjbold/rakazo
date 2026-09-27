@@ -25,6 +25,7 @@ import {
   assertRunIsCancelled,
   createThreadMessageInTransaction,
   RunHistoryWriteError,
+  resolveLiveInterruption,
 } from "./messages.js";
 import { withTransactionRetry } from "./transaction-retry.js";
 
@@ -210,6 +211,8 @@ export interface SendUserMessageInput {
   allowParallelRun?: boolean;
   /** Mark a created run as a live voice call. */
   live?: boolean;
+  /** Live only: the bot reply this turn talked over and what of it was heard. */
+  interruption?: { messageId: string; heard: string };
 }
 
 export interface SendUserMessageResult {
@@ -427,6 +430,7 @@ export async function sendUserMessage(
             status: "queued",
             trigger: input.trigger,
             live: input.live,
+            interruptedHeard: await resolveLiveInterruption(tx, input),
             clientNonce: input.clientNonce ? `send:${message.id}` : undefined,
             sourceMessageId: message.id,
           },

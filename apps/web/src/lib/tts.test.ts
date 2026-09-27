@@ -36,6 +36,25 @@ describe("Speaker", () => {
     expect(speaker.state.status).toBe("idle");
   });
 
+  it("reports everything spoken so far while each utterance plays", async () => {
+    const speaker = new Speaker();
+    const internals = speaker as unknown as {
+      prepare: () => Promise<string[]>;
+      render: () => Promise<Blob>;
+      play: () => Promise<boolean>;
+    };
+    vi.spyOn(internals, "prepare").mockResolvedValue(["One.", "Two.", "Three."]);
+    vi.spyOn(internals, "render").mockResolvedValue(new Blob(["audio"]));
+    vi.spyOn(internals, "play").mockResolvedValue(true);
+    const heard: (string | undefined)[] = [];
+    speaker.subscribe((state) => {
+      if (state.status === "speaking") heard.push(state.heard);
+    });
+    await speaker.speak("One. Two. Three.", { messageId: "m1" });
+    expect(heard).toEqual(["One.", "One. Two.", "One. Two. Three."]);
+    expect(speaker.state.heard).toBeUndefined();
+  });
+
   it("resolves with an error snapshot instead of rejecting", async () => {
     const speaker = new Speaker();
     vi.spyOn(

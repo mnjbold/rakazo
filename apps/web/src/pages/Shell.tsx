@@ -11,6 +11,7 @@ import type {
   Connection,
   ConnectionCatalogItem,
   Group,
+  LiveInterruption,
   Me,
   ProductEvent,
   Routine,
@@ -2041,7 +2042,11 @@ export function ShellPage() {
     setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
   }, []);
   const sendMessage = useCallback(
-    async (text: string, mentions: ComposerMention[] = [], options?: { live?: boolean }) => {
+    async (
+      text: string,
+      mentions: ComposerMention[] = [],
+      options?: { live?: boolean; interruption?: LiveInterruption },
+    ) => {
       const initialBotTarget = activeBotId.current;
       const initialGroupTarget = activeGroupId.current;
       if ((!initialBotTarget && !initialGroupTarget) || sending) return;
@@ -2130,6 +2135,7 @@ export function ShellPage() {
             replyToMessageId: reroutedToGroup ? undefined : activeReplyTarget?.id,
             replyQuote: reroutedToGroup ? undefined : (activeReplyQuote ?? undefined),
             live: options?.live,
+            interruption: options?.interruption,
           });
         } else if (botTarget) {
           const sent = await rpc.threads.send({
@@ -2141,6 +2147,7 @@ export function ShellPage() {
             replyToMessageId: activeReplyTarget?.id,
             replyQuote: activeReplyQuote ?? undefined,
             live: options?.live,
+            interruption: options?.interruption,
           });
           if (activeBotId.current === botTarget) {
             updateSnapshot((current) =>
@@ -2195,12 +2202,15 @@ export function ShellPage() {
       t,
     ],
   );
-  const followUpMessage = useCallback(async (text: string, live?: boolean) => {
-    const id = activeBotId.current;
-    if (!id) return;
-    await rpc.threads.followUp({ botId: id, text, live });
-    await refreshThreadRef.current(id);
-  }, []);
+  const followUpMessage = useCallback(
+    async (text: string, live?: boolean, interruption?: LiveInterruption) => {
+      const id = activeBotId.current;
+      if (!id) return;
+      await rpc.threads.followUp({ botId: id, text, live, interruption });
+      await refreshThreadRef.current(id);
+    },
+    [],
+  );
   const stopRun = useCallback(async () => {
     if (sending) return;
     setSending(true);
@@ -3507,8 +3517,8 @@ export function ShellPage() {
                   : null
               }
               artifactTarget={transcriptArtifactTarget}
-              onSend={(text) => sendMessage(text, [], { live: true })}
-              onFollowUp={(text) => followUpMessage(text, true)}
+              onSend={(text, interruption) => sendMessage(text, [], { live: true, interruption })}
+              onFollowUp={(text, interruption) => followUpMessage(text, true, interruption)}
               onAnswer={answerMessage}
               onOpenComputer={() => setPanel("computer")}
               onClose={() => setCallOpen(false)}

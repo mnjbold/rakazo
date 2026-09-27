@@ -1,5 +1,9 @@
 import type { AgentRunRequest } from "@rakazo/adapter-kit";
-import { LIVE_CALL_INSTRUCTION, SILENT_REPLY_TOKEN } from "@rakazo/core";
+import {
+  LIVE_CALL_INSTRUCTION,
+  liveInterruptionInstruction,
+  SILENT_REPLY_TOKEN,
+} from "@rakazo/core";
 import { describe, expect, it, vi } from "vitest";
 import { createRunExecutor } from "./executor.js";
 import { NO_RESPONSE } from "./silent-reply.js";
@@ -10,7 +14,15 @@ vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
   provisionComputer: async () => ({ id: "computer-1", kind: "desktop" }),
 }));
 
-async function runOnce({ live, reply }: { live: boolean; reply: string }) {
+async function runOnce({
+  live,
+  reply,
+  interruptedHeard = null,
+}: {
+  live: boolean;
+  reply: string;
+  interruptedHeard?: string | null;
+}) {
   const run = {
     id: "run-1",
     botId: "bot-1",
@@ -21,6 +33,7 @@ async function runOnce({ live, reply }: { live: boolean; reply: string }) {
     status: "queued",
     trigger: "user",
     live,
+    interruptedHeard,
     leaseFence: 0,
   };
   const prisma = {
@@ -105,6 +118,17 @@ describe("live call runs", () => {
     expect(live.request.instructions).toContain(LIVE_CALL_INSTRUCTION);
     expect(chat.request.instructions).not.toContain(LIVE_CALL_INSTRUCTION);
     expect(live.request.allowSilentEmpty).toBe(true);
+  });
+
+  it("tells the model what was heard only for an interrupted live run", async () => {
+    const heard = "Your flight leaves at nine.";
+    const guidance = liveInterruptionInstruction(true, heard)!;
+    const interrupted = await runOnce({ live: true, reply: "Sure.", interruptedHeard: heard });
+    const plain = await runOnce({ live: true, reply: "Sure." });
+    const notLive = await runOnce({ live: false, reply: "Sure.", interruptedHeard: heard });
+    expect(interrupted.request.instructions).toContain(guidance);
+    expect(plain.request.instructions).not.toContain("interrupted your previous reply");
+    expect(notLive.request.instructions).not.toContain("interrupted your previous reply");
   });
 
   it("does not persist a silent reply as a chat bubble", async () => {

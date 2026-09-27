@@ -31,6 +31,7 @@ import {
   lockOwnedGroup,
   type Prisma,
   type PrismaClient,
+  resolveLiveInterruption,
   type ThreadEvents,
   touchGroupUpdatedAt,
 } from "@rakazo/db";
@@ -607,6 +608,7 @@ export async function sendThreadMessage(
     replyQuote?: string;
     clientNonce?: string;
     live?: boolean;
+    interruption?: { messageId: string; heard: string };
   },
 ) {
   const existing = await replayExistingSend(deps, target.threadId, input.clientNonce);
@@ -618,6 +620,11 @@ export async function sendThreadMessage(
 
   const commit = () =>
     deps.prisma.$transaction(async (tx) => {
+      const interruptedHeard = await resolveLiveInterruption(tx, {
+        threadId: target.threadId,
+        live: input.live,
+        interruption: input.interruption,
+      });
       let replyToMessageId: string | undefined;
       let replyQuote: string | undefined;
       if (input.replyToMessageId) {
@@ -779,6 +786,7 @@ export async function sendThreadMessage(
             status: "queued",
             trigger: "user",
             live: input.live,
+            interruptedHeard,
             clientNonce: sendRunClientNonce(input.clientNonce, message.id),
             sourceMessageId: message.id,
           },
@@ -926,6 +934,7 @@ export async function sendThreadMessage(
             status: "queued",
             trigger: "user",
             live: input.live,
+            interruptedHeard,
             clientNonce: sendRunClientNonce(input.clientNonce, message.id, botId),
             sourceMessageId: message.id,
           },

@@ -17,3 +17,16 @@ export const LIVE_CALL_INSTRUCTION = [
 export function liveCallInstruction(live: boolean | null | undefined): string | undefined {
   return live ? LIVE_CALL_INSTRUCTION : undefined;
 }
+
+/**
+ * Per-turn guidance when the person talked over the bot's previous spoken reply, so the model
+ * knows they heard only part of it. Only for live runs that carry what was heard.
+ */
+export function liveInterruptionInstruction(
+  live: boolean | null | undefined,
+  heard: string | null | undefined,
+): string | undefined {
+  const text = heard?.trim();
+  if (!live || !text) return undefined;
+  return `The person interrupted your previous reply; they heard only: ${JSON.stringify(text)}. Don't repeat what they heard; address what they just said, then finish anything important they missed only if it still matters.`;
+}

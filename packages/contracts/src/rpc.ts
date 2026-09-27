@@ -127,6 +127,15 @@ const structuredMentionTarget = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("connector"), id: Id }),
 ]);
 
+export const LIVE_INTERRUPTION_HEARD_MAX_LENGTH = 2000;
+
+/** The bot reply a live-call turn talked over, and the part of it that was actually spoken. */
+export const LiveInterruptionSchema = z.object({
+  messageId: Id,
+  heard: z.string().trim().min(1).max(LIVE_INTERRUPTION_HEARD_MAX_LENGTH),
+});
+export type LiveInterruption = z.infer<typeof LiveInterruptionSchema>;
+
 const threadSendInput = threadTarget
   .safeExtend({
     text: z.string().optional(),
@@ -141,6 +150,8 @@ const threadSendInput = threadTarget
     clientNonce: z.string().min(1).max(200).optional(),
     /** Sent from a live voice call: the bot answers briefly aloud or stays silent. */
     live: z.boolean().optional(),
+    /** Live only: the person talked over this bot reply after hearing part of it. */
+    interruption: LiveInterruptionSchema.optional(),
   })
   .superRefine((input, ctx) => {
     const text = input.text?.trim() ?? "";
@@ -410,6 +421,8 @@ export const appContract = {
           text: z.string().min(1),
           /** Same as `threads.send` `live`. */
           live: z.boolean().optional(),
+          /** Same as `threads.send` `interruption`. */
+          interruption: LiveInterruptionSchema.optional(),
         }),
       )
       .output(z.object({ ok: z.literal(true) })),

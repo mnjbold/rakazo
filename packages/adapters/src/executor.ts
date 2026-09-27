@@ -60,6 +60,7 @@ import {
   isSilentReply,
   isTerminal,
   liveCallInstruction,
+  liveInterruptionInstruction,
   messagingChannelId,
   messagingChannelPrivacyBlock,
   messagingDmSurfaceNote,
@@ -3789,7 +3790,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 pluginLine,
                 agentSkillsLine,
                 taughtSkillsLine,
-                replyGuidance: [runReplyGuidance(run.trigger), liveCallInstruction(run.live)]
+                replyGuidance: [
+                  runReplyGuidance(run.trigger),
+                  liveCallInstruction(run.live),
+                  liveInterruptionInstruction(run.live, run.interruptedHeard),
+                ]
                   .filter(Boolean)
                   .join("\n\n"),
               })

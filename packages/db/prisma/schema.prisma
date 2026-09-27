@@ -595,6 +595,8 @@ model Run {
   trigger              String
   /// Started from a live voice call: brief spoken replies, may stay silent.
   live                 Boolean          @default(false)
+  /// Live only: the part of the previous bot reply the person heard before talking over it.
+  interruptedHeard     String?
   modelProvider        String?
   modelId              String?
   error                String?
