@@ -1,7 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { BotAvatar, Tooltip, TooltipContent, TooltipTrigger } from "@rakazo/ui-web";
 import { Bot, Code2 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type AppRailProps = {
@@ -43,6 +43,7 @@ export function RailBot({
   unread,
   selected,
   onSelect,
+  onContextMenu,
 }: {
   id: string;
   name: string;
@@ -51,6 +52,7 @@ export function RailBot({
   unread?: boolean;
   selected: boolean;
   onSelect: () => void;
+  onContextMenu?: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <Tooltip>
@@ -59,6 +61,7 @@ export function RailBot({
         aria-label={name}
         aria-current={selected ? "page" : undefined}
         onClick={onSelect}
+        onContextMenu={onContextMenu}
         className={`relative flex size-10 shrink-0 items-center justify-center rounded-[11px] transition-colors ${
           selected ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60"
         }`}

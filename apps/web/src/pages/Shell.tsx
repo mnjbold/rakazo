@@ -2752,6 +2752,16 @@ export function ShellPage() {
                 unread={chat.unread}
                 selected={!inGroup && active?.id === chat.id}
                 onSelect={() => openSpaceChat(spaceId, `/app/${chat.id}`)}
+                onContextMenu={(event) => {
+                  if (spaceId !== bootstrapMe?.spaceId) return;
+                  event.preventDefault();
+                  botMenuAnchor.current = event.currentTarget;
+                  setBotMenu({
+                    kind: "bot",
+                    id: chat.id,
+                    position: { x: event.clientX, y: event.clientY },
+                  });
+                }}
               />
             ))
           : null}
