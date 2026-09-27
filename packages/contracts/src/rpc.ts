@@ -103,6 +103,7 @@ import {
   IntegrationSetupStateSchema,
 } from "./integration-settings.js";
 import { MessageReactionSchema } from "./reactions.js";
+import { ReplyQualitySummarySchema } from "./reply-quality.js";
 import { RunsListOutputSchema } from "./runs.js";
 import { SearchQueryOutputSchema } from "./search.js";
 
@@ -333,6 +334,7 @@ export const appContract = {
     list: oc.output(z.array(BotSchema)),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
+    replyQuality: oc.input(botId).output(ReplyQualitySummarySchema.nullable()),
     create: oc.input(CreateBotInput).output(BotSchema),
     draftFromImage: oc.input(BotImageDraftInput).output(BotImageDraftSchema),
     duplicate: oc.input(botId).output(BotSchema),

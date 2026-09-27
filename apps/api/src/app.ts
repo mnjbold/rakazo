@@ -8,6 +8,7 @@ import type {
   ManagedConnectorProvider,
   MessagingSurface,
   RealtimeFanout,
+  ReplyJudge,
   SandboxProvider,
   TransactionalEmailProvider,
 } from "@rakazo/adapter-kit";
@@ -27,6 +28,7 @@ import {
   createJobReconciler,
   createMessagingContextLoader,
   createMessagingTeamChatSender,
+  createReplyJudge,
   createRunExecutor,
   createRunSandbox,
   createRunSecretWriter,
@@ -139,9 +141,12 @@ export async function createApp(
     email?: TransactionalEmailProvider;
     remoteConnectors?: RemoteConnectorDependencies;
     logger?: Logger;
+    /** Reply self-review judge; defaults to TypeSafe Jev when TYPESAFE_API_KEY is set. */
+    replyJudge?: ReplyJudge | null;
   } = {},
 ): Promise<AppHandles> {
   const {
+    replyJudge: replyJudgeOverride,
     prisma: prismaOverride,
     realtime: realtimeOverride,
     sandbox: sandboxOverride,
@@ -377,6 +382,8 @@ export async function createApp(
     CLOUD_AGENT_SPACE_ID: env.cloudAgentSpaceId,
   });
   const shutdown = new AbortController();
+  const replyJudge =
+    replyJudgeOverride === undefined ? createReplyJudge(process.env) : replyJudgeOverride;
   const executor = createRunExecutor({
     prisma,
     runtime,
@@ -416,6 +423,7 @@ export async function createApp(
     web: createWebProvider(),
     cloudAgent,
     shutdownSignal: shutdown.signal,
+    judgeReplies: Boolean(replyJudge),
   });
 
   const jobHandlers = createBackgroundJobHandlers({
@@ -432,6 +440,7 @@ export async function createApp(
     deploymentModelKey: env.deploymentModelKey,
     messaging,
     cloudAgent,
+    replyJudge,
   });
   if (inMemoryJobs) {
     await inMemoryJobs.start(jobHandlers);

@@ -4,6 +4,7 @@ import type {
   BackgroundJobHandlers,
   JobPublisher,
   MessagingSurface,
+  ReplyJudge,
   SandboxProvider,
 } from "@rakazo/adapter-kit";
 import { messagingDeliverJob } from "@rakazo/adapter-kit";
@@ -18,6 +19,7 @@ import type { createRunExecutor } from "./executor.js";
 import { compactHistory, summarizeChatSession } from "./history-compaction.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import { deliverMessagingOutbound, mirrorMessagingOutbound } from "./messaging-delivery.js";
+import { judgeRunReply } from "./reply-quality.js";
 import type { EncryptedSecretStore } from "./secrets.js";
 import { expireTaughtSkillTeaching } from "./teaching-session.js";
 
@@ -35,6 +37,7 @@ export function createBackgroundJobHandlers(deps: {
   deploymentModelKey?: string;
   messaging?: MessagingSurface;
   cloudAgent?: CloudAgentConnection | null;
+  replyJudge?: ReplyJudge | null;
 }): BackgroundJobHandlers {
   const deliverMessaging = async (runId?: string) => {
     if (!deps.messaging) return;
@@ -112,6 +115,9 @@ export function createBackgroundJobHandlers(deps: {
     },
     "chat.session.summarize": async (payload) => {
       await summarizeChatSession(summarizerDeps, payload.sessionId);
+    },
+    "reply.judge": async (payload) => {
+      await judgeRunReply({ prisma: deps.prisma, judge: deps.replyJudge }, payload.runId);
     },
   };
 }

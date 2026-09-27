@@ -10,6 +10,7 @@ import type {
   Me,
   ModelCatalogEntry,
   ModelCredential,
+  ReplyQualitySummary,
   ThinkingLevel,
   VoiceInfo,
 } from "@rakazo/contracts";
@@ -698,6 +699,7 @@ export function BotSettings({
           }}
         />
       </div>
+      <ReplyQualityRow botId={bot.id} />
       <details
         data-testid="bot-settings-advanced"
         className="group mt-5"
@@ -854,6 +856,44 @@ export function BotSettings({
           <Trans>Clear conversation</Trans>
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** Shown only once the bot has judged replies or thumbs feedback. */
+function ReplyQualityRow({ botId }: { botId: string }) {
+  const [quality, setQuality] = useState<ReplyQualitySummary | null>(null);
+  useEffect(() => {
+    setQuality(null);
+    void rpc.bots
+      .replyQuality({ botId })
+      .then(setQuality)
+      .catch(() => setQuality(null));
+  }, [botId]);
+  if (!quality) return null;
+  return (
+    <div data-testid="bot-reply-quality" className="mt-4 pt-4 border-t border-border/20">
+      <div className="flex items-center justify-between text-[13.5px]">
+        <span className="font-medium text-foreground">
+          <Trans>Reply quality</Trans>
+        </span>
+        <span className="text-muted-foreground">
+          {quality.level === "good" ? (
+            <Trans>Good</Trans>
+          ) : quality.level === "mixed" ? (
+            <Trans>Mixed</Trans>
+          ) : (
+            <Trans>Needs work</Trans>
+          )}
+        </span>
+      </div>
+      {quality.lessons.length > 0 ? (
+        <ul className="mt-1.5 list-disc space-y-0.5 ps-4 text-[12px] text-muted-foreground/70">
+          {quality.lessons.map((lesson) => (
+            <li key={lesson}>{lesson}</li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

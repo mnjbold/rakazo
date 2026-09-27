@@ -23,6 +23,7 @@ const payloadSchemas = {
   "chat.session.summarize": z.object({ sessionId: z.string().min(1) }),
   "messaging.deliver": z.object({ runId: z.string().min(1).optional() }),
   "cloud_agent.poll": z.object({ agentId: z.string().min(1) }),
+  "reply.judge": z.object({ runId: z.string().min(1) }),
 } satisfies { [Name in BackgroundJobName]: z.ZodType<BackgroundJobPayloads[Name]> };
 
 export function parseBackgroundJob(name: string, payload: unknown): BackgroundJob {
@@ -148,6 +149,16 @@ export function chatSessionSummarizeJob(sessionId: string): BackgroundJob {
     payload: { sessionId },
     replaceKey: `chat.session.summarize:${sessionId}`,
     maxAttempts: HISTORY_COMPACT_MAX_ATTEMPTS,
+  };
+}
+
+/** One best-effort attempt: a judge outage must not queue paid retries. */
+export function replyJudgeJob(runId: string): BackgroundJob {
+  return {
+    name: "reply.judge",
+    payload: { runId },
+    replaceKey: `reply.judge:${runId}`,
+    maxAttempts: 1,
   };
 }
 

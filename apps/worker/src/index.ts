@@ -12,6 +12,7 @@ import {
   createJobReconciler,
   createMessagingContextLoader,
   createPostgresReconciliationLeadership,
+  createReplyJudge,
   createRunExecutor,
   createRunSandbox,
   createRunSecretWriter,
@@ -161,6 +162,7 @@ async function main() {
     });
   // One provider instance so emulator launches and polls share the same Map.
   const cloudAgent = createCloudAgentConnection();
+  const replyJudge = createReplyJudge(process.env);
   const executor = createRunExecutor({
     prisma,
     runtime,
@@ -198,6 +200,7 @@ async function main() {
     messaging: messaging ? createMessagingContextLoader(prisma) : undefined,
     web: createWebProvider(),
     cloudAgent,
+    judgeReplies: Boolean(replyJudge),
   });
 
   const jobHandlers = createBackgroundJobHandlers({
@@ -214,6 +217,7 @@ async function main() {
     deploymentModelKey,
     messaging,
     cloudAgent,
+    replyJudge,
   });
   // graphile-worker run() connects through the shared pool. createPool already
   // retries connect() on 53300 a finite number of times. Keep retrying start

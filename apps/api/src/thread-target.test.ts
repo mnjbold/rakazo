@@ -155,7 +155,7 @@ describe("reaction messages", () => {
     expect(tx.run.create).not.toHaveBeenCalled();
     expect(tx.message.findFirst).toHaveBeenCalledWith({
       where: { id: "parent", threadId: "thread-1" },
-      select: { id: true },
+      select: { id: true, role: true, runId: true, botId: true },
     });
     tx.message.findFirst.mockResolvedValueOnce(null);
     await expect(
@@ -166,6 +166,69 @@ describe("reaction messages", () => {
       }),
     ).rejects.toThrow();
     expect(tx.message.create).toHaveBeenCalledTimes(3);
+  });
+
+  it("records the bot owner's thumbs on a bot reply as reply feedback", async () => {
+    const upsert = vi.fn();
+    const botFindFirst = vi.fn().mockResolvedValue({ id: "bot-1" });
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      message: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ id: "parent", role: "bot", runId: "run-1", botId: "bot-1" }),
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn(async ({ data }: { data: object }) => ({ id: "reaction", ...data })),
+      },
+      thread: {
+        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown } }) =>
+          data.nextMessageSeq ? { nextMessageSeq: 1 } : { nextEventSeq: 1 },
+        ),
+      },
+      event: {
+        create: vi.fn(async ({ data }: { data: object }) => ({
+          id: "e",
+          createdAt: new Date(),
+          ...data,
+        })),
+      },
+      bot: { findFirst: botFindFirst },
+      replyQuality: { upsert },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+    const actor = { spaceId: "space-1", userId: "user-1" } as Actor;
+    const target = { kind: "bot", botId: "bot-1", threadId: "thread-1" } as ThreadTarget;
+
+    await reactToThreadMessage({ prisma }, actor, target, {
+      messageId: "parent",
+      reaction: "👎",
+      clientNonce: "n1",
+    });
+    expect(botFindFirst).toHaveBeenCalledWith({
+      where: { id: "bot-1", spaceId: "space-1", userId: "user-1" },
+      select: { id: true },
+    });
+    expect(upsert).toHaveBeenCalledWith({
+      where: { runId: "run-1" },
+      create: { runId: "run-1", botId: "bot-1", spaceId: "space-1", feedback: "down" },
+      update: { feedback: "down" },
+    });
+
+    await reactToThreadMessage({ prisma }, actor, target, {
+      messageId: "parent",
+      reaction: "❤️",
+      clientNonce: "n2",
+    });
+    botFindFirst.mockResolvedValueOnce(null);
+    await reactToThreadMessage({ prisma }, actor, target, {
+      messageId: "parent",
+      reaction: "👍",
+      clientNonce: "n3",
+    });
+    // Neither a non-thumbs reaction nor a non-owner's thumbs is recorded.
+    expect(upsert).toHaveBeenCalledTimes(1);
   });
 });
 
