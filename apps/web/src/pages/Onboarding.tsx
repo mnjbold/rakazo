@@ -17,6 +17,7 @@ import { createModelProbe, initialModelProbeState } from "@rakazo/core";
 import {
   Button,
   Input,
+  JewlMark,
   ModelThinkingOptions,
   Select,
   SelectContent,
@@ -381,7 +382,8 @@ export function OnboardingPage() {
         ) : null}
         {step === "model" ? (
           <div>
-            <h1 className="text-[32px] font-medium text-foreground">
+            <JewlMark glow className="mb-8 size-12" />
+            <h1 className="text-[32px] font-semibold leading-tight tracking-[-0.025em] text-foreground">
               <Trans>Connect a model</Trans>
             </h1>
             <div className="mt-8 block text-sm font-medium text-foreground">

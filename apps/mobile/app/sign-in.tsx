@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { JewlMark } from "../components/jewl-mark";
 import {
   apiBaseWarning,
   currentApiBase,
@@ -154,6 +155,9 @@ export default function SignIn() {
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
               keyboardShouldPersistTaps="handled"
             >
+              <View style={{ marginBottom: 28 }}>
+                <JewlMark />
+              </View>
               <Text
                 accessibilityRole="header"
                 style={{

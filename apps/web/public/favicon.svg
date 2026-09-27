@@ -1,12 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">Rakazo mark</title>
-  <defs>
-    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2965EC" />
-      <stop offset="1" stop-color="#5C89F8" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="148" fill="url(#blue)" />
-  <rect x="157" y="196" width="62" height="120" rx="31" fill="#F2F2F0" />
-  <rect x="293" y="196" width="62" height="120" rx="31" fill="#F2F2F0" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">JEWL</title>
+  <rect width="64" height="64" rx="14" fill="#0B0C0E" />
+  <g transform="translate(0.49230769230769056 -0.49230769230769056) scale(0.9846153846153847)" fill="#34D399" stroke="#34D399" stroke-width="2" stroke-linejoin="round"><path d="M20 8H24.7L18.7 22.5H7.3Z M27.3 8H36.7L42.7 22.5H21.3Z M39.3 8H44L56.7 22.5H45.3Z"/><path fill-rule="evenodd" d="M7.2 25.5H56.8L32 58Z M26.5 29A4 4 0 0 1 30.5 33V38A4 4 0 0 1 22.5 38V33A4 4 0 0 1 26.5 29Z M37.5 29A4 4 0 0 1 41.5 33V38A4 4 0 0 1 33.5 38V33A4 4 0 0 1 37.5 29Z"/></g>
 </svg>

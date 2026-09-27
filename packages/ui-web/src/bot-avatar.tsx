@@ -5,6 +5,7 @@ import {
   DEFAULT_GROK_BOT_COLOR,
   GROK_BOT_COLORS,
   GROK_COLOR_LIST,
+  JEWL_MARK,
   organicAvatarPath,
   PRODUCT_NAME,
   resolvePersonaColorDef,
@@ -375,13 +376,56 @@ export function GrokShapePreview({
   );
 }
 
+/**
+ * The JEWL mark: a cut gem whose two eye facets make it an agent. Paints in currentColor.
+ * `glow` sets it on a soft brand halo for entry screens; size the wrapper through `className`.
+ */
+export function JewlMark({
+  className,
+  title,
+  glow,
+}: {
+  className?: string;
+  title?: string;
+  glow?: boolean;
+}) {
+  if (glow) {
+    return (
+      <div className={cn("relative grid size-11 place-items-center", className)}>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-[90%] rounded-full bg-radial from-brand/20 via-brand/5 via-40% to-transparent to-70% motion-safe:animate-in motion-safe:fade-in motion-safe:duration-1000"
+        />
+        <JewlMark title={title} className="relative size-full" />
+      </div>
+    );
+  }
+  return (
+    <svg
+      viewBox={JEWL_MARK.viewBox}
+      className={cn("size-11 text-brand", className)}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : true}
+      aria-label={title}
+      data-jewl-mark=""
+    >
+      <g
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth={JEWL_MARK.strokeWidth}
+        strokeLinejoin="round"
+      >
+        <path d={JEWL_MARK.crown} />
+        <path fillRule="evenodd" d={JEWL_MARK.pavilion} />
+      </g>
+    </svg>
+  );
+}
+
 export function Wordmark({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <div className="flex h-11 w-11 items-center justify-center gap-1.5 rounded-full bg-brand">
-        <span className="h-4 w-[7px] rounded-full bg-background" />
-        <span className="h-4 w-[7px] rounded-full bg-background" />
-      </div>
+      <JewlMark className="size-11" />
       <span className="font-[Aeonik,ui-sans-serif] text-[28px] tracking-tight text-foreground">
         {PRODUCT_NAME}
       </span>

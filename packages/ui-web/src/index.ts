@@ -5,6 +5,7 @@ export {
   GROK_BOT_COLORS,
   GROK_MASCOT_SHAPES,
   GrokShapePreview,
+  JewlMark,
   parseBotAvatar,
   resolvePersonaColorDef,
   resolvePersonaShape,
