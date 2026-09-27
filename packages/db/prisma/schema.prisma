@@ -47,6 +47,7 @@ model User {
   botSecrets BotSecret[]
   agentSecrets               AgentSecret[]
   botTemplates               BotTemplate[]
+  marketplaceItems           MarketplaceItem[]
 
   @@unique([email])
   @@map("user")
@@ -177,6 +178,7 @@ model Space {
   memberships                 SpaceMember[]
   bots                        Bot[]
   botTemplates                BotTemplate[]
+  marketplaceItems            MarketplaceItem[]
   botSections                 BotSection[]
   botDeletions                BotDeletion[]
   threads                     Thread[]
@@ -420,6 +422,33 @@ model BotTemplate {
   @@index([visibility, createdAt])
   @@index([userId])
   @@map("bot_templates")
+}
+
+/// Shared agent skills and tool-source configs. Only public fields are copied in;
+/// credentials stay with the source install and never reach this table.
+model MarketplaceItem {
+  id          String   @id @default(cuid())
+  spaceId     String
+  space       Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// skill | plugin
+  kind        String
+  /// space | public
+  visibility  String
+  name        String
+  description String   @default("")
+  /// SKILL.md for skills.
+  content     String   @default("")
+  /// Public tool-source config for plugins: kind, source URL, auth type, operations.
+  config      Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([spaceId, createdAt])
+  @@index([visibility, createdAt])
+  @@index([userId])
+  @@map("marketplace_items")
 }
 
 model BotSection {

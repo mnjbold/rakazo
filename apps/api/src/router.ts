@@ -183,6 +183,7 @@ import {
   rollbackDokploy,
 } from "./dokploy.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
+import { createMarketplaceService } from "./marketplace.js";
 import { buildMcpUpdateMaterial } from "./mcp-material.js";
 import {
   disconnectMemoryProvider,
@@ -631,6 +632,136 @@ export function createRouter(deps: RouterDeps) {
       throw mapSpaceLifecycleError(error);
     }),
   );
+
+  async function installCapability(
+    actor: Actor,
+    input: {
+      kind: "skill" | "plugin" | "mcp" | "api" | "graphql";
+      name: string;
+      source: string;
+      config: Record<string, unknown>;
+      credential?: string;
+    },
+    signal?: AbortSignal,
+  ) {
+    let source = input.source.trim();
+    let config = input.config;
+    const credential = input.credential?.trim() || undefined;
+    if (
+      credential &&
+      credential.length >= 8 &&
+      (source.includes(credential) || containsSecret(config, [credential]))
+    ) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Put credentials only in the encrypted credential field",
+      });
+    }
+    if (JSON.stringify(config).length > 2_000_000) {
+      throw new ORPCError("BAD_REQUEST", { message: "Capability configuration is too large" });
+    }
+    if (credential && input.kind !== "mcp" && input.kind !== "api" && input.kind !== "graphql") {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Credentials are only accepted for MCP, API, and GraphQL tool sources",
+      });
+    }
+    try {
+      if (input.kind === "mcp") {
+        if (config.preset === "treg") {
+          source = "https://treg.to/mcp/";
+          config = { ...config, preset: "treg", auth: { type: "bearer" } };
+        }
+        const verified = await verifyMcpInstall({
+          source,
+          config,
+          credential,
+          signal: signal,
+          remote: deps.remoteConnectors,
+        });
+        config = verified.config;
+      }
+      if (input.kind === "api") {
+        const prepared = await prepareApiInstall({
+          source,
+          config,
+          credential,
+          signal: signal,
+          remote: deps.remoteConnectors,
+        });
+        source = prepared.source;
+        config = prepared.config;
+      }
+      if (input.kind === "graphql") {
+        const prepared = await prepareGraphqlInstall({
+          source,
+          config,
+          credential,
+          signal: signal,
+          remote: deps.remoteConnectors,
+        });
+        source = prepared.source;
+        config = prepared.config;
+      }
+    } catch (error) {
+      const message = sanitizeComposioError(error);
+      throw new ORPCError("BAD_REQUEST", {
+        message: credential ? message.split(credential).join("[redacted]") : message,
+      });
+    }
+    const stored = credential
+      ? await deps.secrets.put(credential, {
+          operationId: "capabilities.install",
+          traceId: "capabilities.install",
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          signal: signal ?? new AbortController().signal,
+        })
+      : undefined;
+    const digest = `sha256:${createHash("sha256")
+      .update(JSON.stringify({ kind: input.kind, source, config }))
+      .digest("hex")}`;
+    const row = await deps.prisma.$transaction(async (tx) => {
+      if (stored) {
+        await tx.secret.create({
+          data: {
+            id: stored.id,
+            spaceId: actor.spaceId,
+            userId: actor.userId,
+            kind: "connector",
+            ciphertext: stored.ciphertext,
+          },
+        });
+      }
+      return tx.capabilityInstall.create({
+        data: {
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          kind: input.kind,
+          name: input.name.trim(),
+          source,
+          secretId: stored?.id,
+          config: config as Prisma.InputJsonValue,
+          digest,
+          version: "1.0.0",
+        },
+      });
+    });
+    return {
+      id: row.id,
+      kind: row.kind as "skill" | "plugin" | "mcp" | "api" | "connection",
+      name: row.name,
+      source: row.source,
+      version: row.version,
+      digest: row.digest,
+      secretConfigured: Boolean(row.secretId),
+      config: row.config as Record<string, unknown>,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  const marketplace = createMarketplaceService(deps.prisma, {
+    createSkill: (actor, input) => agentSkills.create(actor, input),
+    installPlugin: (actor, input) => installCapability(actor, input),
+  });
 
   const authed = os.use(async ({ context, next }) => {
     if (!context.actor) throw new ORPCError("UNAUTHORIZED");
@@ -1552,6 +1683,18 @@ export function createRouter(deps: RouterDeps) {
         });
         return bot;
       }),
+    },
+    marketplace: {
+      list: authed.marketplace.list.handler(({ context }) => marketplace.list(context.actor)),
+      share: authed.marketplace.share.handler(({ context, input }) =>
+        marketplace.share(context.actor, input),
+      ),
+      remove: authed.marketplace.remove.handler(({ context, input }) =>
+        marketplace.remove(context.actor, input.itemId),
+      ),
+      install: authed.marketplace.install.handler(({ context, input }) =>
+        marketplace.install(context.actor, input),
+      ),
     },
     groups: {
       create: authed.groups.create.handler(async ({ context, input }) => {
@@ -3019,125 +3162,9 @@ export function createRouter(deps: RouterDeps) {
           });
         }
       }),
-      install: authed.capabilities.install.handler(async ({ context, input }) => {
-        let source = input.source.trim();
-        let config = input.config;
-        const credential = input.credential?.trim() || undefined;
-        if (
-          credential &&
-          credential.length >= 8 &&
-          (source.includes(credential) || containsSecret(config, [credential]))
-        ) {
-          throw new ORPCError("BAD_REQUEST", {
-            message: "Put credentials only in the encrypted credential field",
-          });
-        }
-        if (JSON.stringify(config).length > 2_000_000) {
-          throw new ORPCError("BAD_REQUEST", { message: "Capability configuration is too large" });
-        }
-        if (
-          credential &&
-          input.kind !== "mcp" &&
-          input.kind !== "api" &&
-          input.kind !== "graphql"
-        ) {
-          throw new ORPCError("BAD_REQUEST", {
-            message: "Credentials are only accepted for MCP, API, and GraphQL tool sources",
-          });
-        }
-        try {
-          if (input.kind === "mcp") {
-            if (config.preset === "treg") {
-              source = "https://treg.to/mcp/";
-              config = { ...config, preset: "treg", auth: { type: "bearer" } };
-            }
-            const verified = await verifyMcpInstall({
-              source,
-              config,
-              credential,
-              signal: context.signal,
-              remote: deps.remoteConnectors,
-            });
-            config = verified.config;
-          }
-          if (input.kind === "api") {
-            const prepared = await prepareApiInstall({
-              source,
-              config,
-              credential,
-              signal: context.signal,
-              remote: deps.remoteConnectors,
-            });
-            source = prepared.source;
-            config = prepared.config;
-          }
-          if (input.kind === "graphql") {
-            const prepared = await prepareGraphqlInstall({
-              source,
-              config,
-              credential,
-              signal: context.signal,
-              remote: deps.remoteConnectors,
-            });
-            source = prepared.source;
-            config = prepared.config;
-          }
-        } catch (error) {
-          const message = sanitizeComposioError(error);
-          throw new ORPCError("BAD_REQUEST", {
-            message: credential ? message.split(credential).join("[redacted]") : message,
-          });
-        }
-        const stored = credential
-          ? await deps.secrets.put(credential, {
-              operationId: "capabilities.install",
-              traceId: "capabilities.install",
-              spaceId: context.actor.spaceId,
-              userId: context.actor.userId,
-              signal: context.signal ?? new AbortController().signal,
-            })
-          : undefined;
-        const digest = `sha256:${createHash("sha256")
-          .update(JSON.stringify({ kind: input.kind, source, config }))
-          .digest("hex")}`;
-        const row = await deps.prisma.$transaction(async (tx) => {
-          if (stored) {
-            await tx.secret.create({
-              data: {
-                id: stored.id,
-                spaceId: context.actor.spaceId,
-                userId: context.actor.userId,
-                kind: "connector",
-                ciphertext: stored.ciphertext,
-              },
-            });
-          }
-          return tx.capabilityInstall.create({
-            data: {
-              spaceId: context.actor.spaceId,
-              userId: context.actor.userId,
-              kind: input.kind,
-              name: input.name.trim(),
-              source,
-              secretId: stored?.id,
-              config: config as Prisma.InputJsonValue,
-              digest,
-              version: "1.0.0",
-            },
-          });
-        });
-        return {
-          id: row.id,
-          kind: row.kind as "skill" | "plugin" | "mcp" | "api" | "connection",
-          name: row.name,
-          source: row.source,
-          version: row.version,
-          digest: row.digest,
-          secretConfigured: Boolean(row.secretId),
-          config: row.config as Record<string, unknown>,
-          createdAt: row.createdAt.toISOString(),
-        };
-      }),
+      install: authed.capabilities.install.handler(({ context, input }) =>
+        installCapability(context.actor, input, context.signal),
+      ),
       remove: authed.capabilities.remove.handler(async ({ context, input }) => {
         await deps.prisma.$transaction(async (tx) => {
           const existing = await tx.capabilityInstall.findFirst({
