@@ -15,6 +15,12 @@ body,
   font-family: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* viewport-fit=cover: keep the shell clear of the notch and home indicator. */
+#root {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
 .rk-scroll::-webkit-scrollbar {
   width: 6px;
 }
