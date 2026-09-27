@@ -64,11 +64,15 @@ describe("window chrome", () => {
     const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "../pages");
     const shell = readFileSync(path.join(root, "Shell.tsx"), "utf8");
     expect(shell).toContain(
-      'className="app-drag flex items-center justify-between border-b border-sidebar-border',
+      'className="app-drag flex items-center justify-between gap-2 border-b border-sidebar-border',
     );
-    expect(shell).toContain('className="app-no-drag grid h-8 w-8');
+    expect(shell).toContain('className="app-no-drag grid size-11 shrink-0');
     expect(shell).toContain('className="app-no-drag flex min-w-0 items-center gap-3"');
-    expect(shell.match(/className="app-no-drag grid h-\[30px\] w-\[34px\]/g)).toHaveLength(1);
+    expect(
+      shell.match(
+        /className="app-no-drag grid size-11 place-items-center rounded-full hover:bg-accent/g,
+      ),
+    ).toHaveLength(1);
   });
 
   it("moves window chrome into the conversation header when the bots sidebar is collapsed", () => {

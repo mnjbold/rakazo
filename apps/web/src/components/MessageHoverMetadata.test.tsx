@@ -22,6 +22,7 @@ describe("MessageHoverMetadata", () => {
     expect(html).toContain("@media(hover:hover)_and_(pointer:fine)");
     expect(html).toContain("group-hover/message:opacity-100");
     expect(html).toContain("focus-within:opacity-100");
+    expect(html).toContain("group-data-[touch-actions=open]/message:opacity-100");
   });
 
   it("mirrors user actions flush to the left of the bubble", () => {

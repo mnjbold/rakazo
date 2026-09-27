@@ -358,7 +358,7 @@ test("reply preview jumps to parent outside the loaded page", async ({ page }) =
 test.describe("touch message actions", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
-  test("More exposes actions without simulated hover", async ({ page }, testInfo) => {
+  test("touch reveals message actions on tap or long-press", async ({ page }, testInfo) => {
     await signup(page, `touch-actions-${Date.now()}@rakazo.test`, "password12", "Touch Actions");
     await completeOnboarding(page);
     expect(
@@ -376,16 +376,34 @@ test.describe("touch message actions", () => {
       .filter({ has: botText })
       .first();
     const rail = row.getByTestId("message-hover-rail");
+    const bubble = row.getByTestId("message-bot-bubble").first();
+    // Touch hides the actions until the bubble is tapped or long-pressed.
+    await expect(rail).toHaveCSS("opacity", "0");
+    await expect(rail).toHaveCSS("pointer-events", "none");
+    await captureScreenshot(page, testInfo, "message-actions-touch-rest");
+    await bubble.tap();
     await expect(rail).toHaveCSS("opacity", "1");
+    await expect(row.getByTestId("message-hover-time")).toHaveCSS("opacity", "1");
     await expect(rail.getByRole("button", { name: "Reply", exact: true })).toBeHidden();
+    await captureScreenshot(page, testInfo, "message-actions-touch-open");
+    // Tapping elsewhere hides them again.
+    await page.getByTestId("transcript").tap({ position: { x: 200, y: 8 } });
+    await expect(rail).toHaveCSS("opacity", "0");
+    // Long-press reveals them too.
+    await bubble.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true });
+    await page.waitForTimeout(600);
+    await bubble.dispatchEvent("pointerup", { pointerType: "touch", isPrimary: true });
+    await expect(rail).toHaveCSS("opacity", "1");
     await rail.getByRole("button", { name: "React", exact: true }).tap();
     await expect(page.getByRole("button", { name: "🎉", exact: true })).toBeVisible();
     await captureScreenshot(page, testInfo, "message-reaction-picker-touch");
     await page.getByRole("button", { name: "🎉", exact: true }).tap();
     await expect(row.getByTestId("message-reactions")).toHaveText("🎉");
+    await bubble.tap();
     await rail.getByRole("button", { name: "React", exact: true }).tap();
     await page.getByRole("button", { name: "🎉", exact: true }).tap();
     await expect(row.getByTestId("message-reactions")).toHaveText("🎉 2");
+    await bubble.tap();
     await rail.getByRole("button", { name: "More" }).tap();
     await expect(page.getByRole("menuitem", { name: "Copy" })).toBeVisible();
     await expect(row.getByTestId("message-hover-time")).toHaveCSS("opacity", "1");

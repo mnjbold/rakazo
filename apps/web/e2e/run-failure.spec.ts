@@ -67,8 +67,8 @@ test("a covered run error is not remembered until it is presented", async ({ pag
   await page.getByPlaceholder(/^Message /).fill("fail this run");
   const sendButton = await page.getByRole("button", { name: "Send" }).elementHandle();
   if (!sendButton) throw new Error("Send button not found");
-  await page.getByRole("button", { name: "Open navigation" }).click();
-  await expect(page.getByRole("button", { name: "Close navigation" })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByTestId("bots-sidebar")).toBeInViewport();
   await expect(page.locator("main")).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator("main")).toHaveJSProperty("inert", true);
   await sendButton.evaluate((button) => (button as HTMLButtonElement).click());
@@ -91,11 +91,14 @@ test("a covered run error is not remembered until it is presented", async ({ pag
   await page.getByPlaceholder(/^Message /).fill("fail this run");
   const nextSendButton = await page.getByRole("button", { name: "Send" }).elementHandle();
   if (!nextSendButton) throw new Error("Send button not found");
-  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
   await nextSendButton.evaluate((button) => (button as HTMLButtonElement).click());
   await expect(error).toContainText("Scripted run failure", { timeout: 30_000 });
 
-  await page.getByRole("button", { name: "Close navigation" }).click();
+  await page
+    .getByTestId("bots-sidebar")
+    .getByRole("button", { name: /^Chief/ })
+    .click();
   await expect.poll(() => isPresented(error)).toBe(true);
   await expect.poll(() => seenRunErrorCount(page)).toBe(recordedErrorCount + 1);
   await captureScreenshot(page, testInfo, "covered-run-error-presented-after-drawer-close");
@@ -104,7 +107,7 @@ test("a covered run error is not remembered until it is presented", async ({ pag
   await expect(page.getByTestId("shell-root")).toHaveAttribute("data-ready", "true");
   await expect(error).toBeHidden();
 
-  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
   await expect(page.locator("main")).toHaveJSProperty("inert", true);
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.locator("main")).not.toHaveAttribute("aria-hidden", "true");
