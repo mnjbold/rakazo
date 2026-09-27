@@ -842,6 +842,17 @@ export const MessagingStatusSchema = z.object({
 });
 export type MessagingStatus = z.infer<typeof MessagingStatusSchema>;
 
+/** A deployment line paired by QR code (WhatsApp Web gateways); owner-only. */
+export const MessagingLineSchema = z.object({
+  provider: z.string(),
+  state: z.enum(["connected", "pairing", "disconnected"]),
+  /** Paired phone number once connected. */
+  address: z.string().nullable(),
+  /** QR image data URL, present only while pairing. */
+  qr: z.string().nullable(),
+});
+export type MessagingLine = z.infer<typeof MessagingLineSchema>;
+
 export const MessagingChannelMembershipSchema = z.object({
   /** One row per linked identity: the same group can hold two of the caller's. */
   id: Id,

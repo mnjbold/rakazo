@@ -102,6 +102,10 @@ msgstr "{days}d ago"
 msgid "{hours}h ago"
 msgstr "{hours}h ago"
 
+#: src/pages/MessagingSettingsOverlay.tsx:464
+msgid "{label} QR code"
+msgstr "{label} QR code"
+
 #: src/lib/relative-time.ts:10
 #: src/pages/ActivityList.tsx:136
 msgid "{minutes}m ago"
@@ -338,7 +342,7 @@ msgstr "Advanced..."
 msgid "Agent computer"
 msgstr "Agent computer"
 
-#: src/pages/MessagingSettingsOverlay.tsx:261
+#: src/pages/MessagingSettingsOverlay.tsx:263
 msgid "Agent connections"
 msgstr "Agent connections"
 
@@ -457,8 +461,8 @@ msgstr "Application"
 msgid "Approval boundaries"
 msgstr "Approval boundaries"
 
-#: src/pages/MessagingSettingsOverlay.tsx:223
-#: src/pages/MessagingSettingsOverlay.tsx:296
+#: src/pages/MessagingSettingsOverlay.tsx:225
+#: src/pages/MessagingSettingsOverlay.tsx:298
 #: src/pages/shell/message-cards.tsx:398
 msgid "Approve"
 msgstr "Approve"
@@ -638,7 +642,7 @@ msgstr "Bot screen"
 msgid "Bot screen preview"
 msgstr "Bot screen preview"
 
-#: src/pages/MessagingSettingsOverlay.tsx:151
+#: src/pages/MessagingSettingsOverlay.tsx:153
 msgid "Bot to link"
 msgstr "Bot to link"
 
@@ -717,7 +721,7 @@ msgstr "Change password"
 msgid "Changing…"
 msgstr "Changing…"
 
-#: src/pages/MessagingSettingsOverlay.tsx:190
+#: src/pages/MessagingSettingsOverlay.tsx:192
 msgid "Channels"
 msgstr "Channels"
 
@@ -725,7 +729,7 @@ msgstr "Channels"
 msgid "Chart failed to render: {error}"
 msgstr "Chart failed to render: {error}"
 
-#: src/pages/MessagingSettingsOverlay.tsx:112
+#: src/pages/MessagingSettingsOverlay.tsx:113
 msgid "Chat apps"
 msgstr "Chat apps"
 
@@ -769,7 +773,7 @@ msgstr "Checkout has local changes. Clean it before updating."
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "Choose a bot shape, color, or upload an image"
 
-#: src/pages/MessagingSettingsOverlay.tsx:158
+#: src/pages/MessagingSettingsOverlay.tsx:160
 msgid "Choose a bot…"
 msgstr "Choose a bot…"
 
@@ -812,7 +816,7 @@ msgid "Client secret"
 msgstr "Client secret"
 
 #: src/pages/KnowledgeSection.tsx:438
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/PeerMessagesOverlay.tsx:91
 #: src/pages/PeerMessagesOverlay.tsx:92
 #: src/pages/RoutineEditor.tsx:272
@@ -846,7 +850,7 @@ msgstr "Close MCP servers"
 msgid "Close memory settings"
 msgstr "Close memory settings"
 
-#: src/pages/MessagingSettingsOverlay.tsx:101
+#: src/pages/MessagingSettingsOverlay.tsx:102
 msgid "Close messaging settings"
 msgstr "Close messaging settings"
 
@@ -1445,7 +1449,7 @@ msgstr "Could not update reaction"
 msgid "Could not update the default memory scope"
 msgstr "Could not update the default memory scope"
 
-#: src/pages/MessagingSettingsOverlay.tsx:53
+#: src/pages/MessagingSettingsOverlay.tsx:54
 msgid "Couldn't load messaging settings"
 msgstr "Couldn't load messaging settings"
 
@@ -1453,7 +1457,8 @@ msgstr "Couldn't load messaging settings"
 msgid "Couldn't update avatars"
 msgstr "Couldn't update avatars"
 
-#: src/pages/MessagingSettingsOverlay.tsx:66
+#: src/pages/MessagingSettingsOverlay.tsx:67
+#: src/pages/MessagingSettingsOverlay.tsx:404
 msgid "Couldn't update messaging settings"
 msgstr "Couldn't update messaging settings"
 
@@ -1563,8 +1568,8 @@ msgstr "Day-to-day work"
 msgid "days"
 msgstr "days"
 
-#: src/pages/MessagingSettingsOverlay.tsx:237
-#: src/pages/MessagingSettingsOverlay.tsx:310
+#: src/pages/MessagingSettingsOverlay.tsx:239
+#: src/pages/MessagingSettingsOverlay.tsx:312
 msgid "Decline"
 msgstr "Decline"
 
@@ -1881,7 +1886,7 @@ msgid "Export this week's list from the CRM and drop it in the shared folder"
 msgstr "Export this week's list from the CRM and drop it in the shared folder"
 
 #: src/pages/ExternalConversationSettings.tsx:84
-#: src/pages/MessagingSettingsOverlay.tsx:351
+#: src/pages/MessagingSettingsOverlay.tsx:353
 msgid "External conversation"
 msgstr "External conversation"
 
@@ -1999,7 +2004,7 @@ msgstr "Getting ready"
 msgid "Git event"
 msgstr "Git event"
 
-#: src/pages/MessagingSettingsOverlay.tsx:204
+#: src/pages/MessagingSettingsOverlay.tsx:206
 #: src/pages/Shell.tsx:3414
 #: src/pages/Shell.tsx:3600
 msgid "Group"
@@ -2215,7 +2220,7 @@ msgstr "Language"
 msgid "Later"
 msgstr "Later"
 
-#: src/pages/MessagingSettingsOverlay.tsx:249
+#: src/pages/MessagingSettingsOverlay.tsx:251
 msgid "Leave"
 msgstr "Leave"
 
@@ -2227,7 +2232,11 @@ msgstr "Light"
 msgid "Linear issue"
 msgstr "Linear issue"
 
-#: src/pages/MessagingSettingsOverlay.tsx:175
+#: src/pages/MessagingSettingsOverlay.tsx:456
+msgid "Link {label}"
+msgstr "Link {label}"
+
+#: src/pages/MessagingSettingsOverlay.tsx:177
 msgid "Link a chat app"
 msgstr "Link a chat app"
 
@@ -2474,7 +2483,7 @@ msgid "Messaged {peer}"
 msgstr "Messaged {peer}"
 
 #: src/pages/AccountSettingsOverlay.tsx:103
-#: src/pages/MessagingSettingsOverlay.tsx:98
+#: src/pages/MessagingSettingsOverlay.tsx:99
 msgid "Messaging"
 msgstr "Messaging"
 
@@ -2634,7 +2643,7 @@ msgstr "New skill"
 msgid "New space"
 msgstr "New space"
 
-#: src/pages/MessagingSettingsOverlay.tsx:265
+#: src/pages/MessagingSettingsOverlay.tsx:267
 msgid "No agent connections yet."
 msgstr "No agent connections yet."
 
@@ -2662,7 +2671,7 @@ msgstr "No bots"
 msgid "No bots match"
 msgstr "No bots match"
 
-#: src/pages/MessagingSettingsOverlay.tsx:146
+#: src/pages/MessagingSettingsOverlay.tsx:148
 msgid "No chat apps linked yet."
 msgstr "No chat apps linked yet."
 
@@ -2670,7 +2679,7 @@ msgstr "No chat apps linked yet."
 msgid "No exceptions. Actions run automatically."
 msgstr "No exceptions. Actions run automatically."
 
-#: src/pages/MessagingSettingsOverlay.tsx:194
+#: src/pages/MessagingSettingsOverlay.tsx:196
 msgid "No group chats yet."
 msgstr "No group chats yet."
 
@@ -2727,7 +2736,7 @@ msgstr "No runs yet"
 msgid "No skills yet"
 msgstr "No skills yet"
 
-#: src/pages/MessagingSettingsOverlay.tsx:340
+#: src/pages/MessagingSettingsOverlay.tsx:342
 msgid "No team conversations yet."
 msgstr "No team conversations yet."
 
@@ -3299,7 +3308,7 @@ msgstr "rev {0}"
 msgid "Review required before any Dokploy change."
 msgstr "Review required before any Dokploy change."
 
-#: src/pages/MessagingSettingsOverlay.tsx:324
+#: src/pages/MessagingSettingsOverlay.tsx:326
 msgid "Revoke"
 msgstr "Revoke"
 
@@ -3424,6 +3433,10 @@ msgstr "Saving…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Say yes or no, or answer in a sentence."
 
+#: src/pages/MessagingSettingsOverlay.tsx:468
+msgid "Scan in {label} › Linked devices."
+msgstr "Scan in {label} › Linked devices."
+
 #: src/pages/ModelSettingsOverlay.tsx:1118
 #: src/pages/PluginsOverlay.tsx:877
 #: src/pages/Shell.tsx:2826
@@ -3483,7 +3496,7 @@ msgstr "Select a bot"
 msgid "Send"
 msgstr "Send"
 
-#: src/pages/MessagingSettingsOverlay.tsx:180
+#: src/pages/MessagingSettingsOverlay.tsx:182
 msgid "Send <0>{linkCode}</0> to the line from your chat app within 10 minutes. You'll get a confirmation reply once linked."
 msgstr "Send <0>{linkCode}</0> to the line from your chat app within 10 minutes. You'll get a confirmation reply once linked."
 
@@ -3539,7 +3552,7 @@ msgstr "Service name"
 msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
 msgstr "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
 
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/SettingsOverlay.tsx:94
 #: src/pages/SettingsOverlay.tsx:149
 #: src/pages/Shell.tsx:3277
@@ -3814,7 +3827,7 @@ msgstr "Team"
 msgid "Team Computer"
 msgstr "Team Computer"
 
-#: src/pages/MessagingSettingsOverlay.tsx:336
+#: src/pages/MessagingSettingsOverlay.tsx:338
 msgid "Team conversations"
 msgstr "Team conversations"
 
@@ -3979,7 +3992,8 @@ msgstr "Unavailable"
 msgid "Uninstall"
 msgstr "Uninstall"
 
-#: src/pages/MessagingSettingsOverlay.tsx:139
+#: src/pages/MessagingSettingsOverlay.tsx:141
+#: src/pages/MessagingSettingsOverlay.tsx:447
 msgid "Unlink"
 msgstr "Unlink"
 

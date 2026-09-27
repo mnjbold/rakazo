@@ -96,7 +96,7 @@ import {
   teamChatSenderCanWakeMessageRoutines,
   wakeMessageRoutines,
 } from "./messaging-inbound.js";
-import { mountMessagingWebhookRoutes } from "./messaging-webhook.js";
+import { MESSAGING_WEBHOOK_BASE_PATH, mountMessagingWebhookRoutes } from "./messaging-webhook.js";
 import { mountPhoneCallRoute } from "./phone-call.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
@@ -266,7 +266,16 @@ export async function createApp(
   // so it's the one that must hold Telegram's live getUpdates connection —
   // see messagingPlatformsFromEnv's docstring for why a second poller
   // elsewhere (e.g. the worker) would actively break this.
-  const messagingPlatforms = messagingPlatformsFromEnv(env, { pollInboundMessages: true });
+  const messagingPlatforms = messagingPlatformsFromEnv(
+    {
+      ...env,
+      evolutionWebhookUrl: new URL(
+        `${MESSAGING_WEBHOOK_BASE_PATH}/evolution`,
+        env.apiUrl,
+      ).toString(),
+    },
+    { pollInboundMessages: true },
+  );
   const messaging =
     messagingOverride ??
     (isMessagingSurfaceEnabled(messagingPlatforms, {
@@ -459,6 +468,7 @@ export async function createApp(
       enabled: Boolean(messaging),
       providers: messaging?.platforms().map((platform) => platform.provider) ?? [],
       openSignup: env.messagingOpenSignup,
+      surface: messaging,
     },
     env: {
       agentRuntime: env.agentRuntime,

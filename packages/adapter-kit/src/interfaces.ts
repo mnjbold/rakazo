@@ -44,6 +44,7 @@ import type {
   MemorySearchResult,
   MemorySnapshot,
   MessagingInboundEvent,
+  MessagingLinePairing,
   MessagingPlatformDescriptor,
   MessagingSendRequest,
   MessagingSendResult,
@@ -375,6 +376,12 @@ export interface MessagingSurface {
    * message delivery, and silently no-ops on platforms without support.
    */
   sendTyping(threadId: string, context: AdapterContext): Promise<void>;
+  /** QR-paired lines and their state; absent when no platform pairs that way. */
+  lines?(context: AdapterContext): Promise<MessagingLinePairing[]>;
+  /** Start (or resume) pairing; the result carries the QR to scan. */
+  pairLine?(provider: string, context: AdapterContext): Promise<MessagingLinePairing>;
+  /** Log the paired phone out of the line. */
+  unpairLine?(provider: string, context: AdapterContext): Promise<void>;
   /**
    * Start the surface eagerly instead of waiting for the first inbound
    * webhook or outbound send to touch it. Needed for adapters that pull

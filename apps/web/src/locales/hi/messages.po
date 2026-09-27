@@ -102,6 +102,10 @@ msgstr "{days} दिन पहले"
 msgid "{hours}h ago"
 msgstr "{hours} घंटे पहले"
 
+#: src/pages/MessagingSettingsOverlay.tsx:464
+msgid "{label} QR code"
+msgstr ""
+
 #: src/lib/relative-time.ts:10
 #: src/pages/ActivityList.tsx:136
 msgid "{minutes}m ago"
@@ -338,7 +342,7 @@ msgstr ""
 msgid "Agent computer"
 msgstr "एजेंट कंप्यूटर"
 
-#: src/pages/MessagingSettingsOverlay.tsx:261
+#: src/pages/MessagingSettingsOverlay.tsx:263
 msgid "Agent connections"
 msgstr ""
 
@@ -457,8 +461,8 @@ msgstr ""
 msgid "Approval boundaries"
 msgstr "अनुमोदन सीमाएं"
 
-#: src/pages/MessagingSettingsOverlay.tsx:223
-#: src/pages/MessagingSettingsOverlay.tsx:296
+#: src/pages/MessagingSettingsOverlay.tsx:225
+#: src/pages/MessagingSettingsOverlay.tsx:298
 #: src/pages/shell/message-cards.tsx:398
 msgid "Approve"
 msgstr "अनुमोदित करें"
@@ -638,7 +642,7 @@ msgstr "बॉट स्क्रीन"
 msgid "Bot screen preview"
 msgstr "बॉट स्क्रीन प्रीव्यू"
 
-#: src/pages/MessagingSettingsOverlay.tsx:151
+#: src/pages/MessagingSettingsOverlay.tsx:153
 msgid "Bot to link"
 msgstr ""
 
@@ -717,7 +721,7 @@ msgstr "पासवर्ड बदलें"
 msgid "Changing…"
 msgstr "बदला जा रहा है…"
 
-#: src/pages/MessagingSettingsOverlay.tsx:190
+#: src/pages/MessagingSettingsOverlay.tsx:192
 msgid "Channels"
 msgstr ""
 
@@ -725,7 +729,7 @@ msgstr ""
 msgid "Chart failed to render: {error}"
 msgstr "चार्ट रेंडर नहीं हो सका: {error}"
 
-#: src/pages/MessagingSettingsOverlay.tsx:112
+#: src/pages/MessagingSettingsOverlay.tsx:113
 msgid "Chat apps"
 msgstr ""
 
@@ -769,7 +773,7 @@ msgstr ""
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "बॉट का आकार और रंग चुनें, या छवि अपलोड करें"
 
-#: src/pages/MessagingSettingsOverlay.tsx:158
+#: src/pages/MessagingSettingsOverlay.tsx:160
 msgid "Choose a bot…"
 msgstr ""
 
@@ -812,7 +816,7 @@ msgid "Client secret"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx:438
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/PeerMessagesOverlay.tsx:91
 #: src/pages/PeerMessagesOverlay.tsx:92
 #: src/pages/RoutineEditor.tsx:272
@@ -846,7 +850,7 @@ msgstr "MCP सर्वर बंद करें"
 msgid "Close memory settings"
 msgstr "मेमोरी सेटिंग्स बंद करें"
 
-#: src/pages/MessagingSettingsOverlay.tsx:101
+#: src/pages/MessagingSettingsOverlay.tsx:102
 msgid "Close messaging settings"
 msgstr ""
 
@@ -1445,7 +1449,7 @@ msgstr ""
 msgid "Could not update the default memory scope"
 msgstr "डिफ़ॉल्ट मेमोरी स्कोप अपडेट नहीं हो सका"
 
-#: src/pages/MessagingSettingsOverlay.tsx:53
+#: src/pages/MessagingSettingsOverlay.tsx:54
 msgid "Couldn't load messaging settings"
 msgstr ""
 
@@ -1453,7 +1457,8 @@ msgstr ""
 msgid "Couldn't update avatars"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:66
+#: src/pages/MessagingSettingsOverlay.tsx:67
+#: src/pages/MessagingSettingsOverlay.tsx:404
 msgid "Couldn't update messaging settings"
 msgstr ""
 
@@ -1563,8 +1568,8 @@ msgstr ""
 msgid "days"
 msgstr "दिन"
 
-#: src/pages/MessagingSettingsOverlay.tsx:237
-#: src/pages/MessagingSettingsOverlay.tsx:310
+#: src/pages/MessagingSettingsOverlay.tsx:239
+#: src/pages/MessagingSettingsOverlay.tsx:312
 msgid "Decline"
 msgstr ""
 
@@ -1881,7 +1886,7 @@ msgid "Export this week's list from the CRM and drop it in the shared folder"
 msgstr "CRM से इस सप्ताह की सूची एक्सपोर्ट करें और उसे साझा फ़ोल्डर में डालें"
 
 #: src/pages/ExternalConversationSettings.tsx:84
-#: src/pages/MessagingSettingsOverlay.tsx:351
+#: src/pages/MessagingSettingsOverlay.tsx:353
 msgid "External conversation"
 msgstr ""
 
@@ -1999,7 +2004,7 @@ msgstr ""
 msgid "Git event"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:204
+#: src/pages/MessagingSettingsOverlay.tsx:206
 #: src/pages/Shell.tsx:3414
 #: src/pages/Shell.tsx:3600
 msgid "Group"
@@ -2215,7 +2220,7 @@ msgstr "भाषा"
 msgid "Later"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:249
+#: src/pages/MessagingSettingsOverlay.tsx:251
 msgid "Leave"
 msgstr ""
 
@@ -2227,7 +2232,11 @@ msgstr "लाइट"
 msgid "Linear issue"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:175
+#: src/pages/MessagingSettingsOverlay.tsx:456
+msgid "Link {label}"
+msgstr ""
+
+#: src/pages/MessagingSettingsOverlay.tsx:177
 msgid "Link a chat app"
 msgstr ""
 
@@ -2474,7 +2483,7 @@ msgid "Messaged {peer}"
 msgstr "{peer} को संदेश भेजा"
 
 #: src/pages/AccountSettingsOverlay.tsx:103
-#: src/pages/MessagingSettingsOverlay.tsx:98
+#: src/pages/MessagingSettingsOverlay.tsx:99
 msgid "Messaging"
 msgstr ""
 
@@ -2634,7 +2643,7 @@ msgstr "नई स्किल"
 msgid "New space"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:265
+#: src/pages/MessagingSettingsOverlay.tsx:267
 msgid "No agent connections yet."
 msgstr ""
 
@@ -2662,7 +2671,7 @@ msgstr ""
 msgid "No bots match"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:146
+#: src/pages/MessagingSettingsOverlay.tsx:148
 msgid "No chat apps linked yet."
 msgstr ""
 
@@ -2670,7 +2679,7 @@ msgstr ""
 msgid "No exceptions. Actions run automatically."
 msgstr "कोई अपवाद नहीं। कार्रवाइयां स्वतः चलती हैं।"
 
-#: src/pages/MessagingSettingsOverlay.tsx:194
+#: src/pages/MessagingSettingsOverlay.tsx:196
 msgid "No group chats yet."
 msgstr ""
 
@@ -2727,7 +2736,7 @@ msgstr ""
 msgid "No skills yet"
 msgstr "अभी तक कोई स्किल नहीं"
 
-#: src/pages/MessagingSettingsOverlay.tsx:340
+#: src/pages/MessagingSettingsOverlay.tsx:342
 msgid "No team conversations yet."
 msgstr ""
 
@@ -3299,7 +3308,7 @@ msgstr "रिवीज़न {0}"
 msgid "Review required before any Dokploy change."
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:324
+#: src/pages/MessagingSettingsOverlay.tsx:326
 msgid "Revoke"
 msgstr ""
 
@@ -3424,6 +3433,10 @@ msgstr "सहेजा जा रहा है…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "हां या ना कहें, या एक वाक्य में उत्तर दें।"
 
+#: src/pages/MessagingSettingsOverlay.tsx:468
+msgid "Scan in {label} › Linked devices."
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx:1118
 #: src/pages/PluginsOverlay.tsx:877
 #: src/pages/Shell.tsx:2826
@@ -3483,7 +3496,7 @@ msgstr "एक बॉट चुनें"
 msgid "Send"
 msgstr "भेजें"
 
-#: src/pages/MessagingSettingsOverlay.tsx:180
+#: src/pages/MessagingSettingsOverlay.tsx:182
 msgid "Send <0>{linkCode}</0> to the line from your chat app within 10 minutes. You'll get a confirmation reply once linked."
 msgstr ""
 
@@ -3539,7 +3552,7 @@ msgstr ""
 msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/SettingsOverlay.tsx:94
 #: src/pages/SettingsOverlay.tsx:149
 #: src/pages/Shell.tsx:3277
@@ -3814,7 +3827,7 @@ msgstr "टीम"
 msgid "Team Computer"
 msgstr "टीम कंप्यूटर"
 
-#: src/pages/MessagingSettingsOverlay.tsx:336
+#: src/pages/MessagingSettingsOverlay.tsx:338
 msgid "Team conversations"
 msgstr ""
 
@@ -3979,7 +3992,8 @@ msgstr ""
 msgid "Uninstall"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:139
+#: src/pages/MessagingSettingsOverlay.tsx:141
+#: src/pages/MessagingSettingsOverlay.tsx:447
 msgid "Unlink"
 msgstr ""
 

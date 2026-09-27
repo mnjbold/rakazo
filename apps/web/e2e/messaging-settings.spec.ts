@@ -226,3 +226,58 @@ test("team conversation settings open from messaging overlay", async ({ page }, 
   await expect(conversationSettings.getByText("GitHub")).toBeVisible();
   await captureScreenshot(page, testInfo, "messaging-team-conversation-settings");
 });
+
+test("the deployment owner links WhatsApp by scanning a QR code", async ({ page }, testInfo) => {
+  // Emulated Evolution line: disconnected, then pairing with a QR, then
+  // connected once the phone scans it (the second poll after pairing).
+  const qr =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  type Line = { provider: string; state: string; address: string | null; qr: string | null };
+  let line: Line = { provider: "evolution", state: "disconnected", address: null, qr: null };
+  let pollsWhilePairing = 0;
+  const json = (body: unknown) => ({
+    contentType: "application/json",
+    body: JSON.stringify({ json: body }),
+  });
+  await page.route("**/rpc/messaging/status", (route) =>
+    route.fulfill(
+      json({ enabled: true, providers: ["evolution"], openSignup: false, identities: [] }),
+    ),
+  );
+  await page.route("**/rpc/messaging/channels/list", (route) => route.fulfill(json([])));
+  await page.route("**/rpc/messaging/connections/list", (route) => route.fulfill(json([])));
+  await page.route("**/rpc/messaging/lines/list", (route) => {
+    if (line.state === "pairing") pollsWhilePairing += 1;
+    if (pollsWhilePairing >= 2 && line.state === "pairing") {
+      line = { provider: "evolution", state: "connected", address: "15550007777", qr: null };
+    }
+    return route.fulfill(json([line]));
+  });
+  await page.route("**/rpc/messaging/lines/pair", (route) => {
+    line = { provider: "evolution", state: "pairing", address: null, qr };
+    return route.fulfill(json(line));
+  });
+  await page.route("**/rpc/messaging/lines/unpair", (route) => {
+    line = { provider: "evolution", state: "disconnected", address: null, qr: null };
+    return route.fulfill(json({ ok: true }));
+  });
+
+  const stamp = Date.now();
+  const userName = `Owner ${stamp}`;
+  await signup(page, `whatsapp-qr-${stamp}@rakazo.test`, "password12", userName);
+  await completeOnboarding(page);
+  await page.getByRole("button", { name: new RegExp(userName) }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Manage messaging settings" }).click();
+
+  const lines = page.getByTestId("messaging-lines");
+  await lines.getByRole("button", { name: "Link WhatsApp" }).click();
+  await expect(lines.getByRole("img", { name: "WhatsApp QR code" })).toBeVisible();
+  await expect(lines.getByText("Scan in WhatsApp › Linked devices.")).toBeVisible();
+  await captureScreenshot(page, testInfo, "messaging-whatsapp-qr");
+
+  await expect(lines.getByText("WhatsApp · +15550007777")).toBeVisible({ timeout: 15_000 });
+  await expect(lines.getByRole("img")).toHaveCount(0);
+  await lines.getByRole("button", { name: "Unlink" }).click();
+  await expect(lines.getByRole("button", { name: "Link WhatsApp" })).toBeVisible();
+});

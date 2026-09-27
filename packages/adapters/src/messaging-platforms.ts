@@ -6,6 +6,7 @@ import type { Adapter } from "chat";
 import { createLarkAdapter, Domain } from "chat-adapter-lark";
 import { createSendblueAdapter } from "chat-adapter-sendblue";
 import type { MessagingPlatform } from "./chat-sdk-surface.js";
+import { createEvolutionPlatform } from "./evolution-messaging.js";
 import { isVitestRuntime } from "./test-runtime.js";
 
 /**
@@ -30,6 +31,11 @@ export interface MessagingEnvironmentValues {
   larkVerificationToken?: string | undefined;
   larkEncryptKey?: string | undefined;
   larkDomain?: string | undefined;
+  evolutionApiUrl?: string | undefined;
+  evolutionApiKey?: string | undefined;
+  evolutionInstance?: string | undefined;
+  /** Where Evolution posts inbound; set by the API root, which owns the route. */
+  evolutionWebhookUrl?: string | undefined;
 }
 
 export function messagingEnvFromProcess(
@@ -56,6 +62,9 @@ export function messagingEnvFromProcess(
     larkVerificationToken: clean(env.LARK_VERIFICATION_TOKEN),
     larkEncryptKey: clean(env.LARK_ENCRYPT_KEY),
     larkDomain: clean(env.LARK_DOMAIN),
+    evolutionApiUrl: clean(env.EVOLUTION_API_URL),
+    evolutionApiKey: clean(env.EVOLUTION_API_KEY),
+    evolutionInstance: clean(env.EVOLUTION_INSTANCE),
   };
 }
 
@@ -192,6 +201,19 @@ export function messagingPlatformsFromEnv(
         domain: env.larkDomain?.toLowerCase() === "lark" ? Domain.Lark : Domain.Feishu,
       }),
     });
+  }
+
+  // Self-hosted WhatsApp Web gateway. The line exists once configured; the
+  // deployment owner pairs the phone from Messaging settings by QR code.
+  if (env.evolutionApiUrl && env.evolutionApiKey && env.evolutionInstance) {
+    platforms.push(
+      createEvolutionPlatform({
+        apiUrl: env.evolutionApiUrl,
+        apiKey: env.evolutionApiKey,
+        instance: env.evolutionInstance,
+        webhookUrl: env.evolutionWebhookUrl,
+      }),
+    );
   }
 
   return platforms;

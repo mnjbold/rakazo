@@ -102,6 +102,10 @@ msgstr "{days} 天前"
 msgid "{hours}h ago"
 msgstr "{hours} 小时前"
 
+#: src/pages/MessagingSettingsOverlay.tsx:464
+msgid "{label} QR code"
+msgstr ""
+
 #: src/lib/relative-time.ts:10
 #: src/pages/ActivityList.tsx:136
 msgid "{minutes}m ago"
@@ -338,7 +342,7 @@ msgstr "高级..."
 msgid "Agent computer"
 msgstr "Agent 电脑"
 
-#: src/pages/MessagingSettingsOverlay.tsx:261
+#: src/pages/MessagingSettingsOverlay.tsx:263
 msgid "Agent connections"
 msgstr "Agent 连接"
 
@@ -457,8 +461,8 @@ msgstr ""
 msgid "Approval boundaries"
 msgstr "审批边界"
 
-#: src/pages/MessagingSettingsOverlay.tsx:223
-#: src/pages/MessagingSettingsOverlay.tsx:296
+#: src/pages/MessagingSettingsOverlay.tsx:225
+#: src/pages/MessagingSettingsOverlay.tsx:298
 #: src/pages/shell/message-cards.tsx:398
 msgid "Approve"
 msgstr "批准"
@@ -638,7 +642,7 @@ msgstr "Bot 屏幕"
 msgid "Bot screen preview"
 msgstr "Bot 屏幕预览"
 
-#: src/pages/MessagingSettingsOverlay.tsx:151
+#: src/pages/MessagingSettingsOverlay.tsx:153
 msgid "Bot to link"
 msgstr "要关联的 Bot"
 
@@ -717,7 +721,7 @@ msgstr "修改密码"
 msgid "Changing…"
 msgstr "正在修改…"
 
-#: src/pages/MessagingSettingsOverlay.tsx:190
+#: src/pages/MessagingSettingsOverlay.tsx:192
 msgid "Channels"
 msgstr "频道"
 
@@ -725,7 +729,7 @@ msgstr "频道"
 msgid "Chart failed to render: {error}"
 msgstr "图表渲染失败：{error}"
 
-#: src/pages/MessagingSettingsOverlay.tsx:112
+#: src/pages/MessagingSettingsOverlay.tsx:113
 msgid "Chat apps"
 msgstr "聊天应用"
 
@@ -769,7 +773,7 @@ msgstr "工作副本有本地更改。请先清理再更新。"
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "选择机器人形状和颜色，或上传图片"
 
-#: src/pages/MessagingSettingsOverlay.tsx:158
+#: src/pages/MessagingSettingsOverlay.tsx:160
 msgid "Choose a bot…"
 msgstr "选择 Bot…"
 
@@ -812,7 +816,7 @@ msgid "Client secret"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx:438
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/PeerMessagesOverlay.tsx:91
 #: src/pages/PeerMessagesOverlay.tsx:92
 #: src/pages/RoutineEditor.tsx:272
@@ -846,7 +850,7 @@ msgstr "关闭 MCP 服务器"
 msgid "Close memory settings"
 msgstr "关闭记忆设置"
 
-#: src/pages/MessagingSettingsOverlay.tsx:101
+#: src/pages/MessagingSettingsOverlay.tsx:102
 msgid "Close messaging settings"
 msgstr "关闭消息设置"
 
@@ -1445,7 +1449,7 @@ msgstr "无法更新反应"
 msgid "Could not update the default memory scope"
 msgstr "无法更新默认记忆范围"
 
-#: src/pages/MessagingSettingsOverlay.tsx:53
+#: src/pages/MessagingSettingsOverlay.tsx:54
 msgid "Couldn't load messaging settings"
 msgstr "无法加载消息设置"
 
@@ -1453,7 +1457,8 @@ msgstr "无法加载消息设置"
 msgid "Couldn't update avatars"
 msgstr "无法更新头像"
 
-#: src/pages/MessagingSettingsOverlay.tsx:66
+#: src/pages/MessagingSettingsOverlay.tsx:67
+#: src/pages/MessagingSettingsOverlay.tsx:404
 msgid "Couldn't update messaging settings"
 msgstr "无法更新消息设置"
 
@@ -1563,8 +1568,8 @@ msgstr "日常工作"
 msgid "days"
 msgstr "天"
 
-#: src/pages/MessagingSettingsOverlay.tsx:237
-#: src/pages/MessagingSettingsOverlay.tsx:310
+#: src/pages/MessagingSettingsOverlay.tsx:239
+#: src/pages/MessagingSettingsOverlay.tsx:312
 msgid "Decline"
 msgstr "拒绝"
 
@@ -1881,7 +1886,7 @@ msgid "Export this week's list from the CRM and drop it in the shared folder"
 msgstr "从 CRM 导出本周名单并放到共享文件夹"
 
 #: src/pages/ExternalConversationSettings.tsx:84
-#: src/pages/MessagingSettingsOverlay.tsx:351
+#: src/pages/MessagingSettingsOverlay.tsx:353
 msgid "External conversation"
 msgstr ""
 
@@ -1999,7 +2004,7 @@ msgstr ""
 msgid "Git event"
 msgstr "Git 事件"
 
-#: src/pages/MessagingSettingsOverlay.tsx:204
+#: src/pages/MessagingSettingsOverlay.tsx:206
 #: src/pages/Shell.tsx:3414
 #: src/pages/Shell.tsx:3600
 msgid "Group"
@@ -2215,7 +2220,7 @@ msgstr "语言"
 msgid "Later"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:249
+#: src/pages/MessagingSettingsOverlay.tsx:251
 msgid "Leave"
 msgstr "退出"
 
@@ -2227,7 +2232,11 @@ msgstr "浅色"
 msgid "Linear issue"
 msgstr "Linear 工单"
 
-#: src/pages/MessagingSettingsOverlay.tsx:175
+#: src/pages/MessagingSettingsOverlay.tsx:456
+msgid "Link {label}"
+msgstr ""
+
+#: src/pages/MessagingSettingsOverlay.tsx:177
 msgid "Link a chat app"
 msgstr "关联聊天应用"
 
@@ -2474,7 +2483,7 @@ msgid "Messaged {peer}"
 msgstr "已发给 {peer}"
 
 #: src/pages/AccountSettingsOverlay.tsx:103
-#: src/pages/MessagingSettingsOverlay.tsx:98
+#: src/pages/MessagingSettingsOverlay.tsx:99
 msgid "Messaging"
 msgstr "消息"
 
@@ -2634,7 +2643,7 @@ msgstr "新建技能"
 msgid "New space"
 msgstr "新建工作区"
 
-#: src/pages/MessagingSettingsOverlay.tsx:265
+#: src/pages/MessagingSettingsOverlay.tsx:267
 msgid "No agent connections yet."
 msgstr "还没有 Agent 连接。"
 
@@ -2662,7 +2671,7 @@ msgstr ""
 msgid "No bots match"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:146
+#: src/pages/MessagingSettingsOverlay.tsx:148
 msgid "No chat apps linked yet."
 msgstr "还没有关联聊天应用。"
 
@@ -2670,7 +2679,7 @@ msgstr "还没有关联聊天应用。"
 msgid "No exceptions. Actions run automatically."
 msgstr "没有例外。操作会自动执行。"
 
-#: src/pages/MessagingSettingsOverlay.tsx:194
+#: src/pages/MessagingSettingsOverlay.tsx:196
 msgid "No group chats yet."
 msgstr "还没有群聊。"
 
@@ -2727,7 +2736,7 @@ msgstr "还没有运行记录"
 msgid "No skills yet"
 msgstr "暂无技能"
 
-#: src/pages/MessagingSettingsOverlay.tsx:340
+#: src/pages/MessagingSettingsOverlay.tsx:342
 msgid "No team conversations yet."
 msgstr ""
 
@@ -3299,7 +3308,7 @@ msgstr "版本 {0}"
 msgid "Review required before any Dokploy change."
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:324
+#: src/pages/MessagingSettingsOverlay.tsx:326
 msgid "Revoke"
 msgstr "撤销"
 
@@ -3424,6 +3433,10 @@ msgstr "正在保存…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "回答是或否，或一句话说明。"
 
+#: src/pages/MessagingSettingsOverlay.tsx:468
+msgid "Scan in {label} › Linked devices."
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx:1118
 #: src/pages/PluginsOverlay.tsx:877
 #: src/pages/Shell.tsx:2826
@@ -3483,7 +3496,7 @@ msgstr "选择 Bot"
 msgid "Send"
 msgstr "发送"
 
-#: src/pages/MessagingSettingsOverlay.tsx:180
+#: src/pages/MessagingSettingsOverlay.tsx:182
 msgid "Send <0>{linkCode}</0> to the line from your chat app within 10 minutes. You'll get a confirmation reply once linked."
 msgstr "请在 10 分钟内从聊天应用向该线路发送 <0>{linkCode}</0>。关联成功后你会收到确认回复。"
 
@@ -3539,7 +3552,7 @@ msgstr ""
 msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/SettingsOverlay.tsx:94
 #: src/pages/SettingsOverlay.tsx:149
 #: src/pages/Shell.tsx:3277
@@ -3814,7 +3827,7 @@ msgstr "团队"
 msgid "Team Computer"
 msgstr "团队电脑"
 
-#: src/pages/MessagingSettingsOverlay.tsx:336
+#: src/pages/MessagingSettingsOverlay.tsx:338
 msgid "Team conversations"
 msgstr ""
 
@@ -3979,7 +3992,8 @@ msgstr "不可用"
 msgid "Uninstall"
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:139
+#: src/pages/MessagingSettingsOverlay.tsx:141
+#: src/pages/MessagingSettingsOverlay.tsx:447
 msgid "Unlink"
 msgstr "取消关联"
 

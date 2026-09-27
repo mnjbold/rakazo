@@ -6,6 +6,7 @@ import type {
   MessagingCapabilities,
   MessagingInboundEvent,
   MessagingInboundMessage,
+  MessagingLinePairing,
   MessagingOutboundStatus,
   MessagingPlatformDescriptor,
   MessagingSendRequest,
@@ -51,6 +52,12 @@ export interface MessagingPlatform {
     raw: unknown,
     base: MessagingInboundMessage,
   ) => Partial<MessagingInboundMessage>;
+  /** QR pairing for a line held by a phone (WhatsApp Web gateways). */
+  line?: {
+    status(signal: AbortSignal): Promise<MessagingLinePairing>;
+    pair(signal: AbortSignal): Promise<MessagingLinePairing>;
+    unpair(signal: AbortSignal): Promise<void>;
+  };
 }
 
 /**
@@ -162,6 +169,28 @@ export class ChatSdkMessagingSurface implements MessagingSurface {
     // The Chat SDK adapter API takes no abort signal, so the underlying
     // request cannot be cancelled — but the caller's wait is still bounded.
     await raceWithSignal(platform.adapter.startTyping(threadId), context.signal);
+  }
+
+  lines(context: AdapterContext): Promise<MessagingLinePairing[]> {
+    return Promise.all(
+      [...this.byProvider.values()].flatMap((platform) =>
+        platform.line ? [platform.line.status(context.signal)] : [],
+      ),
+    );
+  }
+
+  pairLine(provider: string, context: AdapterContext): Promise<MessagingLinePairing> {
+    return this.lineOf(provider).pair(context.signal);
+  }
+
+  unpairLine(provider: string, context: AdapterContext): Promise<void> {
+    return this.lineOf(provider).unpair(context.signal);
+  }
+
+  private lineOf(provider: string): NonNullable<MessagingPlatform["line"]> {
+    const line = this.byProvider.get(provider)?.line;
+    if (!line) throw new Error(`${provider} does not pair by QR code`);
+    return line;
   }
 
   /**

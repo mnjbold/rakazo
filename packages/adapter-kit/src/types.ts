@@ -570,6 +570,18 @@ export interface MessagingPlatformDescriptor {
   capabilities: MessagingCapabilities;
 }
 
+/**
+ * A deployment line the owner pairs by scanning a QR code with the phone
+ * that holds the number (WhatsApp Web gateways). `qr` is an image data URL,
+ * present only while pairing.
+ */
+export interface MessagingLinePairing {
+  provider: string;
+  state: "connected" | "pairing" | "disconnected";
+  address: string | null;
+  qr: string | null;
+}
+
 /** Send into an existing conversation, addressed by its opaque thread id. */
 export interface MessagingSendRequest {
   threadId: string;

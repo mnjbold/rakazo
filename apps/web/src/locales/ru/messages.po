@@ -102,6 +102,10 @@ msgstr "{days} дн. назад"
 msgid "{hours}h ago"
 msgstr "{hours} ч назад"
 
+#: src/pages/MessagingSettingsOverlay.tsx:464
+msgid "{label} QR code"
+msgstr ""
+
 #: src/lib/relative-time.ts:10
 #: src/pages/ActivityList.tsx:136
 msgid "{minutes}m ago"
@@ -338,7 +342,7 @@ msgstr "Расширенные..."
 msgid "Agent computer"
 msgstr "Компьютер агента"
 
-#: src/pages/MessagingSettingsOverlay.tsx:261
+#: src/pages/MessagingSettingsOverlay.tsx:263
 msgid "Agent connections"
 msgstr "Подключения агента"
 
@@ -457,8 +461,8 @@ msgstr ""
 msgid "Approval boundaries"
 msgstr "Границы одобрения"
 
-#: src/pages/MessagingSettingsOverlay.tsx:223
-#: src/pages/MessagingSettingsOverlay.tsx:296
+#: src/pages/MessagingSettingsOverlay.tsx:225
+#: src/pages/MessagingSettingsOverlay.tsx:298
 #: src/pages/shell/message-cards.tsx:398
 msgid "Approve"
 msgstr "Утвердить"
@@ -638,7 +642,7 @@ msgstr "Экран бота"
 msgid "Bot screen preview"
 msgstr "Предварительный просмотр экрана бота"
 
-#: src/pages/MessagingSettingsOverlay.tsx:151
+#: src/pages/MessagingSettingsOverlay.tsx:153
 msgid "Bot to link"
 msgstr "Бот для ссылки"
 
@@ -717,7 +721,7 @@ msgstr "Изменить пароль"
 msgid "Changing…"
 msgstr "Изменение…"
 
-#: src/pages/MessagingSettingsOverlay.tsx:190
+#: src/pages/MessagingSettingsOverlay.tsx:192
 msgid "Channels"
 msgstr "Каналы"
 
@@ -725,7 +729,7 @@ msgstr "Каналы"
 msgid "Chart failed to render: {error}"
 msgstr "Не удалось отобразить диаграмму: {error}."
 
-#: src/pages/MessagingSettingsOverlay.tsx:112
+#: src/pages/MessagingSettingsOverlay.tsx:113
 msgid "Chat apps"
 msgstr "Приложения для чата"
 
@@ -769,7 +773,7 @@ msgstr "В checkout есть локальные изменения. Очисти
 msgid "Choose a bot shape, color, or upload an image"
 msgstr "Выберите форму и цвет бота или загрузите изображение"
 
-#: src/pages/MessagingSettingsOverlay.tsx:158
+#: src/pages/MessagingSettingsOverlay.tsx:160
 msgid "Choose a bot…"
 msgstr "Выбрать бота…"
 
@@ -812,7 +816,7 @@ msgid "Client secret"
 msgstr "Секрет клиента"
 
 #: src/pages/KnowledgeSection.tsx:438
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/PeerMessagesOverlay.tsx:91
 #: src/pages/PeerMessagesOverlay.tsx:92
 #: src/pages/RoutineEditor.tsx:272
@@ -846,7 +850,7 @@ msgstr "Закрыть серверы MCP"
 msgid "Close memory settings"
 msgstr "Закрыть настройки памяти"
 
-#: src/pages/MessagingSettingsOverlay.tsx:101
+#: src/pages/MessagingSettingsOverlay.tsx:102
 msgid "Close messaging settings"
 msgstr "Закрыть настройки обмена сообщениями"
 
@@ -1445,7 +1449,7 @@ msgstr "Не удалось обновить реакцию"
 msgid "Could not update the default memory scope"
 msgstr "Не удалось обновить область памяти по умолчанию."
 
-#: src/pages/MessagingSettingsOverlay.tsx:53
+#: src/pages/MessagingSettingsOverlay.tsx:54
 msgid "Couldn't load messaging settings"
 msgstr "Не удалось загрузить настройки обмена сообщениями."
 
@@ -1453,7 +1457,8 @@ msgstr "Не удалось загрузить настройки обмена �
 msgid "Couldn't update avatars"
 msgstr "Не удалось обновить аватары"
 
-#: src/pages/MessagingSettingsOverlay.tsx:66
+#: src/pages/MessagingSettingsOverlay.tsx:67
+#: src/pages/MessagingSettingsOverlay.tsx:404
 msgid "Couldn't update messaging settings"
 msgstr "Не удалось обновить настройки обмена сообщениями."
 
@@ -1563,8 +1568,8 @@ msgstr ""
 msgid "days"
 msgstr "дни"
 
-#: src/pages/MessagingSettingsOverlay.tsx:237
-#: src/pages/MessagingSettingsOverlay.tsx:310
+#: src/pages/MessagingSettingsOverlay.tsx:239
+#: src/pages/MessagingSettingsOverlay.tsx:312
 msgid "Decline"
 msgstr "Отклонить"
 
@@ -1881,7 +1886,7 @@ msgid "Export this week's list from the CRM and drop it in the shared folder"
 msgstr "Экспортируйте список этой недели из CRM и поместите его в общую папку."
 
 #: src/pages/ExternalConversationSettings.tsx:84
-#: src/pages/MessagingSettingsOverlay.tsx:351
+#: src/pages/MessagingSettingsOverlay.tsx:353
 msgid "External conversation"
 msgstr "Внешний диалог"
 
@@ -1999,7 +2004,7 @@ msgstr "Подготовка"
 msgid "Git event"
 msgstr "Git-событие"
 
-#: src/pages/MessagingSettingsOverlay.tsx:204
+#: src/pages/MessagingSettingsOverlay.tsx:206
 #: src/pages/Shell.tsx:3414
 #: src/pages/Shell.tsx:3600
 msgid "Group"
@@ -2215,7 +2220,7 @@ msgstr "Язык"
 msgid "Later"
 msgstr "Позже"
 
-#: src/pages/MessagingSettingsOverlay.tsx:249
+#: src/pages/MessagingSettingsOverlay.tsx:251
 msgid "Leave"
 msgstr "Выйти"
 
@@ -2227,7 +2232,11 @@ msgstr "Светлая"
 msgid "Linear issue"
 msgstr "Задача Linear"
 
-#: src/pages/MessagingSettingsOverlay.tsx:175
+#: src/pages/MessagingSettingsOverlay.tsx:456
+msgid "Link {label}"
+msgstr ""
+
+#: src/pages/MessagingSettingsOverlay.tsx:177
 msgid "Link a chat app"
 msgstr "Связать приложение чата"
 
@@ -2474,7 +2483,7 @@ msgid "Messaged {peer}"
 msgstr "Отправлено сообщение {peer}"
 
 #: src/pages/AccountSettingsOverlay.tsx:103
-#: src/pages/MessagingSettingsOverlay.tsx:98
+#: src/pages/MessagingSettingsOverlay.tsx:99
 msgid "Messaging"
 msgstr "Обмен сообщениями"
 
@@ -2634,7 +2643,7 @@ msgstr "Новый навык"
 msgid "New space"
 msgstr "Новое пространство"
 
-#: src/pages/MessagingSettingsOverlay.tsx:265
+#: src/pages/MessagingSettingsOverlay.tsx:267
 msgid "No agent connections yet."
 msgstr "Агентских подключений пока нет."
 
@@ -2662,7 +2671,7 @@ msgstr "Нет ботов"
 msgid "No bots match"
 msgstr "Ни один бот не подходит"
 
-#: src/pages/MessagingSettingsOverlay.tsx:146
+#: src/pages/MessagingSettingsOverlay.tsx:148
 msgid "No chat apps linked yet."
 msgstr "Приложения для чата пока не связаны."
 
@@ -2670,7 +2679,7 @@ msgstr "Приложения для чата пока не связаны."
 msgid "No exceptions. Actions run automatically."
 msgstr "Никаких исключений. Действия выполняются автоматически."
 
-#: src/pages/MessagingSettingsOverlay.tsx:194
+#: src/pages/MessagingSettingsOverlay.tsx:196
 msgid "No group chats yet."
 msgstr "Групповых чатов пока нет."
 
@@ -2727,7 +2736,7 @@ msgstr "Запусков пока нет"
 msgid "No skills yet"
 msgstr "Навыков пока нет"
 
-#: src/pages/MessagingSettingsOverlay.tsx:340
+#: src/pages/MessagingSettingsOverlay.tsx:342
 msgid "No team conversations yet."
 msgstr "Командных диалогов пока нет."
 
@@ -3299,7 +3308,7 @@ msgstr "версия {0}"
 msgid "Review required before any Dokploy change."
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:324
+#: src/pages/MessagingSettingsOverlay.tsx:326
 msgid "Revoke"
 msgstr "Отозвать"
 
@@ -3424,6 +3433,10 @@ msgstr "Сохранение…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Скажите «да» или «нет» или ответьте предложением."
 
+#: src/pages/MessagingSettingsOverlay.tsx:468
+msgid "Scan in {label} › Linked devices."
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx:1118
 #: src/pages/PluginsOverlay.tsx:877
 #: src/pages/Shell.tsx:2826
@@ -3483,7 +3496,7 @@ msgstr "Выберите бота"
 msgid "Send"
 msgstr "Отправить"
 
-#: src/pages/MessagingSettingsOverlay.tsx:180
+#: src/pages/MessagingSettingsOverlay.tsx:182
 msgid "Send <0>{linkCode}</0> to the line from your chat app within 10 minutes. You'll get a confirmation reply once linked."
 msgstr "Отправьте <0>{linkCode}</0> в строку из вашего чата в течение 10 минут. После подключения вы получите подтверждение."
 
@@ -3539,7 +3552,7 @@ msgstr ""
 msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
 msgstr ""
 
-#: src/pages/MessagingSettingsOverlay.tsx:361
+#: src/pages/MessagingSettingsOverlay.tsx:363
 #: src/pages/SettingsOverlay.tsx:94
 #: src/pages/SettingsOverlay.tsx:149
 #: src/pages/Shell.tsx:3277
@@ -3814,7 +3827,7 @@ msgstr "Команда"
 msgid "Team Computer"
 msgstr "Командный компьютер"
 
-#: src/pages/MessagingSettingsOverlay.tsx:336
+#: src/pages/MessagingSettingsOverlay.tsx:338
 msgid "Team conversations"
 msgstr "Командные диалоги"
 
@@ -3979,7 +3992,8 @@ msgstr "Недоступно"
 msgid "Uninstall"
 msgstr "Удалить"
 
-#: src/pages/MessagingSettingsOverlay.tsx:139
+#: src/pages/MessagingSettingsOverlay.tsx:141
+#: src/pages/MessagingSettingsOverlay.tsx:447
 msgid "Unlink"
 msgstr "Отсоединить"
 

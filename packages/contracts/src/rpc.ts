@@ -55,6 +55,7 @@ import {
   MeSchema,
   MessagingAgentConnectionSchema,
   MessagingChannelMembershipSchema,
+  MessagingLineSchema,
   MessagingLinkedIdentitySchema,
   MessagingStatusSchema,
   ModelCatalogEntrySchema,
@@ -759,6 +760,14 @@ export const appContract = {
       start: oc
         .input(z.object({ botId: Id }))
         .output(z.object({ code: z.string(), expiresAt: z.string() })),
+    },
+    lines: {
+      /** QR-paired deployment lines; empty unless the caller owns the deployment. */
+      list: oc.output(z.array(MessagingLineSchema)),
+      pair: oc.input(z.object({ provider: z.string() })).output(MessagingLineSchema),
+      unpair: oc
+        .input(z.object({ provider: z.string() }))
+        .output(z.object({ ok: z.literal(true) })),
     },
     identities: {
       setBot: oc

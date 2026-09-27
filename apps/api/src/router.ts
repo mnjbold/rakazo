@@ -7,6 +7,7 @@ import type {
   ConnectorCatalogItem,
   JobPublisher,
   MemoryStore,
+  MessagingSurface,
   SandboxProvider,
 } from "@rakazo/adapter-kit";
 import {
@@ -412,6 +413,32 @@ function mcpServerDto(
   };
 }
 
+function pairableSurface(
+  deps: Pick<RouterDeps, "messaging">,
+  actor: Pick<Actor, "isDeploymentOwner">,
+  provider: string,
+) {
+  if (!actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+  const surface = deps.messaging?.surface;
+  if (!surface?.pairLine || !surface.unpairLine || !deps.messaging?.providers.includes(provider)) {
+    throw new ORPCError("NOT_FOUND");
+  }
+  return surface;
+}
+
+/** Gateway failures surface as one retryable error, never as a leaked upstream body. */
+async function lineCall<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (error instanceof ORPCError) throw error;
+    getLogger().warn("messaging line gateway request failed", {
+      "error.message": error instanceof Error ? error.message : String(error),
+    });
+    throw new ORPCError("BAD_GATEWAY", { message: "Couldn't reach the messaging gateway" });
+  }
+}
+
 function connectionContext(
   actor: Pick<Actor, "spaceId" | "userId">,
   operationId: string,
@@ -485,7 +512,13 @@ export interface RouterDeps {
   artifacts: ArtifactStore;
   dataDir: string;
   /** Present when the external messaging surface is enabled. */
-  messaging?: { enabled: boolean; providers: string[]; openSignup: boolean };
+  messaging?: {
+    enabled: boolean;
+    providers: string[];
+    openSignup: boolean;
+    /** QR line pairing (deployment owner only). */
+    surface?: Pick<MessagingSurface, "lines" | "pairLine" | "unpairLine"> | undefined;
+  };
   env: {
     agentRuntime: string;
     teamChatJudgeProvider?: string;
@@ -4391,6 +4424,36 @@ export function createRouter(deps: RouterDeps) {
             code: formatMessagingLinkCode(issued.code),
             expiresAt: issued.expiresAt.toISOString(),
           };
+        }),
+      },
+      lines: {
+        list: authed.messaging.lines.list.handler(async ({ context }) => {
+          const surface = deps.messaging?.surface;
+          if (!context.actor.isDeploymentOwner || !surface?.lines) return [];
+          return lineCall(() =>
+            surface.lines!(
+              connectionContext(context.actor, "messaging.lines.list", context.signal),
+            ),
+          );
+        }),
+        pair: authed.messaging.lines.pair.handler(async ({ context, input }) => {
+          const surface = pairableSurface(deps, context.actor, input.provider);
+          return lineCall(() =>
+            surface.pairLine!(
+              input.provider,
+              connectionContext(context.actor, "messaging.lines.pair", context.signal),
+            ),
+          );
+        }),
+        unpair: authed.messaging.lines.unpair.handler(async ({ context, input }) => {
+          const surface = pairableSurface(deps, context.actor, input.provider);
+          await lineCall(() =>
+            surface.unpairLine!(
+              input.provider,
+              connectionContext(context.actor, "messaging.lines.unpair", context.signal),
+            ),
+          );
+          return { ok: true as const };
         }),
       },
       identities: {

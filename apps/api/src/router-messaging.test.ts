@@ -1,4 +1,10 @@
 import { RPCHandler } from "@orpc/server/fetch";
+import {
+  ChatSdkMessagingSurface,
+  createEmulatedEvolutionPlatform,
+  EVOLUTION_EMULATOR_QR,
+  EvolutionEmulator,
+} from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
@@ -920,5 +926,52 @@ describe("messaging.connections.respond confirmation atomicity", () => {
         data: [expect.objectContaining({ idempotencyKey: "command:connected:ac-1" })],
       }),
     );
+  });
+});
+
+describe("messaging.lines", () => {
+  function linesHarness() {
+    const emulator = new EvolutionEmulator();
+    const harness = messagingDeps();
+    const surface = new ChatSdkMessagingSurface([createEmulatedEvolutionPlatform(emulator)]);
+    Object.assign(harness.deps.messaging!, { providers: ["evolution"], surface });
+    return { ...harness, emulator, owner: { ...harness.actor, isDeploymentOwner: true } };
+  }
+
+  it("hides lines from, and refuses pairing for, anyone but the deployment owner", async () => {
+    const { handler, actor, emulator } = linesHarness();
+    const list = await call(handler, actor, "messaging/lines/list");
+    await expect(list.json()).resolves.toEqual({ json: [] });
+    const pair = await call(handler, actor, "messaging/lines/pair", { provider: "evolution" });
+    expect(pair.status).toBe(403);
+    expect(emulator.calls).toEqual([]);
+  });
+
+  it("lets the owner pair by QR, see the connected number, and unlink", async () => {
+    const { handler, owner, emulator } = linesHarness();
+    const pair = await call(handler, owner, "messaging/lines/pair", { provider: "evolution" });
+    await expect(pair.json()).resolves.toEqual({
+      json: { provider: "evolution", state: "pairing", address: null, qr: EVOLUTION_EMULATOR_QR },
+    });
+
+    emulator.scan();
+    const list = await call(handler, owner, "messaging/lines/list");
+    await expect(list.json()).resolves.toEqual({
+      json: [
+        { provider: "evolution", state: "connected", address: emulator.ownerNumber, qr: null },
+      ],
+    });
+
+    const unpair = await call(handler, owner, "messaging/lines/unpair", { provider: "evolution" });
+    expect(unpair.status).toBe(200);
+    expect(emulator.state).toBe("close");
+  });
+
+  it("reports an unreachable gateway as a 502 without leaking the upstream error", async () => {
+    const { handler, owner, emulator } = linesHarness();
+    Object.assign(emulator, { apiKey: "rotated" });
+    const pair = await call(handler, owner, "messaging/lines/pair", { provider: "evolution" });
+    expect(pair.status).toBe(502);
+    expect(JSON.stringify(await pair.json())).not.toContain("401");
   });
 });

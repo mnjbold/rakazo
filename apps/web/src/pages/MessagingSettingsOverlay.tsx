@@ -4,6 +4,7 @@ import type {
   ExternalConversation,
   MessagingAgentConnection,
   MessagingChannelMembership,
+  MessagingLine,
   MessagingStatus,
 } from "@rakazo/contracts";
 import {
@@ -116,6 +117,7 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
               {status.providers.map(providerLabel).join(" · ")}
             </p>
           ) : null}
+          <MessagingLines onError={setError} />
           {status?.identities.length ? (
             <ul className="mt-3 space-y-3">
               {status.identities.map((identity) => (
@@ -384,5 +386,92 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
         </section>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Deployment lines the owner pairs by QR code; renders nothing for everyone else. */
+function MessagingLines({ onError }: { onError: (message: string | null) => void }) {
+  const { t } = useLingui();
+  const [lines, setLines] = useState<MessagingLine[]>([]);
+  const pairing = lines.some((line) => line.state === "pairing");
+
+  async function run(action: () => Promise<unknown>) {
+    onError(null);
+    try {
+      await action();
+      setLines(await rpc.messaging.lines.list());
+    } catch {
+      onError(t`Couldn't update messaging settings`);
+    }
+  }
+
+  useEffect(() => {
+    void rpc.messaging.lines
+      .list()
+      .then(setLines)
+      .catch(() => undefined);
+  }, []);
+
+  // The QR rotates and the scan happens on the phone, so poll while pairing.
+  useEffect(() => {
+    if (!pairing) return;
+    const timer = setInterval(() => {
+      void rpc.messaging.lines
+        .list()
+        .then(setLines)
+        .catch(() => undefined);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [pairing]);
+
+  if (lines.length === 0) return null;
+  return (
+    <ul className="mt-3 space-y-3" data-testid="messaging-lines">
+      {lines.map((line) => {
+        const label = providerLabel(line.provider);
+        return (
+          <li key={line.provider} className="text-[14px] text-foreground/75">
+            <div className="flex items-center justify-between gap-3">
+              <span>
+                {label}
+                {line.address ? ` · +${line.address}` : null}
+              </span>
+              {line.state === "connected" ? (
+                <Button
+                  variant="secondary"
+                  className="rounded-full"
+                  onClick={() =>
+                    void run(() => rpc.messaging.lines.unpair({ provider: line.provider }))
+                  }
+                >
+                  <Trans>Unlink</Trans>
+                </Button>
+              ) : line.state === "disconnected" ? (
+                <Button
+                  className="rounded-full"
+                  onClick={() =>
+                    void run(() => rpc.messaging.lines.pair({ provider: line.provider }))
+                  }
+                >
+                  <Trans>Link {label}</Trans>
+                </Button>
+              ) : null}
+            </div>
+            {line.state === "pairing" && line.qr ? (
+              <div className="mt-3 flex flex-col items-start gap-2">
+                <img
+                  src={line.qr}
+                  alt={t`${label} QR code`}
+                  className="size-48 rounded-lg border border-border bg-background"
+                />
+                <p className="text-[13px] text-muted-foreground/70">
+                  <Trans>Scan in {label} › Linked devices.</Trans>
+                </p>
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
