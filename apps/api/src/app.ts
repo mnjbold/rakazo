@@ -822,7 +822,10 @@ export async function createApp(
       ok: true,
       runtime: env.agentRuntime,
       sandbox: env.sandboxProvider,
-      composio: Boolean(stack.composio),
+      // Env-configured Composio registers through integration settings, not the test override.
+      composio:
+        Boolean(stack.composio) ||
+        integrationSettings.providers().some((provider) => provider.describe().id === "composio"),
       pipedream: Boolean(pipedream),
       messaging: Boolean(messaging),
       email: email?.describe().id ?? null,
