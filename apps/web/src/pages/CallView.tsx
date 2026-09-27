@@ -1,11 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
-import { ChatMarkdown } from "@rakazo/chat-ui/web";
-import type {
-  LiveInterruption,
-  MessageBlock,
-  ThreadMessage,
-  ThreadSnapshot,
-} from "@rakazo/contracts";
+import type { LiveInterruption, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
 import { LIVE_INTERRUPTION_HEARD_MAX_LENGTH } from "@rakazo/contracts";
 import {
   endOfTurnSilenceMs,
@@ -19,14 +13,11 @@ import {
   spokenDecision,
 } from "@rakazo/core";
 import { BotAvatar, Button } from "@rakazo/ui-web";
-import { PhoneOff } from "lucide-react";
+import { Mic, MicOff, Settings, X } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-import { ArtifactFileCard } from "../components/ArtifactFileCard";
-import type { ArtifactTarget } from "../lib/artifact-open";
 import { startBargeInMonitor } from "../lib/barge-in";
 import { dictation } from "../lib/dictation";
 import { speaker } from "../lib/tts";
-import { ArtifactImage, ChartBlockView } from "./shell/message-cards";
 import "./live-call.css";
 
 type Phase = "listening" | "thinking" | "speaking";
@@ -42,11 +33,11 @@ export function CallView({
   transcribe,
   snapshot,
   screen,
-  artifactTarget,
   onSend,
   onFollowUp,
   onAnswer,
   onOpenComputer,
+  onOpenSettings,
   onClose,
 }: {
   botId: string;
@@ -56,11 +47,11 @@ export function CallView({
   snapshot: ThreadSnapshot | null;
   /** The bot's live computer screen, when it is running and embeddable. */
   screen: { url: string; sandbox?: string } | null;
-  artifactTarget: ArtifactTarget;
   onSend: (text: string, interruption?: LiveInterruption) => Promise<void>;
   onFollowUp: (text: string, interruption?: LiveInterruption) => Promise<void>;
   onAnswer: (message: ThreadMessage, text: string) => Promise<void>;
   onOpenComputer: () => void;
+  onOpenSettings: () => void;
   onClose: () => void;
 }) {
   const { t } = useLingui();
@@ -69,6 +60,9 @@ export function CallView({
   const [heard, setHeard] = useState("");
   const [said, setSaid] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
+  const endBargeInRef = useRef<() => void>(() => undefined);
   const phaseRef = useRef<Phase>("listening");
   const heardRef = useRef("");
   const spokenMessage = useRef<string | null>(null);
@@ -92,12 +86,9 @@ export function CallView({
   secretPromptRef.current = t`Hang up first, then enter the code on screen.`;
 
   const runActive = Boolean(snapshot?.run && RUN_ACTIVE.includes(snapshot.run.status));
-  const lastBot = [...(snapshot?.messages ?? [])].reverse().find((m) => m.role === "bot");
   const lastReply = [...(snapshot?.messages ?? [])]
     .reverse()
     .find((m) => m.role === "bot" && !isStreamMessage(m));
-  const media = latestMediaBlock(lastBot);
-  // The live screen appears only while the bot works, so an idle call stays a small card.
   // A small live preview appears only while the bot is actually driving its browser or desktop.
   const usingComputer =
     runActive &&
@@ -118,6 +109,18 @@ export function CallView({
     onClose();
   }
 
+  function toggleMute() {
+    const next = !mutedRef.current;
+    mutedRef.current = next;
+    setMuted(next);
+    if (next) {
+      endBargeInRef.current();
+      dictation.stop("cancel");
+      setHeard("");
+      heardRef.current = "";
+    } else if (phaseRef.current !== "speaking") void listen();
+  }
+
   function interrupt() {
     if (phaseRef.current === "speaking") {
       const { messageId } = speaker.state;
@@ -135,6 +138,10 @@ export function CallView({
 
   async function listen() {
     if (closing.current) return;
+    if (mutedRef.current) {
+      setCallPhase("listening");
+      return;
+    }
     setHeard("");
     heardRef.current = "";
     if (pendingSecretAsk(snapshotRef.current)) {
@@ -235,18 +242,20 @@ export function CallView({
       stopBargeIn?.();
       stopBargeIn = null;
     };
+    endBargeInRef.current = endBargeIn;
     const unsubSpeech = speaker.subscribe((state) => {
       if (state.status === "speaking") {
         setCallPhase("speaking");
         setCaption(state.caption ?? "");
-        if (!stopBargeIn && !bargeInStarting) {
+        // Muted means the mic stays off, so talking over the bot is not listened for either.
+        if (!stopBargeIn && !bargeInStarting && !mutedRef.current) {
           bargeInStarting = true;
           void startBargeInMonitor(() => {
             stopBargeIn = null;
-            if (phaseRef.current === "speaking") interrupt();
+            if (phaseRef.current === "speaking" && !mutedRef.current) interrupt();
           })
             .then((stop) => {
-              if (closing.current || phaseRef.current !== "speaking") stop();
+              if (closing.current || mutedRef.current || phaseRef.current !== "speaking") stop();
               else stopBargeIn = stop;
             })
             .catch(() => undefined)
@@ -281,11 +290,14 @@ export function CallView({
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      // A dialog opened from the call (voice settings) handles its own keys.
+      if (event.defaultPrevented || document.querySelector('[role="dialog"]')) return;
       if (event.key === "Escape") {
         event.preventDefault();
         hangUp();
       }
-      if (event.key === " " && phaseRef.current === "speaking") {
+      // Typing in the composer stays typing while on a call.
+      if (event.key === " " && phaseRef.current === "speaking" && !isTypingTarget(event.target)) {
         event.preventDefault();
         interrupt();
       }
@@ -392,8 +404,9 @@ export function CallView({
   }, []);
 
   const colorStyle = { "--live-color": botColor } as CSSProperties;
-  const status =
-    phase === "speaking"
+  const status = muted
+    ? t`Muted`
+    : phase === "speaking"
       ? t`Speaking`
       : runActive
         ? t`Working`
@@ -407,22 +420,21 @@ export function CallView({
       ? caption
       : heard || said
         ? `${t`You`}: ${heard || said}`
-        : t`Talk anytime. I stay quiet unless you need me.`);
-  const showMedia = Boolean(media && (runActive || phase === "speaking"));
+        : "");
 
   return (
     <section
       data-testid="call-view"
       aria-label={t`Live call with ${botName}`}
       style={colorStyle}
-      className="mx-3 mb-2 overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:mx-6"
+      className="live-bar"
     >
-      <div className="flex min-w-0 items-center gap-2.5 px-2.5 py-1.5">
+      <div className="live-pill border border-border bg-card shadow-md">
         <button
           type="button"
           onClick={interrupt}
           aria-label={phase === "speaking" ? t`Interrupt` : t`Listen again`}
-          className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="grid size-11 shrink-0 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <div
             ref={orbRef}
@@ -433,116 +445,87 @@ export function CallView({
             <BotAvatar
               color={botColor}
               identity={botId}
-              size={32}
+              size={34}
               variant="organic"
               status={runActive || phase === "speaking" ? "running" : undefined}
             />
           </div>
         </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[13px] font-medium text-foreground" dir="auto">
-              {botName}
-            </span>
-            <span className="shrink-0 text-[11.5px] text-muted-foreground" aria-live="polite">
-              {status}
-            </span>
-            <div ref={waveRef} className="live-wave" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
-          <p
-            className={`truncate text-[12.5px] ${error ? "text-destructive" : "text-muted-foreground"}`}
-            dir="auto"
-            aria-live="polite"
-          >
-            {line}
-          </p>
+        <span className="sr-only" aria-live="polite">
+          {status}
+        </span>
+        <div ref={waveRef} className="live-wave" data-muted={muted || undefined} aria-hidden="true">
+          {WAVE_BARS.map((bar) => (
+            <span key={bar} />
+          ))}
         </div>
-        {showScreen && screen ? (
-          <button
-            type="button"
-            onClick={onOpenComputer}
-            aria-label={t`Open ${botName}'s computer`}
-            title={t`Open ${botName}'s computer`}
-            className="live-stage-enter relative size-16 shrink-0 overflow-hidden rounded-lg border border-border bg-black"
-          >
-            <iframe
-              title={t`${botName}'s screen`}
-              src={screen.url}
-              sandbox={screen.sandbox}
-              tabIndex={-1}
-              className="size-full border-0"
-              style={{ pointerEvents: "none" }}
-            />
-          </button>
-        ) : null}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t`Voice settings`}
+          title={t`Voice settings`}
+          className="size-11 shrink-0 rounded-full text-muted-foreground"
+          onClick={onOpenSettings}
+        >
+          <Settings size={18} strokeWidth={1.8} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t`Mute`}
+          title={t`Mute`}
+          aria-pressed={muted}
+          className="size-11 shrink-0 rounded-full text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+          onClick={toggleMute}
+        >
+          {muted ? <MicOff size={18} strokeWidth={1.8} /> : <Mic size={18} strokeWidth={1.8} />}
+        </Button>
         <Button
           variant="destructive"
           size="icon"
           aria-label={t`Hang up`}
           title={t`Hang up`}
-          className="size-8 shrink-0 rounded-full"
+          className="size-11 shrink-0 rounded-full"
           onClick={hangUp}
         >
-          <PhoneOff size={15} strokeWidth={1.9} />
+          <X size={18} strokeWidth={2.2} />
         </Button>
       </div>
-      {showMedia && media ? (
-        <div className="live-stage-enter mx-2.5 mb-2 max-h-40 overflow-auto rounded-xl border border-border bg-background p-2">
-          <MediaBlock block={media} target={artifactTarget} />
+      <div className="live-handle bg-border" aria-hidden="true" />
+      {line || (showScreen && screen) ? (
+        <div className="flex min-w-0 items-start gap-2 px-2">
+          <p
+            className={`live-caption min-w-0 flex-1 truncate text-[12.5px] ${error ? "text-destructive" : "text-muted-foreground"}`}
+            dir="auto"
+            aria-live="polite"
+          >
+            {line}
+          </p>
+          {showScreen && screen ? (
+            <button
+              type="button"
+              onClick={onOpenComputer}
+              aria-label={t`Open ${botName}'s computer`}
+              title={t`Open ${botName}'s computer`}
+              className="live-stage-enter pointer-events-auto relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-black shadow-md"
+            >
+              <iframe
+                title={t`${botName}'s screen`}
+                src={screen.url}
+                sandbox={screen.sandbox}
+                tabIndex={-1}
+                className="size-full border-0"
+                style={{ pointerEvents: "none" }}
+              />
+            </button>
+          ) : null}
         </div>
       ) : null}
     </section>
   );
 }
 
-type MediaKind = Extract<MessageBlock, { kind: "image" | "file" | "chart" }>;
-
-/** The newest visual result in the bot's reply: a chart, image, file, or table-bearing text. */
-function latestMediaBlock(
-  message: ThreadMessage | undefined,
-): MediaKind | { kind: "table"; text: string } | null {
-  if (!message) return null;
-  for (let i = message.blocks.length - 1; i >= 0; i -= 1) {
-    const block = message.blocks[i];
-    if (!block) continue;
-    if (block.kind === "image" || block.kind === "file" || block.kind === "chart") return block;
-    if (block.kind === "text" && /^\s*\|.+\|\s*$/m.test(block.text)) {
-      return { kind: "table", text: block.text };
-    }
-  }
-  return null;
-}
-
-function MediaBlock({
-  block,
-  target,
-}: {
-  block: MediaKind | { kind: "table"; text: string };
-  target: ArtifactTarget;
-}) {
-  if (block.kind === "table") return <ChatMarkdown>{block.text}</ChatMarkdown>;
-  if (block.kind === "chart") {
-    return <ChartBlockView name={block.name} spec={block.spec} data={block.data} />;
-  }
-  if (block.kind === "image") {
-    return <ArtifactImage target={target} artifactId={block.artifactId} name={block.name} />;
-  }
-  return (
-    <ArtifactFileCard
-      target={target}
-      artifactId={block.artifactId}
-      name={block.name}
-      mimeType={block.mimeType}
-      size={block.size}
-    />
-  );
-}
+const WAVE_BARS = Array.from({ length: 24 }, (_, index) => index);
 
 function latestBotId(snapshot: ThreadSnapshot | null): string | null {
   const messages = snapshot?.messages ?? [];
@@ -612,4 +595,11 @@ function speakableProgress(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed || trimmed.length > 80) return null;
   return trimmed;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+  );
 }
