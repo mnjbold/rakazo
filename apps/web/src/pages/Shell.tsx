@@ -134,7 +134,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AppRail } from "../components/AppRail";
+import { AppRail, RailBot } from "../components/AppRail";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
 import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
@@ -1522,6 +1522,15 @@ export function ShellPage() {
     });
   }, [bootstrapMe, botSections, bots, groups, spaces, query]);
 
+  const railBots = useMemo(
+    () =>
+      sidebarGroups.flatMap((group) =>
+        group.bots.flatMap((item) =>
+          item.kind === "bot" ? [{ chat: item.chat, spaceId: group.spaceId }] : [],
+        ),
+      ),
+    [sidebarGroups],
+  );
   const openSpaceChat = useCallback(
     (spaceId: string, path: string) => {
       setMobileSidebarOpen(false);
@@ -2727,7 +2736,22 @@ export function ShellPage() {
           className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
         />
       ) : null}
-      <AppRail active="bots" />
+      <AppRail active="bots">
+        {railBots.length > 0
+          ? railBots.map(({ chat, spaceId }) => (
+              <RailBot
+                key={chat.id}
+                id={chat.id}
+                name={chat.name}
+                color={chat.color}
+                status={chat.status}
+                unread={chat.unread}
+                selected={!inGroup && active?.id === chat.id}
+                onSelect={() => openSpaceChat(spaceId, `/app/${chat.id}`)}
+              />
+            ))
+          : null}
+      </AppRail>
       <aside
         data-testid="bots-sidebar"
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}

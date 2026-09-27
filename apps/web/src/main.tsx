@@ -5,6 +5,7 @@ import { App } from "./App";
 import { DesktopUpdatesProvider } from "./components/DesktopUpdates";
 import { I18nBootstrap } from "./components/I18nBootstrap";
 import { applyUiDirection } from "./lib/apply-ui-direction";
+import { desktopBridge } from "./lib/desktop";
 import { markAfterPaint, markOnce } from "./lib/performance";
 import { installPreloadRecovery } from "./lib/preload-recovery";
 import { applyUiAppearance, watchSystemAppearance } from "./lib/ui-appearance";
@@ -15,6 +16,10 @@ markOnce("rk:renderer:module-evaluated");
 installPreloadRecovery();
 applyUiDirection(resolveUiLocale());
 applyUiAppearance();
+// Installable offline shell for the browser PWA; Electron and dev servers skip it.
+if (import.meta.env.PROD && "serviceWorker" in navigator && !desktopBridge()) {
+  void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+}
 
 function PerformanceProbe() {
   useLayoutEffect(() => {

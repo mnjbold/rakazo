@@ -16,4 +16,15 @@ describe("index.html theme bootstrap", () => {
       `theme === "light" ? "${lightTokens.background.toLowerCase()}" : "${darkTokens.background.toLowerCase()}"`,
     );
   });
+
+  it("uses the dark background token for the PWA manifest colors", () => {
+    const manifest = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL("../../public/site.webmanifest", import.meta.url)),
+        "utf8",
+      ),
+    );
+    expect(manifest.theme_color).toBe(darkTokens.background.toLowerCase());
+    expect(manifest.background_color).toBe(darkTokens.background.toLowerCase());
+  });
 });
