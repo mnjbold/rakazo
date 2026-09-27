@@ -19,7 +19,7 @@ export interface TelnyxCallControlOptions {
 /**
  * Telnyx Call Control v2, turn-based: `speak` for replies and
  * `transcription_start` (inbound track only, so the bot never hears itself)
- * for the caller's final transcripts.
+ * for the caller's final transcripts, and `gather` for keypad PIN entry.
  */
 export class TelnyxCallControl implements PhoneCallProvider {
   private readonly key: KeyObject;
@@ -75,6 +75,19 @@ export class TelnyxCallControl implements PhoneCallProvider {
     });
   }
 
+  gatherDigits(callId: string, maxDigits: number) {
+    return this.command(callId, "gather", {
+      minimum_digits: 1,
+      maximum_digits: maxDigits,
+      terminating_digit: "#",
+      valid_digits: "0123456789#",
+      // The first digit follows a spoken prompt, so wait longer than Telnyx's 5s default.
+      initial_timeout_millis: 15_000,
+      inter_digit_timeout_millis: 5_000,
+      timeout_millis: 30_000,
+    });
+  }
+
   hangup(callId: string) {
     return this.command(callId, "hangup", {});
   }
@@ -125,6 +138,12 @@ function translate(body: unknown): PhoneCallEvent | null {
       return { kind: "spoken", eventId, callId };
     case "call.hangup":
       return { kind: "ended", eventId, callId };
+    case "call.gather.ended": {
+      // call_hangup and cancelled gathers carry no entry; call.hangup ends the call separately.
+      if (!["valid", "invalid", "timeout"].includes(String(payload?.status))) return null;
+      const digits = typeof payload?.digits === "string" ? payload.digits : "";
+      return { kind: "digits", eventId, callId, digits };
+    }
     case "call.transcription": {
       const t = payload?.transcription_data as
         | { is_final?: unknown; transcript?: unknown }

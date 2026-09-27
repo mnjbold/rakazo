@@ -35,6 +35,20 @@ describe("loadEnv", () => {
     expect(env.wakeupDriver).toBe("memory");
   });
 
+  it("accepts a 4-12 digit Telnyx call PIN and rejects anything else without echoing it", () => {
+    expect(loadEnv(base).telnyxCallPin).toBeUndefined();
+    expect(loadEnv({ ...base, TELNYX_CALL_PIN: " " }).telnyxCallPin).toBeUndefined();
+    expect(loadEnv({ ...base, TELNYX_CALL_PIN: " 4821 " }).telnyxCallPin).toBe("4821");
+    expect(loadEnv({ ...base, TELNYX_CALL_PIN: "123456789012" }).telnyxCallPin).toBe(
+      "123456789012",
+    );
+    for (const bad of ["482", "1234567890123", "48a1", "48 21", "-4821"]) {
+      expect(() => loadEnv({ ...base, TELNYX_CALL_PIN: bad })).toThrow(
+        /^TELNYX_CALL_PIN must be 4 to 12 digits$/,
+      );
+    }
+  });
+
   it("loads an optional integrations catalog mirror", () => {
     expect(loadEnv(base).integrationsCatalogUrl).toBeUndefined();
     expect(

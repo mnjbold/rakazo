@@ -318,6 +318,8 @@ export type PhoneCallEvent =
   /** A final (not interim) transcript of the caller's speech. */
   | { kind: "speech"; eventId: string; callId: string; text: string }
   | { kind: "spoken"; eventId: string; callId: string }
+  /** Keypad digits from a finished `gatherDigits`; empty when the caller entered none. */
+  | { kind: "digits"; eventId: string; callId: string; digits: string }
   | { kind: "ended"; eventId: string; callId: string };
 
 /** Turn-based phone calls: the backend answers, speaks, and listens through this port. */
@@ -330,6 +332,8 @@ export interface PhoneCallProvider {
   speak(callId: string, text: string): Promise<void>;
   /** Start streaming final transcripts of the caller's side as `speech` events. */
   listen(callId: string): Promise<void>;
+  /** Collect up to `maxDigits` keypad digits, ended by `#` or a timeout, as one `digits` event. */
+  gatherDigits(callId: string, maxDigits: number): Promise<void>;
   hangup(callId: string): Promise<void>;
 }
 

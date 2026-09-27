@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { JobPublisher, PhoneCallEvent, PhoneCallProvider } from "@rakazo/adapter-kit";
 import { runContinueJob } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
@@ -14,6 +15,10 @@ const MAX_WEBHOOK_BYTES = 64 * 1024;
 const TURN_TIMEOUT_MS = 10 * 60_000;
 const REPLY_EVENTS = new Set(["run.waiting_input", "run.completed", "run.failed", "run.cancelled"]);
 const RUN_DONE = new Set(["run.completed", "run.failed", "run.cancelled"]);
+const PIN_MAX_DIGITS = 12;
+const PIN_ATTEMPTS_PER_CALL = 3;
+const LOCKOUT_FAILURES = 5;
+const LOCKOUT_WINDOW_MS = 15 * 60_000;
 
 export interface PhoneCallDeps {
   phone: PhoneCallProvider;
@@ -24,6 +29,8 @@ export interface PhoneCallDeps {
   botId: string;
   /** Caller numbers that reach the bot. Everyone else is politely declined. */
   allowedCallers: string[];
+  /** When set, an allowed caller must key this PIN before anything reaches the bot. */
+  pin?: string;
 }
 
 interface Target {
@@ -35,7 +42,14 @@ interface Target {
 }
 
 interface ActiveCall {
+  /** Null once the call is declined; the next `spoken` event hangs up. */
   target: Target | null;
+  from: string;
+  /** Caller ID can be spoofed, so a configured PIN gates every utterance. */
+  verified: boolean;
+  pinAttempts: number;
+  /** Telnyx retries webhooks; a retried gather result must not count twice. */
+  gathers: Set<string>;
   abort: AbortController;
   watching: Set<string>;
   spoken: Set<string>;
@@ -44,6 +58,10 @@ interface ActiveCall {
 /** Digits only, so "+1 (202) 555-0133" and "+12025550133" match. */
 export function normalizePhoneNumber(value: string): string {
   return value.replace(/\D/g, "");
+}
+
+function digest(value: string): Buffer {
+  return createHash("sha256").update(value).digest();
 }
 
 /**
@@ -55,6 +73,18 @@ export function createPhoneCallHandler(deps: PhoneCallDeps) {
   // ponytail: per-process call state; a multi-replica API needs sticky routing or shared state.
   const calls = new Map<string, ActiveCall>();
   const allowed = new Set(deps.allowedCallers.map(normalizePhoneNumber).filter(Boolean));
+  const pinDigest = deps.pin ? digest(deps.pin) : null;
+  // ponytail: per-process PIN lockout, keyed only by allow-listed numbers so it stays small;
+  // a multi-replica API needs shared state for the limit to hold across replicas.
+  const pinFailures = new Map<string, number[]>();
+
+  function recentFailures(from: string): number[] {
+    const cutoff = Date.now() - LOCKOUT_WINDOW_MS;
+    const recent = (pinFailures.get(from) ?? []).filter((at) => at > cutoff);
+    if (recent.length) pinFailures.set(from, recent);
+    else pinFailures.delete(from);
+    return recent;
+  }
 
   async function resolveTarget(): Promise<Target | null> {
     const bot = await deps.prisma.bot.findFirst({
@@ -113,7 +143,7 @@ export function createPhoneCallHandler(deps: PhoneCallDeps) {
   async function onSpeech(event: Extract<PhoneCallEvent, { kind: "speech" }>) {
     const call = calls.get(event.callId);
     const target = call?.target;
-    if (!call || !target) return;
+    if (!call || !target || !call.verified) return;
     const last = await deps.prisma.event.findFirst({
       where: { threadId: target.threadId },
       orderBy: { seq: "desc" },
@@ -139,12 +169,43 @@ export function createPhoneCallHandler(deps: PhoneCallDeps) {
     }
   }
 
+  // The entered digits are never logged.
+  async function onDigits(event: Extract<PhoneCallEvent, { kind: "digits" }>) {
+    const call = calls.get(event.callId);
+    if (!call?.target || call.verified || !pinDigest || call.gathers.has(event.eventId)) return;
+    call.gathers.add(event.eventId);
+    // Hash both sides so the comparison is constant-time regardless of entry length.
+    if (timingSafeEqual(digest(event.digits.replace(/#$/, "")), pinDigest)) {
+      call.verified = true;
+      pinFailures.delete(call.from);
+      await deps.phone.speak(event.callId, `Hi, it's ${call.target.name}.`);
+      await deps.phone.listen(event.callId);
+      return;
+    }
+    call.pinAttempts += 1;
+    const recent = recentFailures(call.from);
+    pinFailures.set(call.from, [...recent, Date.now()]);
+    if (call.pinAttempts >= PIN_ATTEMPTS_PER_CALL || recent.length + 1 >= LOCKOUT_FAILURES) {
+      call.target = null;
+      await deps.phone.speak(event.callId, "Wrong PIN. Goodbye.");
+      return;
+    }
+    await deps.phone.speak(event.callId, "Wrong PIN. Try again.");
+    await deps.phone.gatherDigits(event.callId, PIN_MAX_DIGITS);
+  }
+
   return async (event: PhoneCallEvent): Promise<void> => {
     switch (event.kind) {
       case "incoming": {
-        const target = allowed.has(normalizePhoneNumber(event.from)) ? await resolveTarget() : null;
+        const from = normalizePhoneNumber(event.from);
+        const lockedOut = pinDigest !== null && recentFailures(from).length >= LOCKOUT_FAILURES;
+        const target = allowed.has(from) && !lockedOut ? await resolveTarget() : null;
         calls.set(event.callId, {
           target,
+          from,
+          verified: pinDigest === null,
+          pinAttempts: 0,
+          gathers: new Set(),
           abort: new AbortController(),
           watching: new Set(),
           spoken: new Set(),
@@ -163,6 +224,11 @@ export function createPhoneCallHandler(deps: PhoneCallDeps) {
           await deps.phone.speak(event.callId, "Sorry, this number can't take your call.");
           return;
         }
+        if (!call.verified) {
+          await deps.phone.speak(event.callId, "Enter your PIN.");
+          await deps.phone.gatherDigits(event.callId, PIN_MAX_DIGITS);
+          return;
+        }
         await deps.phone.speak(event.callId, `Hi, it's ${call.target.name}.`);
         await deps.phone.listen(event.callId);
         return;
@@ -174,6 +240,9 @@ export function createPhoneCallHandler(deps: PhoneCallDeps) {
       }
       case "speech":
         await onSpeech(event);
+        return;
+      case "digits":
+        await onDigits(event);
         return;
       case "ended": {
         calls.get(event.callId)?.abort.abort();

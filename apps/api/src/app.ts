@@ -569,6 +569,7 @@ export async function createApp(
       jobs,
       botId: env.telnyxPhoneBotId,
       allowedCallers: env.telnyxAllowedCallers,
+      pin: env.telnyxCallPin,
     });
   }
   // Shared with stop so a shutdown during retry delays does not restart polling.

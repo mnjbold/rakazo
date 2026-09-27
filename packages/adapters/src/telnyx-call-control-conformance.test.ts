@@ -91,6 +91,24 @@ describe("TelnyxCallControl against the emulator", () => {
     });
   });
 
+  it("surfaces finished keypad gathers and ignores ones cut short by hangup or cancel", async () => {
+    const { emulator, provider } = setup();
+    const gather = (status: string, digits?: string) =>
+      provider.parseWebhook(
+        emulator.webhook(URL, "call.gather.ended", { call_control_id: "c", status, digits }),
+      );
+    await expect(gather("valid", "4821")).resolves.toEqual({
+      ok: true,
+      event: { kind: "digits", eventId: "evt-1", callId: "c", digits: "4821" },
+    });
+    await expect(gather("timeout")).resolves.toEqual({
+      ok: true,
+      event: { kind: "digits", eventId: "evt-2", callId: "c", digits: "" },
+    });
+    await expect(gather("call_hangup", "48")).resolves.toEqual({ ok: true, event: null });
+    await expect(gather("cancelled")).resolves.toEqual({ ok: true, event: null });
+  });
+
   it("ignores outbound call legs", async () => {
     const { emulator, provider } = setup();
     const result = await provider.parseWebhook(
@@ -104,6 +122,7 @@ describe("TelnyxCallControl against the emulator", () => {
     await provider.answer("v2:call/1");
     await provider.speak("v2:call/1", "Hi");
     await provider.listen("v2:call/1");
+    await provider.gatherDigits("v2:call/1", 12);
     await provider.hangup("v2:call/1");
     expect(emulator.commands).toEqual([
       { callId: "v2:call/1", action: "answer", body: {} },
@@ -116,6 +135,19 @@ describe("TelnyxCallControl against the emulator", () => {
         callId: "v2:call/1",
         action: "transcription_start",
         body: { transcription_engine: "Telnyx", transcription_tracks: "inbound" },
+      },
+      {
+        callId: "v2:call/1",
+        action: "gather",
+        body: {
+          minimum_digits: 1,
+          maximum_digits: 12,
+          terminating_digit: "#",
+          valid_digits: "0123456789#",
+          initial_timeout_millis: 15_000,
+          inter_digit_timeout_millis: 5_000,
+          timeout_millis: 30_000,
+        },
       },
       { callId: "v2:call/1", action: "hangup", body: {} },
     ]);

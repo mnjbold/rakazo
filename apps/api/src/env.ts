@@ -61,6 +61,8 @@ export interface AppEnv {
   telnyxPublicKey: string | undefined;
   telnyxPhoneBotId: string | undefined;
   telnyxAllowedCallers: string[];
+  /** Keypad PIN (4-12 digits) every allowed caller must enter; caller ID alone can be spoofed. */
+  telnyxCallPin: string | undefined;
   smtpUrl: string | undefined;
   emailFrom: string | undefined;
   emailEmulator: boolean;
@@ -166,6 +168,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
+    telnyxCallPin: callPin(source.TELNYX_CALL_PIN),
     smtpUrl: optional(source.SMTP_URL),
     emailFrom: optional(source.EMAIL_FROM),
     emailEmulator: source.EMAIL_EMULATOR === "true" && source.NODE_ENV !== "production",
@@ -217,4 +220,13 @@ function required(source: NodeJS.ProcessEnv, key: string): string {
 function optional(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
+}
+
+function callPin(value: string | undefined): string | undefined {
+  const pin = optional(value);
+  // The message never echoes the value: it is a secret.
+  if (pin !== undefined && !/^\d{4,12}$/.test(pin)) {
+    throw new Error("TELNYX_CALL_PIN must be 4 to 12 digits");
+  }
+  return pin;
 }

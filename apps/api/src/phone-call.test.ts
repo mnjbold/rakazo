@@ -2,13 +2,13 @@ import { runContinueJob } from "@rakazo/adapter-kit";
 import { TelnyxCallControl, TelnyxCallControlEmulator } from "@rakazo/adapters";
 import type { ProductEvent } from "@rakazo/contracts";
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mountPhoneCallRoute, normalizePhoneNumber, PHONE_WEBHOOK_PATH } from "./phone-call.js";
 
 const OWNER = "+15551230000";
 const URL = `http://localhost${PHONE_WEBHOOK_PATH}`;
 
-function setup(options: { reply?: string; follow?: "complete" | "hold" } = {}) {
+function setup(options: { reply?: string; follow?: "complete" | "hold"; pin?: string } = {}) {
   const emulator = new TelnyxCallControlEmulator();
   const followSignals: AbortSignal[] = [];
   const prisma = {
@@ -72,6 +72,7 @@ function setup(options: { reply?: string; follow?: "complete" | "hold" } = {}) {
     jobs,
     botId: "bot-1",
     allowedCallers: [OWNER],
+    pin: options.pin,
   });
   const send = (type: string, payload: Record<string, unknown>) =>
     app.request(emulator.webhook(URL, type, { call_control_id: "call-1", ...payload }));
@@ -170,6 +171,105 @@ describe("Telnyx phone calls", () => {
     const { emulator, send } = setup();
     await send("call.answered", {});
     expect(emulator.actions()).toEqual(["hangup"]);
+  });
+
+  describe("with a caller PIN", () => {
+    const PIN = "4821";
+    const keypad = (send: ReturnType<typeof setup>["send"], digits: string, status = "valid") =>
+      send("call.gather.ended", { digits, status });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("asks for the PIN, ignores speech until it is entered, then starts the speech flow", async () => {
+      const { emulator, events, send } = setup({ pin: PIN });
+      await ring(send, OWNER);
+      expect(emulator.actions()).toEqual(["answer", "speak", "gather"]);
+      expect(emulator.commands[1]?.body.payload).toBe("Enter your PIN.");
+
+      await speech(send, "book the flight");
+      expect(events.sendUserMessage).not.toHaveBeenCalled();
+
+      await keypad(send, PIN);
+      expect(emulator.actions()).toEqual([
+        "answer",
+        "speak",
+        "gather",
+        "speak",
+        "transcription_start",
+      ]);
+      expect(emulator.commands[3]?.body.payload).toBe("Hi, it's Jewl.");
+      await speech(send, "book the flight");
+      expect(events.sendUserMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("hangs up after three wrong PINs without creating any message or run", async () => {
+      const { emulator, events, jobs, send } = setup({ pin: PIN });
+      await ring(send, OWNER);
+      await keypad(send, "0000");
+      await keypad(send, "", "timeout");
+      await keypad(send, "48219");
+      expect(emulator.commands.at(-1)?.body.payload).toBe("Wrong PIN. Goodbye.");
+      await speech(send, "let me in");
+      await send("call.speak.ended", {});
+      expect(emulator.actions()).toEqual([
+        "answer",
+        "speak",
+        "gather",
+        "speak",
+        "gather",
+        "speak",
+        "gather",
+        "speak",
+        "hangup",
+      ]);
+      expect(emulator.actions()).not.toContain("transcription_start");
+      expect(events.sendUserMessage).not.toHaveBeenCalled();
+      expect(jobs.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("counts a retried gather webhook once", async () => {
+      const { app, emulator, send } = setup({ pin: PIN });
+      await ring(send, OWNER);
+      const wrong = emulator.webhook(URL, "call.gather.ended", {
+        call_control_id: "call-1",
+        digits: "0000",
+        status: "valid",
+      });
+      await app.request(wrong.clone());
+      await app.request(wrong.clone());
+      await app.request(wrong);
+      await keypad(send, PIN);
+      expect(emulator.actions()).toContain("transcription_start");
+    });
+
+    it("locks a number out after five failures in fifteen minutes, across calls", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      const { emulator, send } = setup({ pin: PIN });
+      await ring(send, OWNER);
+      for (let i = 0; i < 3; i += 1) await keypad(send, "0000");
+      await send("call.hangup", {});
+      await ring(send, OWNER);
+      await keypad(send, "0000");
+      await keypad(send, "0000");
+      expect(emulator.commands.at(-1)?.body.payload).toBe("Wrong PIN. Goodbye.");
+      await send("call.hangup", {});
+
+      emulator.commands.length = 0;
+      await ring(send, OWNER);
+      expect(emulator.actions()).toEqual(["answer", "speak"]);
+      expect(emulator.commands[1]?.body.payload).toBe("Sorry, this number can't take your call.");
+      await keypad(send, PIN);
+      expect(emulator.actions()).toEqual(["answer", "speak"]);
+      await send("call.hangup", {});
+
+      vi.setSystemTime(Date.now() + 15 * 60_000 + 1);
+      emulator.commands.length = 0;
+      await ring(send, OWNER);
+      await keypad(send, PIN);
+      expect(emulator.actions()).toContain("transcription_start");
+    });
   });
 
   it("normalizes phone numbers to digits", () => {
