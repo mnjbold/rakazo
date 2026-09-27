@@ -115,6 +115,8 @@ export { SupermemoryMemoryProvider } from "./supermemory-memory-provider.js";
 export * from "./task-catalog.js";
 export * from "./teaching-session.js";
 export * from "./team-chat-messaging.js";
+export * from "./telnyx-call-control.js";
+export * from "./telnyx-call-control-emulator.js";
 export * from "./third-party-connector-emulator.js";
 export * from "./voice-factory.js";
 export * from "./voicestudio-voice.js";

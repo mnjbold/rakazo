@@ -56,6 +56,11 @@ export interface AppEnv {
   sendblueApiSecret: string | undefined;
   sendblueSigningSecret: string | undefined;
   sendbluePhoneNumber: string | undefined;
+  /** Telnyx Call Control phone line; mounts only when key, public key, and bot are all set. */
+  telnyxApiKey: string | undefined;
+  telnyxPublicKey: string | undefined;
+  telnyxPhoneBotId: string | undefined;
+  telnyxAllowedCallers: string[];
   smtpUrl: string | undefined;
   emailFrom: string | undefined;
   emailEmulator: boolean;
@@ -151,6 +156,13 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     sendblueApiSecret: optional(source.SENDBLUE_API_SECRET),
     sendblueSigningSecret: optional(source.SENDBLUE_SIGNING_SECRET),
     sendbluePhoneNumber: optional(source.SENDBLUE_PHONE_NUMBER),
+    telnyxApiKey: optional(source.TELNYX_API_KEY),
+    telnyxPublicKey: optional(source.TELNYX_PUBLIC_KEY),
+    telnyxPhoneBotId: optional(source.TELNYX_PHONE_BOT_ID),
+    telnyxAllowedCallers: (source.TELNYX_ALLOWED_CALLERS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     smtpUrl: optional(source.SMTP_URL),
     emailFrom: optional(source.EMAIL_FROM),
     emailEmulator: source.EMAIL_EMULATOR === "true" && source.NODE_ENV !== "production",

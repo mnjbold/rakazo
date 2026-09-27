@@ -310,6 +310,28 @@ export interface TransactionalEmailProvider {
   drain?(): Promise<void>;
 }
 
+/** One verified telephony webhook, translated out of the vendor wire format. */
+export type PhoneCallEvent =
+  | { kind: "incoming"; eventId: string; callId: string; from: string; to: string }
+  | { kind: "answered"; eventId: string; callId: string }
+  /** A final (not interim) transcript of the caller's speech. */
+  | { kind: "speech"; eventId: string; callId: string; text: string }
+  | { kind: "spoken"; eventId: string; callId: string }
+  | { kind: "ended"; eventId: string; callId: string };
+
+/** Turn-based phone calls: the backend answers, speaks, and listens through this port. */
+export interface PhoneCallProvider {
+  /** Verify and translate a webhook. `event` is null for events orchestration ignores. */
+  parseWebhook(
+    request: Request,
+  ): Promise<{ ok: false } | { ok: true; event: PhoneCallEvent | null }>;
+  answer(callId: string): Promise<void>;
+  speak(callId: string, text: string): Promise<void>;
+  /** Start streaming final transcripts of the caller's side as `speech` events. */
+  listen(callId: string): Promise<void>;
+  hangup(callId: string): Promise<void>;
+}
+
 export interface ExecutionRunner {
   describe(): AdapterDescriptor<{ cloud: boolean; selfHosted: boolean; desktop: boolean }>;
   dispatch(runId: string, target: "cloud" | "self-hosted" | "desktop"): Promise<void>;

@@ -62,6 +62,7 @@ import {
   SmtpEmailProvider,
   SpaceMemoryProviderResolver,
   sandboxProviderOptionsFromEnv,
+  TelnyxCallControl,
   toTeamChatInbound,
 } from "@rakazo/adapters";
 import { blockedAuthPaths, createAuth } from "@rakazo/auth";
@@ -96,6 +97,7 @@ import {
   wakeMessageRoutines,
 } from "./messaging-inbound.js";
 import { mountMessagingWebhookRoutes } from "./messaging-webhook.js";
+import { mountPhoneCallRoute } from "./phone-call.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
 import { mountScreenTarget } from "./screen-proxy.js";
@@ -549,6 +551,16 @@ export async function createApp(
     return actor;
   });
   mountWebhookHttpRoutes(app, { prisma, secrets, events, jobs });
+  if (env.telnyxApiKey && env.telnyxPublicKey && env.telnyxPhoneBotId) {
+    mountPhoneCallRoute(app, {
+      phone: new TelnyxCallControl({ apiKey: env.telnyxApiKey, publicKey: env.telnyxPublicKey }),
+      prisma,
+      events,
+      jobs,
+      botId: env.telnyxPhoneBotId,
+      allowedCallers: env.telnyxAllowedCallers,
+    });
+  }
   // Shared with stop so a shutdown during retry delays does not restart polling.
   let messagingStopped = false;
   let clearMessagingRetryDelay: (() => void) | undefined;
