@@ -485,7 +485,7 @@ export function CallView({
           size="icon"
           aria-label={t`Hang up`}
           title={t`Hang up`}
-          className="size-11 shrink-0 rounded-full"
+          className="size-11 shrink-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/85"
           onClick={hangUp}
         >
           <X size={18} strokeWidth={2.2} />
