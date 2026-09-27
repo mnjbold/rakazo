@@ -21,6 +21,7 @@ function handlers(): BackgroundJobHandlers {
     "chat.session.summarize": vi.fn(async () => undefined),
     "messaging.deliver": vi.fn(async () => undefined),
     "cloud_agent.poll": vi.fn(async () => undefined),
+    "reply.judge": vi.fn(async () => undefined),
   };
 }
 

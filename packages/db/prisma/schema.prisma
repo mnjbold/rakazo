@@ -390,6 +390,7 @@ model Bot {
   mcpServers        BotMcpServer[]
   groupMembers      ChatGroupMember[]
   botSecrets BotSecret[]
+  replyQuality ReplyQuality[]
 
   externalConversations ExternalConversation[]
 
@@ -562,6 +563,23 @@ model ChatSession {
 
   @@unique([threadId, startSeq])
   @@map("chat_sessions")
+}
+
+/// Self-review of one finished bot reply: judge scores and/or the owner's thumbs feedback.
+model ReplyQuality {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  spaceId   String
+  /// 0–1 probability per reply check; null when only feedback exists.
+  scores    Json?
+  /// "up" | "down" from the bot owner's reaction.
+  feedback  String?
+  createdAt DateTime @default(now())
+
+  @@index([botId, createdAt])
+  @@map("reply_quality")
 }
 
 model Message {

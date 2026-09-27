@@ -1,6 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { type JobPublisher, runContinueJob, type SandboxProvider } from "@rakazo/adapter-kit";
-import { cancelComputerRunWork, screenLeaseIdForRun, toComputerRef } from "@rakazo/adapters";
+import {
+  cancelComputerRunWork,
+  recordReplyFeedback,
+  screenLeaseIdForRun,
+  toComputerRef,
+} from "@rakazo/adapters";
 import {
   type Actor,
   GROUP_MEMBER_MIN,
@@ -16,6 +21,7 @@ import {
   isActive,
   isConversationalRun,
   projectMessages,
+  reactionFeedback,
   resolveGroupTargetBotIds,
   runFailureError,
 } from "@rakazo/core";
@@ -1018,7 +1024,7 @@ export async function reactToThreadMessage(
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR UPDATE`;
     const parent = await tx.message.findFirst({
       where: { id: input.messageId, threadId: target.threadId },
-      select: { id: true },
+      select: { id: true, role: true, runId: true, botId: true },
     });
     if (!parent) throw new IsolationError();
     const existing = await tx.message.findUnique({
@@ -1046,6 +1052,22 @@ export async function reactToThreadMessage(
       type: "thread.message.created",
       payload: { messageId: message.id, role: "user", blocks, replyToMessageId: parent.id },
     });
+    // The bot owner's 👍 / 👎 on a bot reply feeds that bot's reply-quality lessons.
+    const feedback = reactionFeedback(input.reaction);
+    if (feedback && parent.role === "bot" && parent.runId && parent.botId) {
+      const owned = await tx.bot.findFirst({
+        where: { id: parent.botId, spaceId: actor.spaceId, userId: actor.userId },
+        select: { id: true },
+      });
+      if (owned) {
+        await recordReplyFeedback(tx, {
+          runId: parent.runId,
+          botId: parent.botId,
+          spaceId: actor.spaceId,
+          feedback,
+        });
+      }
+    }
     return { eventSeq: event.seq };
   });
 }

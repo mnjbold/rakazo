@@ -23,6 +23,7 @@ import type {
 } from "@rakazo/adapter-kit";
 import {
   historyCompactJob,
+  replyJudgeJob,
   routineJobKey,
   routineWakeupJob,
   runContinueJob,
@@ -70,6 +71,7 @@ import {
   promptInvokesSkill,
   redactSecrets,
   renderBotDirectory,
+  replyLessonsInstruction,
   resolveActionApprovalDetail,
   sandboxCommandTimeoutMs,
   type ToolCallStreak,
@@ -270,6 +272,7 @@ import {
 import type { RemoteTransportDependencies } from "./remote-mcp.js";
 import { assertSafeRemoteUrl } from "./remote-mcp.js";
 import { loadReplyContext, messageToAgentHistoryText } from "./reply-context.js";
+import { JUDGED_REPLY_TRIGGERS, loadReplyQuality } from "./reply-quality.js";
 import {
   commitConsumedRunSecret,
   normalizeSecretAskPurpose,
@@ -597,6 +600,8 @@ export interface ExecutorDeps {
   autoReview?: AutoReviewProvider;
   /** Aborted when createApp stop() begins so in-flight continueRun boot waits exit promptly. */
   shutdownSignal?: AbortSignal;
+  /** Enqueue reply.judge after people-facing replies. Set only when a ReplyJudge is configured. */
+  judgeReplies?: boolean;
 }
 
 function isAuditableToolResult(value: unknown): value is {
@@ -3661,6 +3666,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 )}\nWhen the user asks to run a taught skill by name, follow that skill's playbook exactly. The full playbook is included in the user task when they invoke it.`
             : undefined;
         const agentSkillsLine = formatSkillsCatalogInstruction(agentSkills);
+        const replyLessonsLine = replyLessonsInstruction(
+          (await loadReplyQuality(deps.prisma, bot.id))?.lessons ?? [],
+        );
         const missingImagesInstruction = missingTurnImagesInstruction(
           turnBlocks,
           currentTurnImages,
@@ -3818,6 +3826,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 pluginLine,
                 agentSkillsLine,
                 taughtSkillsLine,
+                replyLessonsLine,
                 replyGuidance: [
                   runReplyGuidance(run.trigger),
                   liveCallInstruction(run.live),
@@ -4409,6 +4418,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
           } catch (error) {
             getLogger().error("history.compact enqueue failed", error);
           }
+          if (
+            deps.judgeReplies &&
+            silentReply.assembled.trim() &&
+            !handedOff &&
+            !isSilentReply(silentReply.assembled) &&
+            JUDGED_REPLY_TRIGGERS.has(run.trigger)
+          ) {
+            await deps.jobs
+              .enqueue(replyJudgeJob(runId))
+              .catch((error) => getLogger().error("reply.judge enqueue failed", error));
+          }
         } catch (error) {
           if (!terminalCheckpointComplete) {
             await workspaceCheckpoint.flush().catch(() => undefined);
@@ -4723,6 +4743,8 @@ export function userTurnInstructions(parts: {
   pluginLine: string | undefined;
   agentSkillsLine: string | undefined;
   taughtSkillsLine: string | undefined;
+  /** The bot's own learned reply-style lessons; volatile, so it stays in the tail. */
+  replyLessonsLine?: string;
   replyGuidance: string;
 }): (string | undefined)[] {
   return [
@@ -4751,6 +4773,7 @@ export function userTurnInstructions(parts: {
     parts.pluginLine,
     parts.agentSkillsLine,
     parts.taughtSkillsLine,
+    parts.replyLessonsLine,
     'For charts and data visualization, use the render_plot tool: it renders bar, line, scatter, histogram, heatmap, faceted and many more chart types from a JSON spec and attaches the PNG to the chat. Call render_plot with {"help": true} before your first chart to read the full guide.',
     "When the user asks you to add or connect an MCP server (and gives you its details), use add_mcp_server. If it uses browser sign-in, an approval card appears in the chat — tell the user to click Authorize on it.",
     "Never print API keys, access tokens, or secret values. Prefer tools over claiming you already did the work.",

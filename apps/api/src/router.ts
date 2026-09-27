@@ -59,6 +59,7 @@ import {
   listAvailablePiCatalog,
   listPiCatalog,
   listScratchpadItems,
+  loadReplyQuality,
   McpOAuthBroker,
   mapScratchpadItem,
   modelCredentialAuthKindsForSpace,
@@ -1327,6 +1328,10 @@ export function createRouter(deps: RouterDeps) {
         const found = (await repos.listBots(context.actor)).find((bot) => bot.id === input.botId);
         if (!found) throw new IsolationError();
         return found;
+      }),
+      replyQuality: authed.bots.replyQuality.handler(async ({ context, input }) => {
+        await repos.getBot(context.actor, input.botId);
+        return loadReplyQuality(deps.prisma, input.botId);
       }),
       create: authed.bots.create.handler(async ({ context, input }) => {
         let bot: Bot;

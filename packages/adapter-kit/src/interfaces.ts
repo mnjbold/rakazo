@@ -1,3 +1,4 @@
+import type { ReplyCheckId } from "@rakazo/contracts";
 import type {
   AdapterContext,
   AdapterDescriptor,
@@ -477,4 +478,21 @@ export interface CloudAgentProvider {
 export interface AutoReviewProvider {
   describe(): AdapterDescriptor<AutoReviewCapabilities>;
   review(request: AutoReviewRequest, context: AdapterContext): Promise<AutoReviewResult>;
+}
+
+export interface ReplyJudgeRequest {
+  userRequest: string;
+  reply: string;
+  botInstructions?: string;
+}
+
+/**
+ * Scores a finished bot reply for self-improvement. Each score is a 0–1 probability that the
+ * reply has that problem. Fail-open: any error or timeout resolves to null, never throws.
+ */
+export interface ReplyJudge {
+  judge(
+    request: ReplyJudgeRequest,
+    signal?: AbortSignal,
+  ): Promise<{ scores: Record<ReplyCheckId, number> } | null>;
 }
