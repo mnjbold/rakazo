@@ -6,6 +6,7 @@ import { rpc } from "../lib/api";
 import { appConnectPresentation } from "../lib/app-connect";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
+import { ConnectorIcon } from "./connector-icon";
 
 export function AppConnectCard({
   botId,
@@ -95,20 +96,7 @@ export function AppConnectCard({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            backgroundColor: tokens.muted,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-            {block.name.slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
+        <ConnectorIcon name={block.name} logo={block.logo} size={40} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text
             accessibilityActions={accessibilityActions}

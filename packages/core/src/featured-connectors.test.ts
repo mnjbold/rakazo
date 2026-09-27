@@ -4,6 +4,7 @@ import {
   buildFeaturedConnectorTiles,
   featuredConnectorProvidersMatch,
   filterConnectionCatalogItems,
+  integrationMonogram,
   matchFeaturedConnectorId,
   resolveFeaturedCatalogItem,
 } from "./featured-connectors.js";
@@ -87,5 +88,20 @@ describe("featured connectors", () => {
     expect(filterConnectionCatalogItems(catalog, "pipedream").map(({ name }) => name)).toEqual([
       "Notion",
     ]);
+  });
+});
+
+describe("integrationMonogram", () => {
+  it("uses the first letter or digit, uppercased", () => {
+    expect(integrationMonogram("gmail")).toBe("G");
+    expect(integrationMonogram("  google drive")).toBe("G");
+    expect(integrationMonogram("@acme/tools")).toBe("A");
+    expect(integrationMonogram("123 Forms")).toBe("1");
+    expect(integrationMonogram("ärzte")).toBe("Ä");
+  });
+
+  it("falls back when the name has no letters or digits", () => {
+    expect(integrationMonogram("")).toBe("?");
+    expect(integrationMonogram(" -_ ")).toBe("?");
   });
 });

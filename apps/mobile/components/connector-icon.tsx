@@ -1,32 +1,43 @@
+import { integrationMonogram } from "@rakazo/core";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { SvgUri } from "react-native-svg";
 import { native, useThemedStyles } from "../lib/native";
 
-/** Use the catalog artwork, matching web, with a local fallback for missing logos. */
-export function ConnectorIcon({ name, logo }: { name: string; logo?: string | null }) {
+/** Catalog logo, matching web, or a same-size monogram when the logo is missing or fails. */
+export function ConnectorIcon({
+  name,
+  logo,
+  size = 32,
+}: {
+  name: string;
+  logo?: string | null;
+  size?: number;
+}) {
   const styles = useThemedStyles(createStyles);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const uri = logo && logo !== failedLogo ? logo : null;
+  const art = Math.round(size * 0.78);
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={styles.frame}
+      style={[styles.frame, { width: size, height: size, borderRadius: size * 0.28 }]}
     >
       {uri ? (
         /\.svg(?:[?#]|$)/i.test(uri) ? (
-          <SvgUri uri={uri} width={28} height={28} onError={() => setFailedLogo(uri)} />
+          <SvgUri uri={uri} width={art} height={art} onError={() => setFailedLogo(uri)} />
         ) : (
           <Image
+            accessibilityIgnoresInvertColors
             source={{ uri }}
             resizeMode="contain"
             onError={() => setFailedLogo(uri)}
-            style={styles.image}
+            style={{ width: art, height: art }}
           />
         )
       ) : (
-        <Text style={styles.letter}>{name[0]}</Text>
+        <Text style={[styles.letter, { fontSize: size * 0.42 }]}>{integrationMonogram(name)}</Text>
       )}
     </View>
   );
@@ -35,15 +46,11 @@ export function ConnectorIcon({ name, logo }: { name: string; logo?: string | nu
 function createStyles() {
   return StyleSheet.create({
     frame: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
       backgroundColor: native.fillPressed,
       alignItems: "center",
       justifyContent: "center",
       overflow: "hidden",
     },
-    image: { width: 28, height: 28 },
-    letter: { color: native.label, fontSize: 16, fontWeight: "600" },
+    letter: { color: native.label, fontWeight: "600" },
   });
 }
