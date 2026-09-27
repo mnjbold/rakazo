@@ -1,7 +1,7 @@
 name: sync-upstream
 
 # Weekly, merge the official Rakazo main into a review branch. A clean merge opens a pull request;
-# a conflicting one opens an issue naming the files. Nothing lands on main without review.
+# a conflicting one fails the run and lists the files on its summary page. Nothing lands on main without review.
 on:
   schedule:
     - cron: "0 6 * * 1"
@@ -10,7 +10,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
 
 concurrency:
   group: sync-upstream
@@ -56,14 +55,17 @@ jobs:
               --title "Sync upstream Rakazo (${{ steps.merge.outputs.behind }} commits)" \
               --body "Automated weekly merge of the official Rakazo main. Review, run CI (workflow_dispatch), then merge."
           fi
-      - name: Open an issue when the merge conflicts
+      - name: Report conflicts on the run page
         if: steps.merge.outputs.clean == 'false'
         run: |
           {
+            echo "## Upstream sync needs a manual merge"
+            echo
             echo "The weekly upstream merge (${{ steps.merge.outputs.behind }} commits) conflicts in:"
             echo
             sed 's/^/- /' conflicts.txt
             echo
             echo "Resolve locally: fetch upstream main, merge on a branch, open a PR."
-          } > body.md
-          gh issue create --title "Upstream sync needs a manual merge" --body-file body.md
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Upstream merge conflicts; see the run summary."
+          exit 1
