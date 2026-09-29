@@ -842,47 +842,47 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
 }
 
 async function ensureComputerImage() {
-  if (!imageReady) {
-    imageReady = (async () => {
-      try {
-        await docker.getImage(COMPUTER_IMAGE).inspect();
-        return;
-      } catch {
-        // build below
-      }
-      const dockerfile = path.join(computerContext, "Dockerfile");
-      if (!existsSync(dockerfile)) {
-        throw new Error(
-          `Missing ${COMPUTER_IMAGE}. Build it with: docker build -t ${COMPUTER_IMAGE} infra/sandboxes/computer`,
-        );
-      }
-      const stream = await docker.buildImage(
-        {
-          context: computerContext,
-          src: [
-            "Dockerfile",
-            "start.sh",
-            "control.py",
-            "xcapture.c",
-            "rakazo-browser",
-            "rakazo-page-browser",
-            "rakazo-browser.desktop",
-            "embed.html",
-            "clipboard-bridge.js",
-            "mobile-keyboard.js",
-            "fluxbox.init",
-            "fluxbox.apps",
-            "fluxbox.menu",
-          ],
-        },
-        { t: COMPUTER_IMAGE },
-      );
-      await new Promise<void>((resolve, reject) => {
-        docker.modem.followProgress(stream, (err) => (err ? reject(err) : resolve()));
-      });
+  // Share one check across concurrent provisions, then check again next time: host
+  // cleanup (such as a scheduled `docker image prune`) can delete the image at any point.
+  imageReady ??= (async () => {
+    try {
       await docker.getImage(COMPUTER_IMAGE).inspect();
-    })();
-  }
+      return;
+    } catch {
+      // build or pull below
+    }
+    const dockerfile = path.join(computerContext, "Dockerfile");
+    // Published deployments have no build context, so fetch the pinned image again.
+    const stream = existsSync(dockerfile)
+      ? await docker.buildImage(
+          {
+            context: computerContext,
+            src: [
+              "Dockerfile",
+              "start.sh",
+              "control.py",
+              "xcapture.c",
+              "rakazo-browser",
+              "rakazo-page-browser",
+              "rakazo-browser.desktop",
+              "embed.html",
+              "clipboard-bridge.js",
+              "mobile-keyboard.js",
+              "fluxbox.init",
+              "fluxbox.apps",
+              "fluxbox.menu",
+            ],
+          },
+          { t: COMPUTER_IMAGE },
+        )
+      : await docker.pull(COMPUTER_IMAGE);
+    await new Promise<void>((resolve, reject) => {
+      docker.modem.followProgress(stream, (err) => (err ? reject(err) : resolve()));
+    });
+    await docker.getImage(COMPUTER_IMAGE).inspect();
+  })().finally(() => {
+    imageReady = undefined;
+  });
   await imageReady;
 }
 

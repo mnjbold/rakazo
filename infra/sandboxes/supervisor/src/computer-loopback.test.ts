@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
     listContainers: vi.fn(),
     createContainer: vi.fn(),
     createNetwork: vi.fn(),
+    pull: vi.fn(),
+    followProgress: vi.fn(),
   },
   assertHomeWritable: vi.fn(),
 }));
@@ -25,6 +27,8 @@ vi.mock("dockerode", () => ({
     listContainers = mocks.docker.listContainers;
     createContainer = mocks.docker.createContainer;
     createNetwork = mocks.docker.createNetwork;
+    pull = mocks.docker.pull;
+    modem = { followProgress: mocks.docker.followProgress };
   },
 }));
 vi.mock("./home-ownership.js", () => ({ assertComputerHomeWritable: mocks.assertHomeWritable }));
@@ -410,6 +414,34 @@ describe("provisioning network rollback", () => {
     expect(container.remove.mock.invocationCallOrder[0]).toBeLessThan(
       network.remove.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("pulls the published computer image again after host cleanup removed it", async () => {
+    fixture();
+    vi.stubEnv("RAKAZO_COMPUTER_CONTEXT", path.join(process.env.DATA_DIR!, "no-build-context"));
+    const inspect = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("no such image"))
+      .mockResolvedValue({ Id: "image" });
+    mocks.docker.getImage.mockReturnValue({ inspect });
+    mocks.docker.pull.mockResolvedValue(Readable.from([]));
+    mocks.docker.followProgress.mockImplementation((_stream, done: (err: Error | null) => void) =>
+      done(null),
+    );
+    const response = await provision();
+    expect(response.status).toBe(200);
+    expect(mocks.docker.pull).toHaveBeenCalledExactlyOnceWith(COMPUTER_IMAGE);
+    expect(mocks.docker.createContainer).toHaveBeenCalledOnce();
+  });
+
+  it("checks the image again on the next provision instead of trusting an old result", async () => {
+    fixture();
+    await provision();
+    await provision();
+    expect(mocks.docker.getImage).toHaveBeenCalledWith(COMPUTER_IMAGE);
+    expect(
+      mocks.docker.getImage.mock.calls.filter(([image]) => image === COMPUTER_IMAGE).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it("preserves the existing computer when its replacement network cannot be allocated", async () => {
