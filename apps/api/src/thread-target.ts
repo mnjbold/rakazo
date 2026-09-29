@@ -18,6 +18,7 @@ import {
 } from "@rakazo/contracts";
 import {
   ACTIVE_RUN_STATUSES,
+  callIdFromClientNonce,
   isActive,
   isConversationalRun,
   projectMessages,
@@ -629,6 +630,9 @@ export async function sendThreadMessage(
 ) {
   const existing = await replayExistingSend(deps, target.threadId, input.clientNonce);
   if (existing) return existing;
+  // Live events carry the call id so a spoken turn joins the call card on first
+  // paint; without it the bubble shows loose until a refetch reads the nonce.
+  const callId = callIdFromClientNonce(input.clientNonce);
   const requestedReplyQuote = input.replyQuote?.trim() || undefined;
   if (requestedReplyQuote && !input.replyToMessageId) {
     throw new ORPCError("BAD_REQUEST", { message: "replyQuote requires replyToMessageId." });
@@ -739,6 +743,7 @@ export async function sendThreadMessage(
               messageId: message.id,
               role: "user",
               blocks,
+              callId,
               runIds: answered.map((run) => run.id),
               replyToMessageId,
               replyQuote,
@@ -776,6 +781,7 @@ export async function sendThreadMessage(
               messageId: message.id,
               role: "user",
               blocks,
+              callId,
               replyToMessageId,
               replyQuote,
             },
@@ -823,6 +829,7 @@ export async function sendThreadMessage(
             messageId: message.id,
             role: "user",
             blocks,
+            callId,
             runIds: [run.id],
             replyToMessageId,
             replyQuote,
@@ -984,6 +991,7 @@ export async function sendThreadMessage(
           messageId: message.id,
           role: "user",
           blocks,
+          callId,
           runIds: runs.map((run) => run.id),
           replyToMessageId,
           replyQuote,

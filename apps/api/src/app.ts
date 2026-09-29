@@ -21,6 +21,7 @@ import type {
 import {
   applyMessagingOutboundStatus,
   ChatSdkMessagingSurface,
+  CodexCatalogCache,
   ComposioConnector,
   createBackgroundJobHandlers,
   createCloudAgentConnection,
@@ -67,7 +68,7 @@ import {
   TelnyxCallControl,
   toTeamChatInbound,
 } from "@rakazo/adapters";
-import { blockedAuthPaths, createAuth } from "@rakazo/auth";
+import { createAuth, isBlockedAuthPath } from "@rakazo/auth";
 import { signupAllowlistBootUpdate, signupPolicyFromEnv } from "@rakazo/core";
 import type { Pool, PrismaClient } from "@rakazo/db";
 import {
@@ -398,9 +399,13 @@ export async function createApp(
   const shutdown = new AbortController();
   const replyJudge =
     replyJudgeOverride === undefined ? createReplyJudge(process.env) : replyJudgeOverride;
+  // One cache serves models.list, selection validation, and run-time model
+  // resolution alike, so a list call warms the run path in this process.
+  const codexCatalog = new CodexCatalogCache();
   const executor = createRunExecutor({
     prisma,
     runtime,
+    codexCatalog,
     sandbox,
     memory,
     memoryProviders,
@@ -476,6 +481,7 @@ export async function createApp(
       runtime,
       resolveModel: (scope) => executor.resolveModel(scope),
     }),
+    codexCatalog,
     prisma,
     events,
     auth,
@@ -556,7 +562,7 @@ export async function createApp(
   mountScreenTarget(app, prisma, env.screenProxySecret);
   app.on(["GET", "POST"], "/api/auth/*", async (c) => {
     const path = new URL(c.req.url).pathname.replace("/api/auth", "");
-    if (blockedAuthPaths.some((blocked) => path.startsWith(blocked))) {
+    if (isBlockedAuthPath(path)) {
       return c.json({ error: "Not available in version 1" }, 404);
     }
     return auth.handler(c.req.raw);

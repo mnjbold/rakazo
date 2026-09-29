@@ -38,6 +38,28 @@ describe("MessageHoverMetadata", () => {
     expect(html).not.toContain("<time");
   });
 
+  it("puts the rail in a pill under the bubble on touch", () => {
+    const bot = renderToStaticMarkup(
+      <MessageHoverMetadata side="end">
+        <div data-testid="message-actions" />
+      </MessageHoverMetadata>,
+    );
+    const user = renderToStaticMarkup(
+      <MessageHoverMetadata side="start">
+        <div data-testid="message-actions" />
+      </MessageHoverMetadata>,
+    );
+
+    for (const html of [bot, user]) {
+      // Absolute, so the bubble keeps the full width; hover pointers move it beside the bubble.
+      expect(html).toContain("absolute top-full");
+      expect(html).toContain("rounded-full");
+      expect(html).toContain("[@media(hover:hover)_and_(pointer:fine)]:top-1/2");
+    }
+    expect(bot).toContain(" start-0 ");
+    expect(user).toContain(" end-0 ");
+  });
+
   it("pins the rail open while a nested menu is active", () => {
     const html = renderToStaticMarkup(
       <MessageHoverMetadata pinned side="end">

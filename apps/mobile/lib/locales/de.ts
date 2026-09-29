@@ -91,6 +91,9 @@ export const DE_MESSAGES: Record<string, string> = {
   "Always allowed": "Immer erlaubt",
   Answer: "Antwort",
   Answered: "Beantwortet",
+  Approve: "Genehmigen",
+  "Approve this server to let your agent use its tools.":
+    "Genehmige diesen Server, damit dein Agent seine Tools nutzen kann.",
   "Answered: {answer}": "Beantwortet: {answer}",
   Archive: "Archivieren",
   "Archived. Chat, memory, and files kept.":
@@ -266,10 +269,13 @@ export const DE_MESSAGES: Record<string, string> = {
   "Authorization code": "Autorisierungscode",
   "Configured by deployment": "Durch die Bereitstellung konfiguriert",
   "Connect API key": "API-Schlüssel verbinden",
+  "Connect MCP server {name}": "MCP-Server „{name}“ verbinden",
   "Connect this provider to use it as your personal model.":
     "Verbinde diesen Anbieter, um ihn als persönliches Modell zu verwenden.",
   "Connected and using {label}.": "Verbunden, {label} ist aktiv.",
   "Connected · {label}": "Verbunden · {label}",
+  "Connected. Its tools are available from your next message.":
+    "Verbunden. Seine Tools sind ab deiner nächsten Nachricht verfügbar.",
   "Context limit": "Kontextlimit",
   "Could not change the default model": "Standardmodell konnte nicht geändert werden",
   "Could not connect this provider": "Anbieter konnte nicht verbunden werden",
@@ -295,6 +301,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Model id": "Modell-ID",
   "Model updated.": "Modell aktualisiert.",
   "Not connected": "Nicht verbunden",
+  "Not now": "Nicht jetzt",
   "Now using {label}.": "{label} ist jetzt aktiv.",
   "OpenAI-compatible server URL": "URL eines OpenAI-kompatiblen Servers",
   Optional: "Optional",
@@ -349,6 +356,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Connect Treg": "Treg verbinden",
   "Connection pending": "Verbindung steht aus",
   "Could not add source": "Quelle konnte nicht hinzugefügt werden",
+  "Could not approve this server": "Server konnte nicht genehmigt werden",
   "Could not connect": "Verbindung fehlgeschlagen",
   "Could not remove source": "Quelle konnte nicht entfernt werden",
   "Could not rename connection": "Verbindung konnte nicht umbenannt werden",
@@ -409,6 +417,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Could not load voice settings": "Stimmeinstellungen konnten nicht geladen werden",
   "Could not play a sample": "Beispiel konnte nicht abgespielt werden",
   "Could not save that preference": "Diese Einstellung konnte nicht gespeichert werden",
+  "Could not save that speech model": "Sprachmodell konnte nicht gespeichert werden",
   "Could not save that voice": "Stimme konnte nicht gespeichert werden",
   Disconnect: "Trennen",
   "Disconnecting…": "Verbindung wird getrennt…",
@@ -424,6 +433,7 @@ export const DE_MESSAGES: Record<string, string> = {
     "Dieser Anbieter wird von deinem Server verwaltet. Hier ist kein API-Schlüssel nötig.",
   "Speak + transcribe": "Sprechen + transkribieren",
   "Speak only": "Nur sprechen",
+  "Speech model": "Sprachmodell",
   "This device": "Dieses Gerät",
   "Your phone's built-in voice. Free, no account needed":
     "Die eingebaute Stimme deines Telefons. Kostenlos, kein Konto nötig",
@@ -525,6 +535,8 @@ export const DE_MESSAGES: Record<string, string> = {
   "Continue in Background": "Im Hintergrund fortfahren",
   "Could not complete action": "Aktion konnte nicht abgeschlossen werden",
   Dismiss: "Schließen",
+  "Dismissed. Reconnect anytime from MCP settings.":
+    "Verworfen. Stelle die Verbindung jederzeit über die MCP-Einstellungen wieder her.",
   "Getting ready": "Wird vorbereitet",
   "Make sure nothing is still running on this computer.":
     "Stelle sicher, dass auf diesem Computer nichts mehr läuft.",
@@ -555,6 +567,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Needs input": "Eingabe erforderlich",
   "Needs takeover": "Übernahme erforderlich",
   Queued: "In Warteschlange",
+  Quote: "Zitieren",
   Starting: "Startet",
   "just now": "gerade eben",
   "{count}d ago": "vor {count} T.",
@@ -618,4 +631,23 @@ export const DE_MESSAGES: Record<string, string> = {
   Templates: "Vorlagen",
   "No templates": "Keine Vorlagen",
   "Use template {name}": "Vorlage {name} verwenden",
+  // call
+  "Allow microphone access to call a bot.": "Erlaube den Mikrofonzugriff, um einen Bot anzurufen.",
+  "Allow speech recognition in Settings, or connect ElevenLabs, OpenAI, or Fish Audio.":
+    "Erlaube die Spracherkennung in den Einstellungen oder verbinde ElevenLabs, OpenAI oder Fish Audio.",
+  Call: "Anrufen",
+  "Calls need transcription": "Anrufe brauchen eine Transkription",
+  "Could not hear that.": "Das war nicht zu verstehen.",
+  "Could not speak that.": "Das konnte nicht vorgelesen werden.",
+  "Could not transcribe that.": "Das konnte nicht transkribiert werden.",
+  "Hang up": "Auflegen",
+  "Hide transcript": "Transkript ausblenden",
+  Mute: "Stummschalten",
+  "On a call with {name}": "Im Gespräch mit {name}",
+  "Open Voice": "Sprache öffnen",
+  Settings: "Einstellungen",
+  "Show transcript": "Transkript anzeigen",
+  Transcript: "Transkript",
+  Unmute: "Stummschaltung aufheben",
+  "Voice chat": "Sprachchat",
 };

@@ -384,7 +384,7 @@ test.describe("touch message actions", () => {
     await bubble.tap();
     await expect(rail).toHaveCSS("opacity", "1");
     await expect(row.getByTestId("message-hover-time")).toHaveCSS("opacity", "1");
-    await expect(rail.getByRole("button", { name: "Reply", exact: true })).toBeHidden();
+    await expect(rail.getByRole("button", { name: "Reply", exact: true })).toBeVisible();
     await captureScreenshot(page, testInfo, "message-actions-touch-open");
     // Tapping elsewhere hides them again.
     await page.getByTestId("transcript").tap({ position: { x: 200, y: 8 } });
@@ -410,7 +410,8 @@ test.describe("touch message actions", () => {
     await expect(row.getByTestId("message-hover-time")).toHaveText(/\d/);
     await expect(page.getByRole("menu").locator("time")).toHaveCount(0);
     await captureScreenshot(page, testInfo, "message-actions-touch-menu");
-    await page.getByRole("menuitem", { name: "Reply", exact: true }).tap();
+    await page.keyboard.press("Escape");
+    await rail.getByRole("button", { name: "Reply", exact: true }).tap();
     await expect(page.getByRole("button", { name: "Cancel reply" })).toBeVisible();
   });
 });
