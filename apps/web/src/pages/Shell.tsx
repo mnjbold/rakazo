@@ -530,7 +530,6 @@ export function ShellPage() {
   const memoryProviderConfigRevision = useRef(0);
   const [callOpen, setCallOpen] = useState(false);
   // Each live talk session tags its turns with one call id, so the transcript groups them.
-  const callIdRef = useRef<string | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [dismissedRunErrorIds, setDismissedRunErrorIds] =
@@ -3641,16 +3640,8 @@ export function ShellPage() {
                     ? { url: embeddedScreenUrl, sandbox: screenIframeSandbox(embeddedScreenUrl) }
                     : null
                 }
-                onSend={(text, interruption) =>
-                  sendMessage(text, [], {
-                    live: true,
-                    interruption,
-                    callId: callIdRef.current ?? undefined,
-                  })
-                }
-                onFollowUp={(text, interruption) =>
-                  followUpMessage(text, true, interruption, callIdRef.current ?? undefined)
-                }
+                onSend={(text, interruption) => sendMessage(text, [], { live: true, interruption })}
+                onFollowUp={(text, interruption) => followUpMessage(text, true, interruption)}
                 onAnswer={answerMessage}
                 onOpenComputer={() => setPanel("computer")}
                 onOpenSettings={() => openSettings("voice")}
@@ -3690,7 +3681,6 @@ export function ShellPage() {
                       openSettings("voice");
                       return;
                     }
-                    callIdRef.current = newClientId();
                     setCallOpen(true);
                   }
                 : undefined
