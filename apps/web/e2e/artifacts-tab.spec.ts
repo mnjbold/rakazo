@@ -11,10 +11,16 @@ test("opens Artifacts from the account menu and lists created files", async ({
   await page.waitForURL(/\/app\/(?!artifacts(?:\/|$))[^/]+$/);
   const chiefId = activeBotId(page);
 
-  await expect(page.getByTestId("app-rail")).toHaveCount(0);
+  // Tablet and desktop keep the bot rail beside the bots sidebar.
+  const appRail = page.getByTestId("app-rail");
+  await expect(appRail).toBeVisible();
   const sidebar = page.getByTestId("bots-sidebar");
   await expect(sidebar).toBeVisible();
-  expect((await sidebar.boundingBox())?.x).toBe(0);
+  const railBox = await appRail.boundingBox();
+  expect((await sidebar.boundingBox())?.x).toBeCloseTo(
+    (railBox?.x ?? 0) + (railBox?.width ?? 0),
+    0,
+  );
   await expect(sidebar.getByRole("link", { name: "Artifacts" })).toHaveCount(0);
   await expect(sidebar.getByRole("button", { name: "Artifacts", exact: true })).toHaveCount(0);
   await expect(sidebar.getByRole("button", { name: "Integrations" })).toBeVisible();
@@ -71,8 +77,9 @@ test("opens Artifacts from the account menu and lists created files", async ({
   await expect(page.getByTestId("transcript")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByTestId("app-rail")).toHaveCount(0);
-  await page.getByRole("button", { name: "Open navigation" }).click();
+  // Phones hide the rail in a chat and go back to the full-width bot list.
+  await expect(page.getByTestId("app-rail")).toBeHidden();
+  await page.getByRole("button", { name: "Back" }).click();
   const mobileSidebar = page.getByTestId("bots-sidebar");
   await expect(mobileSidebar.getByRole("link", { name: "Artifacts" })).toHaveCount(0);
   await expect(mobileSidebar.getByRole("button", { name: "Artifacts", exact: true })).toHaveCount(
