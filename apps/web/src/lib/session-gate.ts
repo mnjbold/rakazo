@@ -16,8 +16,8 @@ export type SessionGate = "loading" | "unreachable" | "authenticated" | "anonymo
 export function sessionGate(session: SessionGateInput): SessionGate {
   if (session.data?.user) return "authenticated";
   if (session.isPending) return "loading";
-  // 401 is the server answering: there is genuinely no session.
-  if (session.error && session.error.status !== 401) return "unreachable";
+  // 401 or 404 is the server answering: there is genuinely no session.
+  if (session.error && session.error.status !== 401 && session.error.status !== 404) return "unreachable";
   return "anonymous";
 }
 

@@ -566,9 +566,25 @@ export async function createApp(
   mountApiRequestBodyLimits(app);
   mountScreenTarget(app, prisma, env.screenProxySecret);
   app.on(["GET", "POST"], "/api/auth/*", async (c) => {
-    const path = new URL(c.req.url).pathname.replace("/api/auth", "");
+    const rawUrl = new URL(c.req.url);
+    const normalizedPathname =
+      rawUrl.pathname.length > 1 && rawUrl.pathname.endsWith("/")
+        ? rawUrl.pathname.slice(0, -1)
+        : rawUrl.pathname;
+    const path = normalizedPathname.replace("/api/auth", "");
     if (isBlockedAuthPath(path)) {
       return c.json({ error: "Not available in version 1" }, 404);
+    }
+    if (normalizedPathname !== rawUrl.pathname) {
+      rawUrl.pathname = normalizedPathname;
+      const strippedReq = new Request(rawUrl.toString(), {
+        method: c.req.method,
+        headers: c.req.raw.headers,
+        body: c.req.method === "GET" || c.req.method === "HEAD" ? undefined : c.req.raw.body,
+        // @ts-expect-error duplex is standard in Node 18+ fetch
+        duplex: "half",
+      });
+      return auth.handler(strippedReq);
     }
     return auth.handler(c.req.raw);
   });
