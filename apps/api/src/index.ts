@@ -13,10 +13,11 @@ const logger = createRootLogger(SERVICE_NAMES.api);
 
 try {
   const env = loadEnv();
-  const { app, stop } = await createApp({ ...env, logger });
+  const { app, stop, injectWebSocket } = await createApp({ ...env, logger });
   const server = serve({ fetch: app.fetch, port: env.port, hostname: env.apiHost }, () => {
     logger.info("api listening", { "http.host": env.apiHost, "http.port": env.port });
   });
+  injectWebSocket?.(server);
 
   // Long-lived connections (threads.subscribe SSE streams) never end on their
   // own, so server.close() alone waits forever for them. Track sockets and

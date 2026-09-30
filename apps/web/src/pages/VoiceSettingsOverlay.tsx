@@ -376,6 +376,12 @@ export function VoiceSettingsOverlay({
                   >
                     {pending === "test" ? <Trans>Playing…</Trans> : <Trans>Hear a sample</Trans>}
                   </Button>
+                  <div className="mt-4 rounded-lg border border-border bg-muted/40 px-3.5 py-3 text-[13px] text-muted-foreground">
+                    <Trans>
+                      Live conversation uses your provider key for real-time voice. Start a call
+                      from any chat to try it.
+                    </Trans>
+                  </div>
                 </>
               ) : null}
             </>

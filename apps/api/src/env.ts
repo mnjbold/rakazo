@@ -39,6 +39,7 @@ export interface AppEnv {
   agentRuntime: string;
   deploymentModelKey: string | undefined;
   voiceStudioApiKey: string | undefined;
+  minimaxApiKey: string | undefined;
   e2bApiKey: string | undefined;
   daytonaApiKey: string | undefined;
   daytonaApiUrl: string | undefined;
@@ -144,6 +145,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     // Provider, model and key resolve together: see resolveDeploymentModel.
     deploymentModelKey: deploymentModel.key,
     voiceStudioApiKey: optional(source.RAKAZO_VOICESTUDIO_API_KEY),
+    minimaxApiKey: optional(source.MINIMAX_API_KEY),
     e2bApiKey: source.E2B_API_KEY,
     daytonaApiKey: source.DAYTONA_API_KEY,
     daytonaApiUrl: source.DAYTONA_API_URL,

@@ -530,6 +530,7 @@ export function ShellPage() {
   const memoryProviderConfigRevision = useRef(0);
   const [callOpen, setCallOpen] = useState(false);
   // Each live talk session tags its turns with one call id, so the transcript groups them.
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [dismissedRunErrorIds, setDismissedRunErrorIds] =
@@ -3597,6 +3598,7 @@ export function ShellPage() {
               answerableAskMessageId={answerableAskMessageId}
               running={transcriptRunning}
               workingBots={workingBots}
+              activeCallId={callOpen ? activeCallId : null}
               onLoadOlder={loadOlder}
               onOpenBot={openBot}
               onAnswer={answerMessage}
@@ -3640,12 +3642,26 @@ export function ShellPage() {
                     ? { url: embeddedScreenUrl, sandbox: screenIframeSandbox(embeddedScreenUrl) }
                     : null
                 }
-                onSend={(text, interruption) => sendMessage(text, [], { live: true, interruption })}
-                onFollowUp={(text, interruption) => followUpMessage(text, true, interruption)}
+                onSend={(text, interruption) =>
+                  sendMessage(text, [], {
+                    live: true,
+                    interruption,
+                    callId: activeCallId ?? undefined,
+                  })
+                }
+                onFollowUp={(text, interruption) =>
+                  followUpMessage(text, true, interruption, activeCallId ?? undefined)
+                }
                 onAnswer={answerMessage}
                 onOpenComputer={() => setPanel("computer")}
                 onOpenSettings={() => openSettings("voice")}
-                onClose={() => setCallOpen(false)}
+                onClose={() => {
+                  if (activeCallId && active) {
+                    void rpc.threads.endCall({ botId: active.id, callId: activeCallId }).catch(() => undefined);
+                  }
+                  setCallOpen(false);
+                  setActiveCallId(null);
+                }}
               />
             </Suspense>
           ) : null}
@@ -3681,6 +3697,7 @@ export function ShellPage() {
                       openSettings("voice");
                       return;
                     }
+                    setActiveCallId(newClientNonce());
                     setCallOpen(true);
                   }
                 : undefined
@@ -4744,6 +4761,7 @@ const Transcript = memo(function Transcript({
   answerableAskMessageId,
   running,
   workingBots,
+  activeCallId,
   onLoadOlder,
   onOpenBot,
   onAnswer,
@@ -4772,6 +4790,7 @@ const Transcript = memo(function Transcript({
   answerableAskMessageId: string | null;
   running: boolean;
   workingBots: GroupAvatarMember[];
+  activeCallId?: string | null;
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
   onAnswer: (message: ThreadMessage, text: string, username?: string) => Promise<void>;
@@ -5108,6 +5127,9 @@ const Transcript = memo(function Transcript({
           </button>
         ) : null}
         {groupVoiceChats(reactionView.visibleMessages).map((item) => {
+          if (activeCallId && item.kind === "voiceChat" && item.callId === activeCallId) {
+            return null;
+          }
           if (item.kind === "voiceChat") {
             return (
               <VoiceChatCard
@@ -5118,6 +5140,7 @@ const Transcript = memo(function Transcript({
             );
           }
           const message = item.message;
+          if (activeCallId && message.callId === activeCallId) return null;
           if (!message.blocks.some((block) => !isToolActivityBlock(block))) return null;
           const peerReceipt = isPeerReceiptBlocks(message.blocks);
           const messageReactions = reactionView.reactions.get(message.id);

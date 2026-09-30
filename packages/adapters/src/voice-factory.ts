@@ -51,14 +51,16 @@ export const VOICE_CATALOG = [
   {
     id: "minimax",
     name: "MiniMax",
-    description: "Expressive Speech voices. Reuse a MiniMax key.",
+    description: "Expressive Speech voices. Pre-configured on server.",
     transcribe: false,
+    managed: true,
   },
   {
     id: "telnyx",
     name: "Telnyx",
-    description: "Kokoro, Ultra and partner voices plus Whisper transcription. Reuse a Telnyx key.",
+    description: "Kokoro, Ultra, MiniMax voices plus Whisper transcription. Pre-configured on server.",
     transcribe: true,
+    managed: true,
   },
 ] as const;
 

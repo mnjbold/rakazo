@@ -588,6 +588,8 @@ export interface RouterDeps {
     defaultModel: string;
     deploymentModelKey?: string;
     voiceStudioApiKey?: string;
+    telnyxApiKey?: string;
+    minimaxApiKey?: string;
     webOrigin: string;
     privacyPolicyUrl?: string;
     screenProxySecret: string;
@@ -5479,7 +5481,9 @@ export function createRouter(deps: RouterDeps) {
       catalog: authed.voice.catalog.handler(async () => listVoiceCatalog()),
       status: authed.voice.status.handler(async ({ context }) => {
         const cred = await findDefaultVoiceCredential(deps.prisma, context.actor);
-        return toVoiceStatus(cred);
+        if (cred) return toVoiceStatus(cred);
+        const loaded = await loadDefaultVoiceCredential(deps, context.actor);
+        return toVoiceStatus(loaded?.cred ?? null);
       }),
       credentials: authed.voice.credentials.handler(async ({ context }) => {
         const rows = await deps.prisma.userVoiceCredential.findMany({
@@ -5491,6 +5495,20 @@ export function createRouter(deps: RouterDeps) {
           },
           orderBy: newestVoiceCredentialOrder,
         });
+        if (rows.length === 0) {
+          const loaded = await loadDefaultVoiceCredential(deps, context.actor);
+          if (loaded) {
+            return [
+              toVoiceCredential({
+                id: loaded.cred.id,
+                provider: loaded.cred.provider,
+                isDefault: true,
+                voiceId: loaded.cred.voiceId,
+                speechModel: loaded.cred.speechModel,
+              }),
+            ];
+          }
+        }
         return rows.map((row) => {
           const preference = row.preferences[0];
           return toVoiceCredential({
@@ -5506,6 +5524,8 @@ export function createRouter(deps: RouterDeps) {
           input.provider,
           input.apiKey,
           deps.env.voiceStudioApiKey,
+          deps.env.telnyxApiKey,
+          deps.env.minimaxApiKey,
         );
         return persistVoiceCredential(deps, context.actor, {
           provider: input.provider,
@@ -5578,15 +5598,28 @@ export function resolveVoiceConnectKey(
   provider: string,
   submittedKey: string | undefined,
   voiceStudioApiKey: string | undefined,
+  telnyxApiKey?: string | undefined,
+  minimaxApiKey?: string | undefined,
 ) {
   const plaintext =
-    submittedKey?.trim() || (provider === "voicestudio" ? voiceStudioApiKey : undefined);
+    submittedKey?.trim() ||
+    (provider === "voicestudio"
+      ? voiceStudioApiKey
+      : provider === "telnyx"
+        ? telnyxApiKey
+        : provider === "minimax"
+          ? minimaxApiKey
+          : undefined);
   if (plaintext) return plaintext;
   throw new ORPCError("BAD_REQUEST", {
     message:
       provider === "voicestudio"
         ? "VoiceStudio is not configured on this server."
-        : "Enter an API key.",
+        : provider === "telnyx"
+          ? "Telnyx is not configured on this server."
+          : provider === "minimax"
+            ? "MiniMax is not configured on this server."
+            : "Enter an API key.",
   });
 }
 

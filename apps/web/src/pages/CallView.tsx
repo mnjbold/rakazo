@@ -18,6 +18,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { startBargeInMonitor } from "../lib/barge-in";
 import { dictation } from "../lib/dictation";
 import { speaker } from "../lib/tts";
+import type { LiveSession } from "../lib/live-session.js";
 import "./live-call.css";
 
 type Phase = "listening" | "thinking" | "speaking";
@@ -39,6 +40,7 @@ export function CallView({
   onOpenComputer,
   onOpenSettings,
   onClose,
+  liveMode,
 }: {
   botId: string;
   botName: string;
@@ -53,6 +55,8 @@ export function CallView({
   onOpenComputer: () => void;
   onOpenSettings: () => void;
   onClose: () => void;
+  /** When true, use LiveSession (WebSocket + AudioWorklet) instead of dictation/speaker. */
+  liveMode?: boolean;
 }) {
   const { t } = useLingui();
   const [phase, setPhase] = useState<Phase>("listening");
@@ -84,6 +88,9 @@ export function CallView({
   askPromptRef.current = t`Say yes or no, or answer in a sentence.`;
   const secretPromptRef = useRef(t`Hang up first, then enter the code on screen.`);
   secretPromptRef.current = t`Hang up first, then enter the code on screen.`;
+  /** Holds the active LiveSession instance when liveMode is true. */
+  const liveSessionRef = useRef<LiveSession | null>(null);
+
 
   const runActive = Boolean(snapshot?.run && RUN_ACTIVE.includes(snapshot.run.status));
   const lastReply = [...(snapshot?.messages ?? [])]
@@ -103,6 +110,11 @@ export function CallView({
   }
 
   function hangUp() {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.close();
+      onClose();
+      return;
+    }
     closing.current = true;
     dictation.stop("cancel");
     speaker.stop();
@@ -122,6 +134,10 @@ export function CallView({
   }
 
   function interrupt() {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.interrupt();
+      return;
+    }
     if (phaseRef.current === "speaking") {
       const { messageId } = speaker.state;
       const spoken = speaker.state.heard?.trim().slice(0, LIVE_INTERRUPTION_HEARD_MAX_LENGTH);
@@ -135,6 +151,7 @@ export function CallView({
     } else dictation.stop("cancel");
     void listen();
   }
+
 
   async function listen() {
     if (closing.current) return;
@@ -227,7 +244,50 @@ export function CallView({
     return speechTurn.current.turn;
   }
 
+  // Live session effect: when liveMode is true, manage a LiveSession instead of dictation/speaker.
   useEffect(() => {
+    if (!liveMode) return;
+    let session: LiveSession | null = null;
+    let unsubscribe: (() => void) | null = null;
+
+    void (async () => {
+      const { LiveSession: LS } = await import("../lib/live-session.js");
+      const { selectedSpaceId } = await import("../lib/rpc.js");
+      session = new LS();
+      unsubscribe = session.subscribe((s) => {
+        // Map live session phase to existing CallView Phase type
+        const livePhase: Phase =
+          s.phase === "connecting" || s.phase === "thinking"
+            ? "thinking"
+            : s.phase === "speaking"
+              ? "speaking"
+              : "listening";
+        setCallPhase(livePhase);
+        setHeard(s.heard);
+        setCaption(s.caption ?? "");
+        if (s.error) setError(s.error);
+      });
+      session.setTranscriptCallback((role, text) => {
+        if (role === "user") {
+          setSaid(text);
+          setHeard("");
+          heardRef.current = "";
+        }
+      });
+      await session.open(selectedSpaceId());
+      liveSessionRef.current = session;
+    })();
+
+    return () => {
+      unsubscribe?.();
+      session?.close();
+      liveSessionRef.current = null;
+    };
+  }, [botId, liveMode]);
+
+  useEffect(() => {
+    // The dictation/speaker path is not used in live mode.
+    if (liveMode) return;
     closing.current = false;
     spokenMessage.current = latestBotId(snapshotRef.current);
     narrated.current.clear();
@@ -380,28 +440,94 @@ export function CallView({
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let frame = 0;
+    let audioCtx: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let freqData: Uint8Array<ArrayBuffer> | null = null;
+    let micStream: MediaStream | null = null;
+
+    if (typeof window !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          micStream = stream;
+          const AudioCtor =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          if (!AudioCtor) return;
+          const ctx = new AudioCtor();
+          audioCtx = ctx;
+          const source = ctx.createMediaStreamSource(stream);
+          analyser = ctx.createAnalyser();
+          analyser.fftSize = 64;
+          analyser.smoothingTimeConstant = 0.65;
+          source.connect(analyser);
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+        })
+        .catch(() => undefined);
+    }
+
     const tick = (now: number) => {
       const p = phaseRef.current;
+      let micRms = 0;
+      if (analyser && freqData && p === "listening") {
+        analyser.getByteFrequencyData(freqData);
+        let sum = 0;
+        for (let i = 0; i < freqData.length; i += 1) {
+          sum += freqData[i]!;
+        }
+        micRms = sum / (freqData.length * 255);
+      } else {
+        micRms = liveMode ? (liveSessionRef.current?.level ?? 0) : dictation.level;
+      }
+
       const level =
         p === "listening"
-          ? dictation.level
+          ? micRms
           : p === "speaking"
-            ? 0.35 + 0.3 * Math.abs(Math.sin(now / 140)) * Math.abs(Math.sin(now / 310))
-            : 0.12 + 0.08 * Math.sin(now / 420);
+            ? 0.45 + 0.35 * Math.abs(Math.sin(now / 130)) * Math.abs(Math.cos(now / 270))
+            : 0.16 + 0.1 * Math.sin(now / 380);
+
       orbRef.current?.style.setProperty("--live-level", level.toFixed(3));
       const bars = waveRef.current?.children;
       if (bars) {
         for (let i = 0; i < bars.length; i += 1) {
-          const wobble = Math.abs(Math.sin(now / (180 + i * 37) + i));
-          const scale = Math.max(0.14, Math.min(1, level * (0.55 + wobble)));
+          let scale = 0.14;
+          if (p === "listening") {
+            if (freqData && micRms > 0.03) {
+              const bin = Math.min(i, freqData.length - 1);
+              const val = (freqData[bin] ?? 0) / 255;
+              scale = Math.max(0.14, Math.min(1, val * 2.2));
+            } else {
+              const wobble = Math.abs(Math.sin(now / (240 + i * 22) + i));
+              scale = heardRef.current
+                ? Math.max(0.2, 0.45 + 0.45 * wobble)
+                : Math.max(0.14, 0.14 + 0.12 * wobble);
+            }
+          } else if (p === "speaking") {
+            const speechWobble =
+              Math.abs(Math.sin(now / 110 + i * 0.45)) *
+              Math.abs(Math.cos(now / 190 + i * 0.32));
+            scale = Math.max(0.16, Math.min(1, 0.32 + 0.68 * speechWobble));
+          } else {
+            const ripple = Math.abs(Math.sin(now / 160 - i * 0.28));
+            scale = Math.max(0.14, 0.22 + 0.6 * ripple);
+          }
           (bars[i] as HTMLElement).style.transform = `scaleY(${scale.toFixed(3)})`;
         }
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, []);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (micStream) {
+        for (const track of micStream.getTracks()) track.stop();
+      }
+      if (audioCtx) {
+        void audioCtx.close().catch(() => undefined);
+      }
+    };
+  }, [liveMode]);
 
   const colorStyle = { "--live-color": botColor } as CSSProperties;
   const status = muted
@@ -414,13 +540,7 @@ export function CallView({
           ? t`Hearing you`
           : t`Listening`;
 
-  const line =
-    error ??
-    (phase === "speaking" && caption
-      ? caption
-      : heard || said
-        ? `${t`You`}: ${heard || said}`
-        : "");
+  const activeTask = activeTaskFromSnapshot(snapshot);
 
   return (
     <section
@@ -429,85 +549,109 @@ export function CallView({
       style={colorStyle}
       className="live-bar"
     >
-      <div className="live-pill border border-border bg-card shadow-md">
-        <button
-          type="button"
-          onClick={interrupt}
-          aria-label={phase === "speaking" ? t`Interrupt` : t`Listen again`}
-          className="grid size-11 shrink-0 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <div
-            ref={orbRef}
-            className="live-orb"
-            data-phase={runActive && phase !== "speaking" ? "thinking" : phase}
+      <div className="live-card-body border border-border bg-card/95 shadow-xl">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={interrupt}
+            aria-label={phase === "speaking" ? t`Interrupt` : t`Listen again`}
+            className="grid size-11 shrink-0 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <div className="live-orb-halo" />
-            <BotAvatar
-              color={botColor}
-              identity={botId}
-              size={34}
-              variant="organic"
-              status={runActive || phase === "speaking" ? "running" : undefined}
-            />
+            <div
+              ref={orbRef}
+              className="live-orb"
+              data-phase={runActive && phase !== "speaking" ? "thinking" : phase}
+            >
+              <div className="live-orb-halo" />
+              <BotAvatar
+                color={botColor}
+                identity={botId}
+                size={34}
+                variant="organic"
+                status={runActive || phase === "speaking" ? "running" : undefined}
+              />
+            </div>
+          </button>
+          <span className="sr-only" aria-live="polite">
+            {status}
+          </span>
+          <div ref={waveRef} className="live-wave" data-muted={muted || undefined} aria-hidden="true">
+            {WAVE_BARS.map((bar) => (
+              <span key={bar} />
+            ))}
           </div>
-        </button>
-        <span className="sr-only" aria-live="polite">
-          {status}
-        </span>
-        <div ref={waveRef} className="live-wave" data-muted={muted || undefined} aria-hidden="true">
-          {WAVE_BARS.map((bar) => (
-            <span key={bar} />
-          ))}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t`Voice settings`}
-          title={t`Voice settings`}
-          className="size-11 shrink-0 rounded-full text-muted-foreground"
-          onClick={onOpenSettings}
-        >
-          <Settings size={18} strokeWidth={1.8} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t`Mute`}
-          title={t`Mute`}
-          aria-pressed={muted}
-          className="size-11 shrink-0 rounded-full text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
-          onClick={toggleMute}
-        >
-          {muted ? <MicOff size={18} strokeWidth={1.8} /> : <Mic size={18} strokeWidth={1.8} />}
-        </Button>
-        <Button
-          variant="destructive"
-          size="icon"
-          aria-label={t`Hang up`}
-          title={t`Hang up`}
-          className="size-11 shrink-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/85"
-          onClick={hangUp}
-        >
-          <X size={18} strokeWidth={2.2} />
-        </Button>
-      </div>
-      <div className="live-handle bg-border" aria-hidden="true" />
-      {line || (showScreen && screen) ? (
-        <div className="flex min-w-0 items-start gap-2 px-2">
-          <p
-            className={`live-caption min-w-0 flex-1 truncate text-[12.5px] ${error ? "text-destructive" : "text-muted-foreground"}`}
-            dir="auto"
-            aria-live="polite"
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t`Voice settings`}
+            title={t`Voice settings`}
+            className="size-11 shrink-0 rounded-full text-muted-foreground"
+            onClick={onOpenSettings}
           >
-            {line}
-          </p>
+            <Settings size={18} strokeWidth={1.8} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t`Mute`}
+            title={t`Mute`}
+            aria-pressed={muted}
+            className="size-11 shrink-0 rounded-full text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+            onClick={toggleMute}
+          >
+            {muted ? <MicOff size={18} strokeWidth={1.8} /> : <Mic size={18} strokeWidth={1.8} />}
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            aria-label={t`Hang up`}
+            title={t`Hang up`}
+            className="size-11 shrink-0 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/85"
+            onClick={hangUp}
+          >
+            <X size={18} strokeWidth={2.2} />
+          </Button>
+        </div>
+
+        {activeTask ? (
+          <div className="flex items-center gap-2 pt-1">
+            <span className="live-task-pill truncate">
+              <span className="inline-block animate-pulse">⚡</span>
+              {activeTask}
+            </span>
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 items-start justify-between gap-3 pt-1">
+          <div className="min-w-0 flex-1">
+            {error ? (
+              <p className="text-[13px] text-destructive">{error}</p>
+            ) : phase === "speaking" && caption ? (
+              <p className="live-transcript-turn text-foreground" dir="auto" aria-live="polite">
+                <span className="font-semibold text-primary">{botName}: </span>
+                {caption}
+              </p>
+            ) : heard ? (
+              <p className="live-transcript-turn text-foreground/90" dir="auto" aria-live="polite">
+                <span className="font-medium text-muted-foreground">{t`You`}: </span>
+                {heard}
+              </p>
+            ) : said ? (
+              <p className="live-transcript-turn text-muted-foreground" dir="auto" aria-live="polite">
+                <span className="font-medium text-muted-foreground/75">{t`You`}: </span>
+                {said}
+              </p>
+            ) : (
+              <p className="text-[12.5px] italic text-muted-foreground/60">{t`Listening…`}</p>
+            )}
+          </div>
           {showScreen && screen ? (
             <button
               type="button"
               onClick={onOpenComputer}
               aria-label={t`Open ${botName}'s computer`}
               title={t`Open ${botName}'s computer`}
-              className="live-stage-enter pointer-events-auto relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-black shadow-md"
+              className="live-stage-enter pointer-events-auto relative h-14 w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-black shadow-md hover:ring-2 hover:ring-primary"
             >
               <iframe
                 title={t`${botName}'s screen`}
@@ -520,7 +664,7 @@ export function CallView({
             </button>
           ) : null}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }
@@ -603,3 +747,24 @@ function isTypingTarget(target: EventTarget | null): boolean {
     (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
   );
 }
+
+function activeTaskFromSnapshot(snapshot: ThreadSnapshot | null): string | null {
+  if (!snapshot?.run || !RUN_ACTIVE.includes(snapshot.run.status)) return null;
+  const messages = snapshot.messages;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (msg?.runId !== snapshot.run.id) continue;
+    for (let b = msg.blocks.length - 1; b >= 0; b -= 1) {
+      const block = msg.blocks[b];
+      if (block?.kind === "progress" && block.text) {
+        const text = block.text.trim();
+        if (text && !text.startsWith("Thinking")) return text;
+      }
+      if (block?.kind === "subagent") {
+        return "Subagent running…";
+      }
+    }
+  }
+  return null;
+}
+

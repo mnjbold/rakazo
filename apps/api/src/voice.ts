@@ -31,6 +31,11 @@ import { withSerializableRetry } from "./serializable-retry.js";
 export interface VoiceDeps {
   prisma: PrismaClient;
   secrets: EncryptedSecretStore;
+  env?: {
+    telnyxApiKey?: string;
+    minimaxApiKey?: string;
+    voiceStudioApiKey?: string;
+  };
 }
 
 export { listVoiceCatalog };
@@ -102,7 +107,40 @@ export async function loadVoiceCredential(deps: VoiceDeps, actor: Actor, provide
   const cred = provider
     ? await findVoiceCredential(deps.prisma, actor, provider)
     : await findDefaultVoiceCredential(deps.prisma, actor);
-  if (!cred) return null;
+  if (!cred) {
+    const serverTelnyxKey = deps.env?.telnyxApiKey || process.env.TELNYX_API_KEY;
+    const serverMinimaxKey = deps.env?.minimaxApiKey || process.env.MINIMAX_API_KEY;
+
+    if (provider === "telnyx" || (!provider && serverTelnyxKey)) {
+      if (serverTelnyxKey) {
+        return {
+          cred: {
+            id: "server-telnyx",
+            provider: "telnyx",
+            voiceId: "Minimax.speech-2.6-turbo.English_expressive_narrator",
+            speechModel: null,
+            isDefault: true,
+          },
+          apiKey: serverTelnyxKey,
+        };
+      }
+    }
+    if (provider === "minimax" || (!provider && serverMinimaxKey)) {
+      if (serverMinimaxKey) {
+        return {
+          cred: {
+            id: "server-minimax",
+            provider: "minimax",
+            voiceId: "speech-2.8-turbo",
+            speechModel: null,
+            isDefault: true,
+          },
+          apiKey: serverMinimaxKey,
+        };
+      }
+    }
+    return null;
+  }
   const secret = await deps.prisma.secret.findFirst({
     where: { id: cred.secretId, userId: actor.userId, spaceId: null },
   });

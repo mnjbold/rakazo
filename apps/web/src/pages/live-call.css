@@ -71,23 +71,54 @@
   flex: 1;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  height: 20px;
-  padding-inline: 6px;
+  gap: 4px;
+  height: 28px;
+  padding-inline: 8px;
   overflow: hidden;
 }
 .live-wave > span {
   flex: none;
-  width: 2px;
-  height: 20px;
+  width: 3.5px;
+  height: 26px;
   border-radius: 9999px;
-  background: var(--live-color);
+  background: var(--live-color, hsl(var(--primary)));
   transform-origin: center;
   transform: scaleY(0.14);
-  transition: transform 90ms linear;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--live-color, hsl(var(--primary))) 35%, transparent);
 }
 .live-wave[data-muted] > span {
   opacity: 0.35;
+}
+
+.live-card-body {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  animation: live-rise 220ms ease-out both;
+}
+
+.live-task-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, hsl(var(--primary)) 15%, transparent);
+  color: hsl(var(--primary));
+  border: 1px solid color-mix(in oklab, hsl(var(--primary)) 25%, transparent);
+  max-width: 100%;
+}
+
+.live-transcript-turn {
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .live-stage-enter {

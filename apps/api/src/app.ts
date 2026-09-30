@@ -113,6 +113,8 @@ import {
   settleWithTimeout,
   TEAM_CHAT_STARTUP_SHUTDOWN_MS,
 } from "./team-chat-startup.js";
+import type { createNodeWebSocket } from "@hono/node-ws";
+import { mountLiveVoiceRoute } from "./live-voice.js";
 import { mountVoiceHttpRoutes } from "./voice.js";
 import { mountWebhookHttpRoutes } from "./webhook.js";
 
@@ -128,6 +130,7 @@ export interface AppHandles {
   email?: TransactionalEmailProvider;
   executor: ReturnType<typeof createRunExecutor>;
   runtime: AgentRuntime;
+  injectWebSocket?: ReturnType<typeof createNodeWebSocket>["injectWebSocket"];
   stop: () => Promise<void>;
 }
 
@@ -513,6 +516,8 @@ export async function createApp(
       teamChatJudgeModel: env.teamChatJudgeModel,
       deploymentModelKey: env.deploymentModelKey,
       voiceStudioApiKey: env.voiceStudioApiKey,
+      telnyxApiKey: env.telnyxApiKey,
+      minimaxApiKey: env.minimaxApiKey,
       webOrigin: env.webOrigin,
       privacyPolicyUrl: env.privacyPolicyUrl,
       screenProxySecret: env.screenProxySecret,
@@ -584,13 +589,34 @@ export async function createApp(
     if (matched) return c.newResponse(response.body, response);
     await next();
   });
-  mountVoiceHttpRoutes(app, { prisma, secrets }, async (c) => {
+  const voiceDeps = {
+    prisma,
+    secrets,
+    env: {
+      telnyxApiKey: env.telnyxApiKey,
+      minimaxApiKey: env.minimaxApiKey,
+      voiceStudioApiKey: env.voiceStudioApiKey,
+    },
+  };
+  mountVoiceHttpRoutes(app, voiceDeps, async (c) => {
     const session = await auth.api.getSession({ headers: sessionHeaders(c.req.raw) });
     if (!session?.user) return null;
     const actor = await requireMembership(
       prisma,
       session.user.id,
       c.req.header("x-rakazo-space-id"),
+    ).catch(() => null);
+    if (actor) enrichLogContext({ "user.id": actor.userId, "space.id": actor.spaceId });
+    return actor;
+  });
+  const { injectWebSocket } = mountLiveVoiceRoute(app, voiceDeps, async (c) => {
+    const session = await auth.api.getSession({ headers: sessionHeaders(c.req.raw) });
+    if (!session?.user) return null;
+    const requestedSpaceId = c.req.header("x-rakazo-space-id") || c.req.query("spaceId");
+    const actor = await requireMembership(
+      prisma,
+      session.user.id,
+      requestedSpaceId,
     ).catch(() => null);
     if (actor) enrichLogContext({ "user.id": actor.userId, "space.id": actor.spaceId });
     return actor;
@@ -905,6 +931,7 @@ export async function createApp(
     email,
     executor,
     runtime,
+    injectWebSocket,
     stop: async () => {
       // Abort in-flight continueRun boot waits before draining jobs so stop() cannot sit
       // on waitForComputerReady for the full boot-wait window during shared Postgres journeys.

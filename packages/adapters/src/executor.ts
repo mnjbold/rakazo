@@ -4089,7 +4089,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 contextWindow: resolved.contextWindow,
                 acceptsImages: resolved.acceptsImages,
                 maxImagesPerPrompt: resolved.maxImagesPerPrompt,
-                thinkingLevel: thinkingLevel ?? resolved.thinkingLevel ?? null,
+                thinkingLevel: run.live ? "off" : (thinkingLevel ?? resolved.thinkingLevel ?? null),
                 oauth: resolved.oauth
                   ? {
                       credential: resolved.oauth,
