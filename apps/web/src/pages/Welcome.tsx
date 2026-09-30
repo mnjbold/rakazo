@@ -1,5 +1,5 @@
 import { Trans } from "@lingui/react/macro";
-import { PRODUCT_MAKER, PRODUCT_NAME } from "@rakazo/core";
+import { PRODUCT_MAKER, PRODUCT_MAKER_URL, PRODUCT_NAME } from "@rakazo/core";
 import { JewlMark } from "@rakazo/ui-web";
 import { useNavigate } from "react-router-dom";
 import { WindowChrome } from "./WindowChrome";
@@ -35,7 +35,16 @@ export function WelcomePage() {
       </div>
       <p className="pb-6 text-center text-[12px] text-muted-foreground">
         <Trans>
-          {PRODUCT_NAME} by {PRODUCT_MAKER} · forked from Rakazo
+          {PRODUCT_NAME} by{" "}
+          <a
+            href={PRODUCT_MAKER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            {PRODUCT_MAKER}
+          </a>{" "}
+          · forked from Rakazo
         </Trans>
       </p>
     </div>

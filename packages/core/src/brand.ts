@@ -1,6 +1,7 @@
-/** Product name shown in the UI. JEWL by Bijou AI, forked from Rakazo (Apache-2.0). */
+/** Product name shown in the UI. JEWL by W3J LLC, forked from Rakazo (Apache-2.0). */
 export const PRODUCT_NAME = "JEWL";
-export const PRODUCT_MAKER = "Bijou AI";
+export const PRODUCT_MAKER = "W3J LLC";
+export const PRODUCT_MAKER_URL = "https://w3jdev.com/";
 
 /**
  * JEWL mark geometry on a 64-unit square: a cut gem (three crown facets over a pavilion) whose
