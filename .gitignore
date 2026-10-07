@@ -48,3 +48,6 @@ apps/web/scripts/msgids.json
 playwright-report-www
 .vscode/
 W3J_*.md
+
+# local secrets (langfuse onboarding)
+.env.pre-langfuse.bak

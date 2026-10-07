@@ -1,0 +1,16 @@
+{
+  "status": "pending",
+  "verified_at": null,
+  "repo": "rakazo",
+  "langfuse_project": "rakazo",
+  "langfuse_host": "https://langfuse.getbijou.xyz",
+  "llm_gateway": "https://llm.getbijou.xyz/v1",
+  "infisical": [
+    "infra/prod/services/langfuse-rakazo",
+    "infra/prod/services/litellm-rakazo"
+  ],
+  "smoke_test": "python observability/langfuse_smoke.py",
+  "branch": "chore/langfuse-observability",
+  "return_branch": "main",
+  "onboarded_at": "2026-10-07"
+}
