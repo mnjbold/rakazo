@@ -51,11 +51,19 @@ Langfuse → *Dashboard*: cost per day/model/user/release, p50/p95 latency, toke
 score trends. Filter by tag `repo:rakazo`, `release`, `environment`. Compare releases before
 and after a prompt change.
 
+> **Cost needs a price table.** MiniMax models have no built-in price, so cost shows `0` until a
+> model definition exists: Langfuse → *Settings → Models → Add* (match `(anthropic/)?MiniMax-M3.*`,
+> set input/output price per token), or `model_info.input_cost_per_token` in the LiteLLM config.
+
 ## 4. Wiring the app (minimal, non-invasive)
 
 Zero-dependency helper `observability/langfuse.mjs`: `chat(messages, {sessionId, userId, tags, name})` calls the gateway with trace metadata (the gateway writes the generation into this project) and `score(traceId, name, value)` attaches evals. For nested spans adopt the official SDK: `@langfuse/tracing` + `@langfuse/otel` (NodeSDK + `LangfuseSpanProcessor`) and `observeOpenAI` from `@langfuse/openai` around an `openai` client with `baseURL: process.env.LLM_BASE_URL`.
 
 **Integration point (TODO — not changed automatically, to keep this commit non-invasive):** `packages/adapters/src/pi-openai-compatible-provider.ts` is the OpenAI-compatible provider used by `apps/api/src/router.ts` (env in `apps/api/src/env.ts`). Set its base URL/key from `LLM_BASE_URL`/`LLM_API_KEY` and pass the trace `metadata` per request (see `observability/langfuse.mjs`).
+
+Note: with the Python SDK wrapper the gateway *also* logs each call (as its own trace named after
+the request). Use the SDK trace for app-level analysis; the gateway trace is the cost/usage
+ledger. Pass `metadata={"trace_id": ...}` through the gateway if you want them merged.
 
 ## 5. Eval loop (quality you can measure)
 
