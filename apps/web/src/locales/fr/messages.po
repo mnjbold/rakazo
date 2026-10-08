@@ -106,6 +106,9 @@ msgstr "Ordinateur de {botName}"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+#: src/pages/shell/bot-credentials.tsx
+msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
+msgstr "{commandVariable} est réservée et ne peut pas être utilisée comme variable de commande. Choisissez un autre nom."
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -284,6 +287,7 @@ msgstr "Modèle actif"
 msgid "Activity"
 msgstr "Activité"
 
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Add"
@@ -320,6 +324,14 @@ msgstr "Ajoutez une URL de serveur HTTPS."
 #: src/pages/PluginsOverlay.tsx
 msgid "Add another"
 msgstr "En ajouter un autre"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Add connected model"
+msgstr "Ajouter un modèle connecté"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Add connected models to use them as backups."
+msgstr "Ajoutez des modèles connectés pour les utiliser comme modèles de secours."
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Add credential"
@@ -655,6 +667,10 @@ msgstr "Les expéditeurs automatisés apparaîtront après avoir publié ici."
 msgid "Available after the routine is saved"
 msgstr "Disponible après l'enregistrement de la routine"
 
+#: src/pages/shell/bot-credentials.tsx
+msgid "Available to this bot's shell commands as {commandVariable}"
+msgstr "Disponible pour les commandes shell de ce bot sous le nom {commandVariable}"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Avatar Studio"
 msgstr "Studio d'avatars"
@@ -673,6 +689,18 @@ msgstr "Retour"
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
 msgstr "Retour à la connexion"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models"
+msgstr "Modèles de secours"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models order"
+msgstr "Ordre des modèles de secours"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models saved."
+msgstr "Modèles de secours enregistrés."
 
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 msgid "Base URL"
@@ -769,6 +797,7 @@ msgstr "Impossible d'atteindre le serveur."
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/markdown-link-prompt.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1036,6 +1065,11 @@ msgstr "Bientôt disponible"
 msgid "Command"
 msgstr "Commande"
 
+#: src/components/AskCard.tsx
+#: src/pages/shell/bot-credentials.tsx
+msgid "Command variable"
+msgstr "Variable de commande"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "Terminé"
@@ -1114,6 +1148,10 @@ msgstr "Connecter"
 #: src/pages/Onboarding.tsx
 msgid "Connect a model"
 msgstr "Connecter un modèle"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Connect a provider to add backups."
+msgstr "Connectez un fournisseur pour ajouter des modèles de secours."
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect API key"
@@ -1415,6 +1453,10 @@ msgstr "Impossible de charger les règles d'approbation"
 msgid "Could not load artifacts."
 msgstr "Impossible de charger les artefacts."
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Could not load backup models"
+msgstr "Impossible de charger les modèles de secours."
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Could not load billing"
 msgstr ""
@@ -1579,6 +1621,10 @@ msgstr "Impossible d'enregistrer"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Could not save Auto Review"
 msgstr "Impossible d'enregistrer la révision automatique"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Could not save backup models"
+msgstr "Impossible d’enregistrer les modèles de secours."
 
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
@@ -2552,10 +2598,6 @@ msgstr "Conserver les mémoires"
 msgid "key"
 msgstr "clé"
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "Keys and passwords this bot can use, each for one site only. Values are encrypted and never shown again."
-msgstr ""
-
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
 msgstr "Connaissances"
@@ -2685,6 +2727,7 @@ msgstr "Chargement des fournisseurs vocaux…"
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -2791,6 +2834,10 @@ msgstr "Agrandir"
 #: src/pages/Onboarding.tsx
 msgid "Maximum images per request"
 msgstr "Maximum d'images par requête"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Maximum of 10 backup models."
+msgstr "10 modèles de secours au maximum."
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2978,6 +3025,14 @@ msgstr "Plus"
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
 msgstr "Plus d'actions pour l'ordinateur"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Move {full} down"
+msgstr "Déplacer {full} vers le bas"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Move {full} up"
+msgstr "Déplacer {full} vers le haut"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
@@ -3188,6 +3243,10 @@ msgstr "Aucun déclencheur"
 msgid "None yet"
 msgstr "Aucun pour le moment"
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Not connected"
+msgstr "Non connecté"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Not in the plugin catalog"
 msgstr "Pas dans le catalogue de plugins"
@@ -3250,6 +3309,7 @@ msgstr "le 1er à {0}"
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "Seuls les espaces vides peuvent être supprimés. Supprimez d'abord ses bots et groupes."
 
+#: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/Shell.tsx
 msgid "Open"
@@ -3279,6 +3339,10 @@ msgstr ""
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Open computer settings"
 msgstr ""
+
+#: src/components/markdown-link-prompt.tsx
+msgid "Open external link?"
+msgstr "Ouvrir le lien externe ?"
 
 #: src/pages/Shell.tsx
 msgid "Open in full window"
@@ -3631,6 +3695,7 @@ msgid "Release interrupted computer?"
 msgstr "Libérer l'ordinateur interrompu ?"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -3643,6 +3708,10 @@ msgstr "Retirer"
 #: src/pages/Shell.tsx
 msgid "Remove {0}"
 msgstr "Retirer {0}"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Remove {full}"
+msgstr "Supprimer {full}"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
@@ -3798,6 +3867,7 @@ msgstr "Restauration de votre espace de travail"
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
+#: src/pages/ModelBackupsSettings.tsx
 msgid "Retry"
 msgstr "Réessayer"
 
@@ -3914,6 +3984,10 @@ msgstr "S'exécute lorsque ce bot reçoit un message vérifié de ce fournisseur
 msgid "Save"
 msgstr "Enregistrer"
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Save backups"
+msgstr "Enregistrer les modèles de secours"
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
 msgstr ""
@@ -3959,6 +4033,7 @@ msgstr "Enregistrement..."
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -4036,6 +4111,10 @@ msgstr "Sections"
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "Sélectionnez un bot"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Select a connected model"
+msgstr "Sélectionnez un modèle connecté"
 
 #: src/pages/Shell.tsx
 msgid "Send"
@@ -4277,6 +4356,14 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
 msgstr "Un problème est survenu. Réessayez."
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Space changed. Reopen Models to load its backup list."
+msgstr "L’espace a changé. Rouvrez Modèles pour charger sa liste de secours."
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Space changed. Reopen Models to save its backup list."
+msgstr "L’espace a changé. Rouvrez Modèles pour enregistrer sa liste de secours."
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Space default"
@@ -4806,14 +4893,26 @@ msgstr "Utiliser le modèle {0}"
 msgid "Use this model"
 msgstr "Utiliser ce modèle"
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Use your own key"
+msgstr "Utiliser votre propre clé"
+
 #: src/components/AskCard.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Username"
 msgstr ""
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
+msgstr "Utilise les identifiants {hostCredentialSource} propres à ce serveur pour accéder à {selectedProviderName}."
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
 msgstr ""
+
+#: src/pages/shell/bot-credentials.tsx
+msgid "Values are encrypted and never shown again."
+msgstr "Les valeurs sont chiffrées et ne sont plus affichées."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"

@@ -138,7 +138,7 @@ import {
 import {
   decryptAgentEnvironment,
   formatAgentEnvironmentInstruction,
-  redactAgentCommandResult,
+  redactShellStreams,
 } from "./agent-environment.js";
 import {
   COMMUNICATION_GUIDANCE,
@@ -187,14 +187,19 @@ import { attachedImageArtifactIds, resolveUpdateBotAvatar } from "./bot-avatar.j
 import { loadBotMessageContext, messageBot, returnBotMessageOutcome } from "./bot-messages.js";
 import {
   allowPrivateHttpSecretOrigins,
+  botSecretToolView,
+  commandCredentialRedactions,
   findBotSecret,
+  findCommandVariableConflict,
   forgetBotSecret,
   listBotSecrets,
+  loadBotCommandEnvironment,
   normalizeSecretDestination,
   requestWithBotSecret,
   resolveLoginFill,
   resolveRequestSecretDestination,
   sameSecretDestination,
+  shellCommandEnvironment,
 } from "./bot-secrets.js";
 import { createBrowserProvider } from "./browser-provider-factory.js";
 import {
@@ -2650,6 +2655,8 @@ export interface ExecutorDeps {
   secrets: string[];
   secretStore: SecretStore;
   deploymentModelKey?: string;
+  /** The deployment default model can run; see resolveDeploymentModel. */
+  deploymentModelConfigured?: boolean;
   dataDir?: string;
   notifications?: NotificationProvider;
   jobs: JobPublisher;
@@ -2955,6 +2962,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
     provider: string,
     modelId: string,
     registerSecrets?: (values: string[]) => void,
+    requireStoredSecret = false,
   ): Promise<AgentRunRequest["model"]> => {
     const validationError = await validateConnectedModelChoice(
       deps.prisma,
@@ -2979,6 +2987,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       provider,
       modelId,
       registerSecrets,
+      requireStoredSecret,
     );
     return {
       provider,
@@ -3041,7 +3050,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         overrideCredential,
         defaultCredential,
         settings,
-        deployment: deps.deploymentModelKey ? resolveDeploymentModel() : null,
+        deployment: deps.deploymentModelConfigured ? resolveDeploymentModel() : null,
       });
       const { credential, thinkingLevel } = selected;
       let { provider, id } = selected;
@@ -3364,6 +3373,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           savedSkills,
           agentSkills,
           agentSecretRows,
+          initialBotCommandEnvironment,
         ] = await Promise.all([
           deps.prisma.bot.findUniqueOrThrow({
             where: { id: run.botId },
@@ -3405,6 +3415,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               secret: { select: { id: true, ciphertext: true } },
             },
           }),
+          loadBotCommandEnvironment(deps.prisma, deps.secretStore, run),
         ]);
         // Earlier chats of this bot stay out of the verbatim history; their summaries are added below.
         const messages =
@@ -3424,7 +3435,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
             : thread.nextMessageSeq;
         const agentEnvironment = await decryptAgentEnvironment(agentSecretRows, deps.secretStore);
         runSecrets.push(...Object.values(agentEnvironment));
-        const agentEnvironmentInstruction = formatAgentEnvironmentInstruction(agentEnvironment);
+        // Encoded forms too: read_file redacts with these values before any shell command runs.
+        runSecrets.push(...commandCredentialRedactions(initialBotCommandEnvironment));
+        const agentEnvironmentInstruction = formatAgentEnvironmentInstruction({
+          ...agentEnvironment,
+          ...initialBotCommandEnvironment,
+        });
         const hasModelOverride = Boolean(bot.modelProvider && bot.modelId);
         const overrideCredential =
           hasModelOverride && bot.modelProvider
@@ -3608,7 +3624,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }),
           );
         }
-        const runDeployment = deps.deploymentModelKey ? resolveDeploymentModel() : null;
+        const runDeployment = deps.deploymentModelConfigured ? resolveDeploymentModel() : null;
         const runtimeFallback = runtimeFallbackModel(deps.runtime);
         const selected = selectConfiguredModel({
           bot,
@@ -4911,6 +4927,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
               bot.id,
               args.cwd ? String(args.cwd) : undefined,
             );
+            // Loaded per command so a command variable added, replaced, or removed mid-run
+            // applies to the next command. Registered for redaction before anything runs.
+            const commandEnvironment = await shellCommandEnvironment({
+              prisma: deps.prisma,
+              secretStore: deps.secretStore,
+              scope: run,
+              spaceEnvironment: agentEnvironment,
+              registerRedactions: registerRunSecrets,
+            });
             workspaceCheckpoint.markDirty();
             const commandEvent = {
               executionId,
@@ -4950,8 +4975,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 }
                 if (!publishTimer) publishTimer = setTimeout(send, 400);
               };
-              const commandOutput = (snapshot: { stdout: string; stderr: string }) =>
-                `${snapshot.stdout}${snapshot.stderr}`;
+              const commandOutput = (
+                snapshot: { stdout: string; stderr: string },
+                withholdPartial: boolean,
+              ) => {
+                const safe = redactShellStreams(snapshot, runSecrets, { withholdPartial });
+                return `${safe.stdout}${safe.stderr}`;
+              };
               const observed = await observeShellCommand(
                 deps.sandbox.execute(
                   computer,
@@ -4969,7 +4999,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       command,
                     ],
                     cwd,
-                    env: Object.keys(agentEnvironment).length > 0 ? agentEnvironment : undefined,
+                    env:
+                      Object.keys(commandEnvironment.env).length > 0
+                        ? commandEnvironment.env
+                        : undefined,
+                    unsetEnv: commandEnvironment.unsetEnv,
                     timeoutMs: sandboxCommandTimeoutMs(),
                   },
                   context,
@@ -4977,7 +5011,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 {
                   secrets: runSecrets,
                   onOutput: (snapshot) => {
-                    const output = commandOutput(snapshot);
+                    const output = commandOutput(snapshot, true);
                     if (output) publishRunning(output);
                   },
                 },
@@ -4989,12 +5023,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
                     ...commandEvent,
                     status: "done",
                     exitCode: final.code,
-                    output: commandOutput(final).slice(-COMPUTER_COMMAND_OUTPUT_MAX_CHARS),
+                    output: commandOutput(final, false).slice(-COMPUTER_COMMAND_OUTPUT_MAX_CHARS),
                   });
                   return final;
                 });
                 void completion.catch(() => undefined);
-                publishRunning(commandOutput(observed.result), true);
+                publishRunning(commandOutput(observed.result, true), true);
                 const returned = await finish({
                   stdout: observed.result.stdout,
                   stderr: observed.result.stderr,
@@ -5011,7 +5045,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 ...commandEvent,
                 status: "done",
                 exitCode: redacted.code,
-                output: commandOutput(redacted).slice(-COMPUTER_COMMAND_OUTPUT_MAX_CHARS),
+                output: commandOutput(redacted, false).slice(-COMPUTER_COMMAND_OUTPUT_MAX_CHARS),
               });
               return finish(redacted);
             } catch (error) {
@@ -5673,6 +5707,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   error: "Remove the existing credential before changing its destination.",
                 });
               }
+              const conflict = await findCommandVariableConflict(deps.prisma, run, destination);
+              if (conflict) {
+                return finish({
+                  error: `Invalid credential destination — name: ${conflict} is already exported as the same variable. Choose another name.`,
+                });
+              }
               const submitted = botSecretSubmissionSchema({
                 allowPrivateHttpOrigin: allowPrivateHttpSecretOrigins(),
               }).safeParse(applied?.effect.result).data;
@@ -5685,11 +5725,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
               ) {
                 return finish(
                   existing
-                    ? { saved: true, ...existing }
+                    ? { saved: true, ...botSecretToolView(existing) }
                     : { error: "The saved credential is no longer available." },
                 );
               }
-              if (existing && args.replace !== true) return finish({ saved: true, ...existing });
+              if (existing && args.replace !== true) {
+                return finish({ saved: true, ...botSecretToolView(existing) });
+              }
               // Action approval authorizes showing the card; it is not a credential submission.
               // Return the claim to intended so the answer transaction can approve the saved value.
               if (claimedEffect) {
@@ -6369,6 +6411,27 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return;
         }
 
+        let fallbackModels: { provider: string; modelId: string }[] = [];
+        if (!scripted) {
+          try {
+            fallbackModels = await deps.prisma.spaceBackupModel.findMany({
+              where: { userId: run.userId, spaceId: run.spaceId },
+              orderBy: { position: "asc" },
+              select: { provider: true, modelId: true },
+            });
+          } catch (error) {
+            getLogger().warn("Backup models could not be loaded", { runId, error });
+          }
+        }
+        const fallbackModelKeys = new Set(
+          fallbackModels
+            .filter(
+              (candidate) =>
+                candidate.provider !== runModelProvider || candidate.modelId !== runModelId,
+            )
+            .map((candidate) => JSON.stringify([candidate.provider, candidate.modelId])),
+        );
+
         try {
           const runtimeEvents = deps.runtime.run(
             {
@@ -6445,6 +6508,41 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       retire: resolved.retireOAuth,
                     }
                   : undefined,
+              },
+              fallbackModels: fallbackModels.map(({ provider, modelId }) => ({
+                provider,
+                id: modelId,
+              })),
+              resolveFallbackModel: fallbackModelKeys.size
+                ? async (provider, modelId) => {
+                    const key = JSON.stringify([provider, modelId]);
+                    if (!fallbackModelKeys.has(key))
+                      throw new Error("Backup model is not selected");
+                    return resolveConnectedModel(
+                      { userId: run.userId, spaceId: run.spaceId },
+                      provider,
+                      modelId,
+                      (values) => runSecrets.push(...values),
+                      true,
+                    );
+                  }
+                : undefined,
+              onModelChange: async (provider, modelId) => {
+                if (!fallbackModelKeys.has(JSON.stringify([provider, modelId]))) {
+                  throw new Error("Backup model is not selected");
+                }
+                const updated = await deps.prisma.run.updateMany({
+                  where: {
+                    id: runId,
+                    status: "running",
+                    leaseOwner: workerId,
+                    leaseFence: fence,
+                  },
+                  data: { modelProvider: provider, modelId },
+                });
+                if (updated.count !== 1) {
+                  throw new Error("Run lease was lost before the backup model could be used");
+                }
               },
               resumeFromCheckpoint: takeoverResume?.checkpoint,
               script,
@@ -7509,7 +7607,7 @@ function secretGuidance(disabled?: ReadonlySet<string>): string[] {
       ? "; fill it with browser_act fill_secret, which only works on the saved site"
       : "";
     clauses.push(
-      `Use request_secret with a credential destination to save reusable API credentials, or with auth type login when the user wants a website login saved${fill}.`,
+      `Use request_secret with a credential destination to save reusable API credentials, or with auth type login when the user wants a website login saved${fill}. When your shell commands need a secret value, use request_secret with auth type command; it is exported as the environment variable that request_secret and list_secrets report.`,
     );
   }
   const uses: string[] = [];
@@ -8267,6 +8365,7 @@ async function resolveModelKey(
   provider: string,
   modelId: string,
   registerSecrets?: (values: string[]) => void,
+  requireStoredSecret = false,
 ): Promise<{
   apiKey?: string;
   accountId?: string;
@@ -8294,6 +8393,7 @@ async function resolveModelKey(
         where: { id: credential.secretId, userId, spaceId: null },
       });
       if (!row) {
+        if (requireStoredSecret) throw new Error("Backup model credential is no longer available");
         cloudflareGatewayProviderEnv({ provider });
         return { apiKey: deploymentKeyFor(deps, provider), redact: [] };
       }
@@ -8420,6 +8520,7 @@ async function resolveModelKey(
       };
     });
   }
+  if (requireStoredSecret) throw new Error("Backup model credential is no longer available");
   cloudflareGatewayProviderEnv({ provider });
   return { apiKey: deploymentKeyFor(deps, provider), redact: [] };
 }

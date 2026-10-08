@@ -226,6 +226,7 @@ export interface CompactHistoryDeps {
   jobs: JobPublisher;
   memoryProviders: MemoryProviderResolver;
   deploymentModelKey?: string;
+  deploymentModelConfigured?: boolean;
   resolveModel?: (scope: {
     userId: string;
     spaceId: string;
@@ -257,7 +258,7 @@ async function runSummarizer(
   const deploymentFallback = resolveDeploymentModel();
   const model = deps.resolveModel
     ? await deps.resolveModel(thread)
-    : deps.deploymentModelKey
+    : deps.deploymentModelConfigured
       ? {
           // Provider must come from the same resolver as the key, not a hardcoded one.
           provider: deploymentFallback.provider,
