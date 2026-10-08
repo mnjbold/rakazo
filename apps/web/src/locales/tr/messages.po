@@ -106,6 +106,9 @@ msgstr "{botName} adlı botun bilgisayarı"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+#: src/pages/shell/bot-credentials.tsx
+msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
+msgstr "{commandVariable} ayrılmıştır ve komut değişkeni olarak kullanılamaz. Başka bir ad seçin."
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -284,6 +287,7 @@ msgstr "Etkin model"
 msgid "Activity"
 msgstr "Etkinlik"
 
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Add"
@@ -320,6 +324,14 @@ msgstr "Bir HTTPS sunucu URL'si gir."
 #: src/pages/PluginsOverlay.tsx
 msgid "Add another"
 msgstr ""
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Add connected model"
+msgstr "Bağlı model ekle"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Add connected models to use them as backups."
+msgstr "Yedek olarak kullanmak için bağlı modeller ekleyin."
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Add credential"
@@ -655,6 +667,10 @@ msgstr ""
 msgid "Available after the routine is saved"
 msgstr ""
 
+#: src/pages/shell/bot-credentials.tsx
+msgid "Available to this bot's shell commands as {commandVariable}"
+msgstr "Bu botun kabuk komutlarında {commandVariable} olarak kullanılabilir"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Avatar Studio"
 msgstr "Avatar Stüdyosu"
@@ -673,6 +689,18 @@ msgstr ""
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
 msgstr "Oturum açmaya geri dön"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models"
+msgstr "Yedek modeller"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models order"
+msgstr "Yedek model sırası"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models saved."
+msgstr "Yedek modeller kaydedildi."
 
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 msgid "Base URL"
@@ -769,6 +797,7 @@ msgstr "Sunucuya ulaşılamıyor."
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/markdown-link-prompt.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1036,6 +1065,11 @@ msgstr ""
 msgid "Command"
 msgstr "Komut"
 
+#: src/components/AskCard.tsx
+#: src/pages/shell/bot-credentials.tsx
+msgid "Command variable"
+msgstr "Komut değişkeni"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "Tamamlandı"
@@ -1114,6 +1148,10 @@ msgstr "Bağlan"
 #: src/pages/Onboarding.tsx
 msgid "Connect a model"
 msgstr "Model bağla"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Connect a provider to add backups."
+msgstr "Yedek eklemek için bir sağlayıcı bağlayın."
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect API key"
@@ -1415,6 +1453,10 @@ msgstr "Onay kuralları yüklenemedi"
 msgid "Could not load artifacts."
 msgstr ""
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Could not load backup models"
+msgstr "Yedek modeller yüklenemedi."
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Could not load billing"
 msgstr ""
@@ -1579,6 +1621,10 @@ msgstr "Kaydedilemedi"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Could not save Auto Review"
 msgstr ""
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Could not save backup models"
+msgstr "Yedek modeller kaydedilemedi."
 
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
@@ -2552,10 +2598,6 @@ msgstr "Hafızayı koru"
 msgid "key"
 msgstr ""
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "Keys and passwords this bot can use, each for one site only. Values are encrypted and never shown again."
-msgstr ""
-
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
 msgstr "Bilgi"
@@ -2685,6 +2727,7 @@ msgstr "Ses sağlayıcıları yükleniyor…"
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -2791,6 +2834,10 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "Maximum images per request"
 msgstr "İstek başına maksimum görüntü sayısı"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Maximum of 10 backup models."
+msgstr "En fazla 10 yedek model eklenebilir."
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2978,6 +3025,14 @@ msgstr ""
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
 msgstr ""
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Move {full} down"
+msgstr "{full} modelini aşağı taşı"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Move {full} up"
+msgstr "{full} modelini yukarı taşı"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
@@ -3188,6 +3243,10 @@ msgstr ""
 msgid "None yet"
 msgstr "Henüz yok"
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Not connected"
+msgstr "Bağlı değil"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Not in the plugin catalog"
 msgstr ""
@@ -3250,6 +3309,7 @@ msgstr "her ayın 1'inde saat {0}"
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr ""
 
+#: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/Shell.tsx
 msgid "Open"
@@ -3279,6 +3339,10 @@ msgstr ""
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Open computer settings"
 msgstr ""
+
+#: src/components/markdown-link-prompt.tsx
+msgid "Open external link?"
+msgstr "Harici bağlantı açılsın mı?"
 
 #: src/pages/Shell.tsx
 msgid "Open in full window"
@@ -3631,6 +3695,7 @@ msgid "Release interrupted computer?"
 msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -3643,6 +3708,10 @@ msgstr "Kaldır"
 #: src/pages/Shell.tsx
 msgid "Remove {0}"
 msgstr "{0} kaldır"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Remove {full}"
+msgstr "{full} modelini kaldır"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
@@ -3798,6 +3867,7 @@ msgstr ""
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
+#: src/pages/ModelBackupsSettings.tsx
 msgid "Retry"
 msgstr "Yeniden dene"
 
@@ -3914,6 +3984,10 @@ msgstr ""
 msgid "Save"
 msgstr "Kaydet"
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Save backups"
+msgstr "Yedekleri kaydet"
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
 msgstr ""
@@ -3959,6 +4033,7 @@ msgstr ""
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -4036,6 +4111,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "Bir bot seç"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Select a connected model"
+msgstr "Bağlı bir model seçin"
 
 #: src/pages/Shell.tsx
 msgid "Send"
@@ -4277,6 +4356,14 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
 msgstr "Bir şeyler ters gitti. Tekrar deneyin."
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Space changed. Reopen Models to load its backup list."
+msgstr "Alan değişti. Yedek listesini yüklemek için Modelleri yeniden açın."
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Space changed. Reopen Models to save its backup list."
+msgstr "Alan değişti. Yedek listesini kaydetmek için Modelleri yeniden açın."
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Space default"
@@ -4806,14 +4893,26 @@ msgstr "{0} şablonunu kullan"
 msgid "Use this model"
 msgstr "Bu modeli kullan"
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Use your own key"
+msgstr "Kendi anahtarınızı kullanın"
+
 #: src/components/AskCard.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Username"
 msgstr ""
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
+msgstr "{selectedProviderName} erişimi için bu sunucunun kendi {hostCredentialSource} kimlik bilgilerini kullanır."
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
 msgstr ""
+
+#: src/pages/shell/bot-credentials.tsx
+msgid "Values are encrypted and never shown again."
+msgstr "Değerler şifrelenir ve bir daha gösterilmez."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"

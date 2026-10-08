@@ -39,6 +39,12 @@ Optional: set `OPENROUTER_API_KEY`, or set a MiniMax Token Plan Subscription Key
 The direct MiniMax provider uses `https://api.minimax.io/anthropic`; the key remains in the API and
 worker processes and is never sent to clients or computer sandboxes. You can instead connect a model
 in the UI after signup.
+A provider that authenticates from the host needs no key: for Amazon Bedrock with an ECS task,
+IRSA or EC2 instance role, opt in with `PI_DEFAULT_CREDENTIALS=host` and set
+`PI_DEFAULT_PROVIDER=amazon-bedrock`, `PI_DEFAULT_MODEL` and `AWS_REGION`. With an instance
+role, also complete both steps in [Restricted computer egress](#restricted-computer-egress):
+`SANDBOX_COMPUTER_EGRESS=restricted` alone does not stop bot computers reading the role's
+credentials from the metadata endpoint.
 Auto Review uses that LLM checker by default. To use TypeSafe Jev instead, set
 `RAKAZO_AUTO_REVIEW_PROVIDER=jev` and `TYPESAFE_API_KEY`. Core still runs with neither.
 

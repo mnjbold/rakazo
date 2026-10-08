@@ -44,6 +44,10 @@ export interface AppEnv {
   deploymentModelKey: string | undefined;
   voiceStudioApiKey: string | undefined;
   minimaxApiKey: string | undefined;
+  /** The deployment default model can run; see resolveDeploymentModel. */
+  deploymentModelConfigured: boolean;
+  /** The deployment default model runs on the host's credentials rather than a key. */
+  deploymentModelHostCredentials: boolean;
   e2bApiKey: string | undefined;
   daytonaApiKey: string | undefined;
   daytonaApiUrl: string | undefined;
@@ -196,6 +200,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     deploymentModelKey: deploymentModel.key,
     voiceStudioApiKey: optional(source.RAKAZO_VOICESTUDIO_API_KEY),
     minimaxApiKey: optional(source.MINIMAX_API_KEY),
+    deploymentModelConfigured: deploymentModel.configured,
+    deploymentModelHostCredentials: deploymentModel.hostCredentials,
     e2bApiKey: source.E2B_API_KEY,
     daytonaApiKey: source.DAYTONA_API_KEY,
     daytonaApiUrl: source.DAYTONA_API_URL,

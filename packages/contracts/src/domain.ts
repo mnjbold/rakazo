@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { AGENT_SECRET_NAME_PATTERN } from "./agent-secret-name.js";
 import { ATTACHMENT_IMAGE_MIME_TYPES } from "./attachments.js";
 import { BotAvatarValueSchema } from "./bot-avatar.js";
 import { DisabledBuiltinToolsSchema } from "./builtin-tools.js";
@@ -31,7 +32,7 @@ export const ThinkingLevelSchema = z.enum([
 ]);
 export type ThinkingLevel = z.infer<typeof ThinkingLevelSchema>;
 
-export const AGENT_SECRET_NAME_PATTERN = /^[A-Z_][A-Z0-9_]{0,63}$/;
+export { AGENT_SECRET_NAME_PATTERN };
 
 export const AgentSecretSchema = z.object({
   id: Id,
@@ -1137,6 +1138,30 @@ export const ModelCredentialSchema = z.object({
 });
 export type ModelCredential = z.infer<typeof ModelCredentialSchema>;
 
+export const MAX_MODEL_BACKUPS = 10;
+export const ModelBackupChoiceSchema = z.object({
+  provider: z.string().trim().min(1).max(128),
+  modelId: z.string().trim().min(1).max(512),
+});
+export type ModelBackupChoice = z.infer<typeof ModelBackupChoiceSchema>;
+export const ModelBackupListSchema = z
+  .array(ModelBackupChoiceSchema)
+  .max(MAX_MODEL_BACKUPS)
+  .superRefine((choices, ctx) => {
+    const seen = new Set<string>();
+    for (const [index, choice] of choices.entries()) {
+      const key = JSON.stringify([choice.provider, choice.modelId]);
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Backup models must be unique",
+          path: [index],
+        });
+      }
+      seen.add(key);
+    }
+  });
+
 export const OPENAI_COMPATIBLE_PROVIDER_ID = "openai-compatible";
 
 export const ModelConnectInputSchema = z
@@ -1472,6 +1497,10 @@ export const MeSchema = z.object({
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),
+  /** Provider the active default runs on with the server's own credentials, without a key. */
+  hostCredentialProvider: z.string().nullable(),
+  /** Kind of those credentials, e.g. "AWS IAM"; set with hostCredentialProvider. */
+  hostCredentialSource: z.string().nullable(),
   computerHost: z.enum(["docker", "this-mac"]).nullable(),
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),

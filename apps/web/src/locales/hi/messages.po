@@ -106,6 +106,9 @@ msgstr "{botName} का कंप्यूटर"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+#: src/pages/shell/bot-credentials.tsx
+msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
+msgstr "{commandVariable} आरक्षित है और कमांड वेरिएबल के रूप में इस्तेमाल नहीं हो सकता। दूसरा नाम चुनें।"
 
 #: src/lib/billing.ts
 msgid "{count} days"
@@ -284,6 +287,7 @@ msgstr "सक्रिय मॉडल"
 msgid "Activity"
 msgstr "गतिविधि"
 
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Add"
@@ -320,6 +324,14 @@ msgstr "एक HTTPS सर्वर URL दर्ज करें।"
 #: src/pages/PluginsOverlay.tsx
 msgid "Add another"
 msgstr ""
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Add connected model"
+msgstr "जुड़ा मॉडल जोड़ें"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Add connected models to use them as backups."
+msgstr "बैकअप के रूप में उपयोग करने के लिए जुड़े मॉडल जोड़ें।"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Add credential"
@@ -655,6 +667,10 @@ msgstr ""
 msgid "Available after the routine is saved"
 msgstr ""
 
+#: src/pages/shell/bot-credentials.tsx
+msgid "Available to this bot's shell commands as {commandVariable}"
+msgstr "इस बॉट के शेल कमांड के लिए {commandVariable} के रूप में उपलब्ध"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Avatar Studio"
 msgstr "अवतार स्टूडियो"
@@ -673,6 +689,18 @@ msgstr ""
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
 msgstr "साइन इन पर वापस जाएँ"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models"
+msgstr "बैकअप मॉडल"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models order"
+msgstr "बैकअप मॉडल का क्रम"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Backup models saved."
+msgstr "बैकअप मॉडल सहेजे गए।"
 
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 msgid "Base URL"
@@ -769,6 +797,7 @@ msgstr "सर्वर तक नहीं पहुंचा जा सका�
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/markdown-link-prompt.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -1036,6 +1065,11 @@ msgstr ""
 msgid "Command"
 msgstr "कमांड"
 
+#: src/components/AskCard.tsx
+#: src/pages/shell/bot-credentials.tsx
+msgid "Command variable"
+msgstr "कमांड वेरिएबल"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "पूर्ण"
@@ -1114,6 +1148,10 @@ msgstr "कनेक्ट करें"
 #: src/pages/Onboarding.tsx
 msgid "Connect a model"
 msgstr "एक मॉडल कनेक्ट करें"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Connect a provider to add backups."
+msgstr "बैकअप जोड़ने के लिए किसी प्रदाता को कनेक्ट करें।"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect API key"
@@ -1415,6 +1453,10 @@ msgstr "अनुमोदन नियम लोड नहीं हो सक�
 msgid "Could not load artifacts."
 msgstr ""
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Could not load backup models"
+msgstr "बैकअप मॉडल लोड नहीं हो सके।"
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Could not load billing"
 msgstr ""
@@ -1579,6 +1621,10 @@ msgstr "सहेजा नहीं जा सका"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Could not save Auto Review"
 msgstr ""
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Could not save backup models"
+msgstr "बैकअप मॉडल सहेजे नहीं जा सके।"
 
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
@@ -2552,10 +2598,6 @@ msgstr "मेमोरी रखें"
 msgid "key"
 msgstr ""
 
-#: src/pages/shell/bot-credentials.tsx
-msgid "Keys and passwords this bot can use, each for one site only. Values are encrypted and never shown again."
-msgstr ""
-
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
 msgstr "ज्ञान"
@@ -2685,6 +2727,7 @@ msgstr "आवाज़ प्रोवाइडर्स लोड हो र�
 #: src/pages/Artifacts.tsx
 #: src/pages/Auth.tsx
 #: src/pages/IntegrationSetup.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -2791,6 +2834,10 @@ msgstr ""
 #: src/pages/Onboarding.tsx
 msgid "Maximum images per request"
 msgstr "प्रति अनुरोध अधिकतम इमेज"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Maximum of 10 backup models."
+msgstr "अधिकतम 10 बैकअप मॉडल।"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2978,6 +3025,14 @@ msgstr ""
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
 msgstr ""
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Move {full} down"
+msgstr "{full} को नीचे ले जाएँ"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Move {full} up"
+msgstr "{full} को ऊपर ले जाएँ"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Move them to your shared memory."
@@ -3188,6 +3243,10 @@ msgstr ""
 msgid "None yet"
 msgstr "अभी तक कोई नहीं"
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Not connected"
+msgstr "कनेक्ट नहीं है"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Not in the plugin catalog"
 msgstr ""
@@ -3250,6 +3309,7 @@ msgstr "1 तारीख को {0} बजे"
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr ""
 
+#: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/Shell.tsx
 msgid "Open"
@@ -3279,6 +3339,10 @@ msgstr ""
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Open computer settings"
 msgstr ""
+
+#: src/components/markdown-link-prompt.tsx
+msgid "Open external link?"
+msgstr "बाहरी लिंक खोलें?"
 
 #: src/pages/Shell.tsx
 msgid "Open in full window"
@@ -3631,6 +3695,7 @@ msgid "Release interrupted computer?"
 msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -3643,6 +3708,10 @@ msgstr "हटाएं"
 #: src/pages/Shell.tsx
 msgid "Remove {0}"
 msgstr "{0} हटाएं"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Remove {full}"
+msgstr "{full} हटाएँ"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Remove {secretName}? This bot will no longer be able to use it."
@@ -3798,6 +3867,7 @@ msgstr ""
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
+#: src/pages/ModelBackupsSettings.tsx
 msgid "Retry"
 msgstr "फिर कोशिश करें"
 
@@ -3914,6 +3984,10 @@ msgstr ""
 msgid "Save"
 msgstr "सहेजें"
 
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Save backups"
+msgstr "बैकअप सहेजें"
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
 msgstr ""
@@ -3959,6 +4033,7 @@ msgstr ""
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/ModelBackupsSettings.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -4036,6 +4111,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "एक बॉट चुनें"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Select a connected model"
+msgstr "जुड़ा मॉडल चुनें"
 
 #: src/pages/Shell.tsx
 msgid "Send"
@@ -4277,6 +4356,14 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
 msgstr "कुछ गलत हो गया। फिर से कोशिश करें।"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Space changed. Reopen Models to load its backup list."
+msgstr "स्पेस बदल गया। बैकअप सूची लोड करने के लिए मॉडल फिर खोलें।"
+
+#: src/pages/ModelBackupsSettings.tsx
+msgid "Space changed. Reopen Models to save its backup list."
+msgstr "स्पेस बदल गया। बैकअप सूची सहेजने के लिए मॉडल फिर खोलें।"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Space default"
@@ -4806,14 +4893,26 @@ msgstr "टेम्पलेट {0} का उपयोग करें"
 msgid "Use this model"
 msgstr "यह मॉडल उपयोग करें"
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Use your own key"
+msgstr "अपनी कुंजी इस्तेमाल करें"
+
 #: src/components/AskCard.tsx
 #: src/pages/shell/bot-credentials.tsx
 msgid "Username"
 msgstr ""
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Uses this server's own {hostCredentialSource} credentials to access {selectedProviderName}."
+msgstr "{selectedProviderName} तक पहुँचने के लिए इस सर्वर के अपने {hostCredentialSource} क्रेडेंशियल का उपयोग करता है।"
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Value"
 msgstr ""
+
+#: src/pages/shell/bot-credentials.tsx
+msgid "Values are encrypted and never shown again."
+msgstr "मान एन्क्रिप्ट किए जाते हैं और दोबारा नहीं दिखाए जाते।"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
