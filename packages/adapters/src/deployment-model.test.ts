@@ -43,7 +43,13 @@ describe("resolveDeploymentModel", () => {
         MINIMAX_API_KEY: "minimax-subscription-key",
         PI_DEFAULT_PROVIDER: "minimax",
       }),
-    ).toEqual({ provider: "minimax", model: "MiniMax-M3", key: "minimax-subscription-key" });
+    ).toEqual({
+      provider: "minimax",
+      model: "MiniMax-M3",
+      key: "minimax-subscription-key",
+      configured: true,
+      hostCredentials: false,
+    });
     // A provider with no key configured yields no key — never another vendor's.
     expect(
       resolveDeploymentModel({ OPENROUTER_API_KEY: "or-key", PI_DEFAULT_PROVIDER: "anthropic" }),
