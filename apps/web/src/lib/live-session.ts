@@ -1,5 +1,5 @@
-import { selectedSpaceId } from "./rpc.js";
 import { PCM_WORKLET_SOURCE } from "./pcm-worklet.js";
+import { selectedSpaceId } from "./rpc.js";
 
 export type LiveSessionPhase =
   | "connecting"
@@ -212,7 +212,7 @@ export class LiveSession {
           const remaining = chunk.length - this.playbackOffset;
           const canWrite = Math.min(remaining, out.length - written);
           for (let i = 0; i < canWrite; i++) {
-            out[written + i] = (chunk[this.playbackOffset + i]! / 32768);
+            out[written + i] = chunk[this.playbackOffset + i]! / 32768;
           }
           written += canWrite;
           this.playbackOffset += canWrite;
@@ -235,8 +235,7 @@ export class LiveSession {
     } catch (err) {
       this.setState({
         phase: "error",
-        error:
-          err instanceof Error ? err.message : "Microphone access denied",
+        error: err instanceof Error ? err.message : "Microphone access denied",
       });
     }
   }

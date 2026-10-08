@@ -40,7 +40,7 @@ import {
   callClientNonce,
   clampMentionHighlightIndex,
   cronFromPreset,
-  groupBotsForSidebar,
+  formatMessageTime,
   groupVoiceChats,
   inferAttachmentMimeType,
   isActive,
@@ -53,6 +53,7 @@ import {
   plainTextFromMarkdown,
   projectMessageReactions,
   reorderBotTo,
+  replyAttachment,
   resolveComposerSendPlan,
   resolveMentionPickerKey,
   runThreadSubscription,
@@ -61,6 +62,7 @@ import {
   searchHitThreadTarget,
   serializeComposerPrompt,
   speechFromBlocks,
+  timeSeparatorIds,
   truncateSlashDescription,
   userVisibleMessages,
   withLiveStreamingProgress,
@@ -123,6 +125,7 @@ import {
 import {
   type ClipboardEvent,
   type DragEvent,
+  Fragment,
   lazy,
   type MutableRefObject,
   memo,
@@ -155,7 +158,15 @@ import {
 import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
 import { VoiceChatCard } from "../components/call/VoiceChatCard";
 import { ComputerWorkspace } from "../components/computer/ComputerWorkspace";
+import { lazyOverlay } from "../components/ErrorBoundary";
 import { MessageHoverMetadata } from "../components/MessageHoverMetadata";
+import {
+  LIVE_TOOL_STEP_WINDOW,
+  StandaloneToolActivity,
+  ToolActivityDisclosure,
+  ToolOnlyNarration,
+  ToolSteps,
+} from "../components/ToolActivityDisclosure";
 import { SkillDraftCard } from "../components/teach/SkillDraftCard";
 import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
 import { TeachComputerOverlayControl } from "../components/teach/TeachComputerOverlay";
@@ -196,6 +207,13 @@ import {
 import { markAfterPaint, markOnce } from "../lib/performance";
 import { quoteDraftForSelection } from "../lib/quote-selection";
 import { getResponseStreamingEnabled, subscribeResponseStreaming } from "../lib/response-streaming";
+import type { Panel, RightPanelState } from "../lib/right-panel-state";
+import {
+  readRightPanelState,
+  rightPanelStorageKey,
+  writeRightPanelState,
+} from "../lib/right-panel-state";
+import { rosterWorkStatusLabel } from "../lib/roster-status";
 import { clearSpaceSelection, rpc, selectedSpaceId, selectSpace } from "../lib/rpc";
 import { readSeenRunErrorIds, rememberSeenRunErrorId } from "../lib/run-error-storage";
 import { sharedInflight } from "../lib/shared-inflight";
@@ -216,16 +234,26 @@ import {
   threadRunError,
   userHoldsComputerControl,
 } from "../lib/thread-events";
+import { getToolActivityEnabled, subscribeToolActivity } from "../lib/tool-activity-preference";
+import {
+  isToolOnlyNarration,
+  messageHasVisibleBlocks,
+  renderableMessageBlocks,
+  shouldRenderToolCard,
+  toolStepCount,
+} from "../lib/tool-activity-view";
 import {
   transcriptCanSnapAfterFrame,
   transcriptIsNearEnd,
   transcriptMovedDown,
 } from "../lib/transcript-scroll";
 import { speaker } from "../lib/tts";
+import { errorText } from "../lib/user-error";
 import { ActivityList } from "./ActivityList";
 import type { ContextMenuPosition } from "./BotContextMenu";
 import { CreateGroupForm, GroupSettings, memberName } from "./GroupPanel";
 import { HostComputerPrompt } from "./HostComputerPrompt";
+import { ResizableSidePanel } from "./ResizableSidePanel";
 import {
   draftFromRoutine,
   emptyRoutineDraft,
@@ -239,6 +267,7 @@ import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
+import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { ChatHistoryMenu, ChatSessionOverlay } from "./shell/chat-sessions";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import {
@@ -249,6 +278,7 @@ import {
   NewSpaceDialog,
   PickerInfoDialog,
   RenameBotSectionDialog,
+  RenameSpaceDialog,
 } from "./shell/dialogs";
 import {
   AppConnectCard,
@@ -257,41 +287,31 @@ import {
   ChoiceCard,
   McpApprovalCard,
 } from "./shell/message-cards";
+import { commitSpaceRename, sidebarGroupsForSpaces } from "./shell/space-sidebar";
 import { WindowChrome } from "./WindowChrome";
 
-const BotContextMenu = lazy(() =>
-  import("./BotContextMenu").then((module) => ({ default: module.BotContextMenu })),
+const BotContextMenu = lazyOverlay(() =>
+  import("./BotContextMenu").then((module) => module.BotContextMenu),
 );
-const MessagingSettingsOverlay = lazy(() =>
-  import("./MessagingSettingsOverlay").then((module) => ({
-    default: module.MessagingSettingsOverlay,
-  })),
+const MessagingSettingsOverlay = lazyOverlay(() =>
+  import("./MessagingSettingsOverlay").then((module) => module.MessagingSettingsOverlay),
 );
-const SettingsOverlay = lazy(() =>
-  import("./SettingsOverlay").then((module) => ({ default: module.SettingsOverlay })),
+const SettingsOverlay = lazyOverlay(() =>
+  import("./SettingsOverlay").then((module) => module.SettingsOverlay),
 );
-const PeerMessagesOverlay = lazy(() =>
-  import("./PeerMessagesOverlay").then((module) => ({ default: module.PeerMessagesOverlay })),
+const PeerMessagesOverlay = lazyOverlay(() =>
+  import("./PeerMessagesOverlay").then((module) => module.PeerMessagesOverlay),
 );
-const PluginsOverlay = lazy(() =>
-  import("./PluginsOverlay").then((module) => ({ default: module.PluginsOverlay })),
+const PluginsOverlay = lazyOverlay(() =>
+  import("./PluginsOverlay").then((module) => module.PluginsOverlay),
 );
 const MarketplaceOverlay = lazy(() =>
   import("./MarketplaceOverlay").then((module) => ({ default: module.MarketplaceOverlay })),
 );
-const McpServersOverlay = lazy(() =>
-  import("./McpServersOverlay").then((module) => ({ default: module.McpServersOverlay })),
+const McpServersOverlay = lazyOverlay(() =>
+  import("./McpServersOverlay").then((module) => module.McpServersOverlay),
 );
 const CallView = lazy(() => import("./CallView").then((module) => ({ default: module.CallView })));
-
-type Panel =
-  | "computer"
-  | "settings"
-  | "routine"
-  | "create"
-  | "create-group"
-  | "group-settings"
-  | null;
 
 type PendingAttachment = {
   id: string;
@@ -316,6 +336,12 @@ const VOICE_STATUS_REFRESH_TIMEOUT_MS = 10_000;
 const MOBILE_SIDEBAR_SWIPE_EDGE_PX = 32;
 const MOBILE_SIDEBAR_SWIPE_DISTANCE_PX = 56;
 const MESSAGE_LONG_PRESS_MS = 450;
+/** Above one line (~28px); two lines clear this. */
+const COMPOSER_SINGLE_LINE_MAX_PX = 36;
+/** One-line `gap-x-3.5`, subtracted on each side of the text. */
+const COMPOSER_ONE_LINE_GAP_PX = 14;
+/** Narrower than the expand check so a draft at the edge cannot flip. */
+const COMPOSER_COLLAPSE_SLACK_PX = 16;
 
 function threadSnapshotSignal(parent: AbortSignal): AbortSignal {
   return AbortSignal.any([parent, AbortSignal.timeout(THREAD_SNAPSHOT_TIMEOUT_MS)]);
@@ -424,6 +450,11 @@ export function ShellPage() {
   );
   const streamResponsesRef = useRef(streamResponses);
   streamResponsesRef.current = streamResponses;
+  const showToolActivity = useSyncExternalStore(
+    subscribeToolActivity,
+    getToolActivityEnabled,
+    () => true,
+  );
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
   const [replyQuote, setReplyQuote] = useState<string | null>(null);
@@ -432,7 +463,28 @@ export function ShellPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [panel, setPanelState] = useState<Panel>(null);
+  const [restoredPanelKey, setRestoredPanelKey] = useState<string | null>(null);
+  const panelStorageKeyRef = useRef<string | null>(null);
+  const observedPanelKey = useRef<string | null>(null);
+  const explicitPanelTarget = useRef<string | null>(null);
+  const pendingPanelRestore = useRef<RightPanelState | null>(null);
+  const pendingExplicitPanel = useRef(false);
+  const panelSearch = useRef({ searchParams, setSearchParams });
+  panelSearch.current = { searchParams, setSearchParams };
+  const setPanel = useCallback((next: Panel | ((current: Panel) => Panel)) => {
+    // A user navigation wins over a saved routine still waiting for its list.
+    pendingPanelRestore.current = null;
+    pendingExplicitPanel.current = panelStorageKeyRef.current === null;
+    setRestoredPanelKey(panelStorageKeyRef.current);
+    setPanelState(next);
+    const currentSearch = panelSearch.current;
+    if (currentSearch.searchParams.has("routine")) {
+      const params = new URLSearchParams(currentSearch.searchParams);
+      params.delete("routine");
+      currentSearch.setSearchParams(params, { replace: true });
+    }
+  }, []);
   const [peerConversation, setPeerConversation] = useState<{
     peerBotId: string;
     peerBotName: string;
@@ -585,6 +637,7 @@ export function ShellPage() {
   const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<Group | null>(null);
   const [deleteSpaceTarget, setDeleteSpaceTarget] = useState<Space | null>(null);
+  const [renameSpaceTarget, setRenameSpaceTarget] = useState<Space | null>(null);
   const [spaceMenu, setSpaceMenu] = useState<{
     id: string;
     position: ContextMenuPosition;
@@ -596,6 +649,9 @@ export function ShellPage() {
     spaceMenuAnchor.current = null;
   }, [spaceMenu]);
   const closeSpaceMenu = useCallback(() => setSpaceMenu(null), []);
+  const spaceMenuTarget = spaceMenu
+    ? (spaces.find((space) => space.id === spaceMenu.id) ?? null)
+    : null;
   const [clearTarget, setClearTarget] = useState<
     { kind: "bot"; chat: Bot } | { kind: "group"; chat: Group } | null
   >(null);
@@ -622,6 +678,27 @@ export function ShellPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [initialBotsLoaded, setInitialBotsLoaded] = useState(false);
   const [bootstrapMe, setBootstrapMe] = useState<Me | null>();
+  const [keepComputerRecovery, setKeepComputerRecovery] = useState(false);
+  const recoveryHoldTimer = useRef<number | undefined>(undefined);
+  const showComputerRecoveryHint =
+    computersAreUnavailable(bootstrapMe?.sandboxProvider) || keepComputerRecovery;
+  const releaseComputerRecovery = useCallback(() => {
+    window.clearTimeout(recoveryHoldTimer.current);
+    recoveryHoldTimer.current = undefined;
+    setKeepComputerRecovery(false);
+  }, []);
+  const holdComputerRecovery = useCallback(() => {
+    setKeepComputerRecovery(true);
+    window.clearTimeout(recoveryHoldTimer.current);
+    recoveryHoldTimer.current = window.setTimeout(() => {
+      recoveryHoldTimer.current = undefined;
+      setKeepComputerRecovery(false);
+    }, 4000);
+  }, []);
+  useEffect(() => {
+    if (panel !== "computer") releaseComputerRecovery();
+  }, [panel, releaseComputerRecovery]);
+  useEffect(() => () => window.clearTimeout(recoveryHoldTimer.current), []);
   const [routineDraft, setRoutineDraft] = useState<RoutineDraftState>(emptyRoutineDraft());
   const [routineWebhookSecret, setRoutineWebhookSecret] = useState<string | null>(null);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
@@ -679,10 +756,17 @@ export function ShellPage() {
     };
   }, [session.data?.user]);
   const [usage, setUsage] = useState<{
-    inputTokens: number;
-    outputTokens: number;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    totalTokens?: number | null;
     runs: number;
   } | null>(null);
+  const refreshUsage = useCallback(() => {
+    void rpc.usage
+      .summary()
+      .then(setUsage)
+      .catch(() => undefined);
+  }, []);
   const autoBooted = useRef<string | null>(null);
   const routineSavePending = useRef(false);
   const webhookSecretProvisionRef = useRef(new Map<string, Promise<string>>());
@@ -738,6 +822,12 @@ export function ShellPage() {
     [active?.id, groupId, inGroup, pendingAttachments],
   );
   const activeRoutines = !inGroup && routinesBotId === active?.id ? routines : [];
+  const panelTarget = inGroup ? activeGroup?.id : active?.id;
+  const panelStorageKey =
+    userId && bootstrapMe?.spaceId && panelTarget
+      ? rightPanelStorageKey(userId, bootstrapMe.spaceId, inGroup ? "group" : "bot", panelTarget)
+      : null;
+  panelStorageKeyRef.current = panelStorageKey;
   const activeTaughtSkills = taughtSkillsBotId === active?.id ? taughtSkills : [];
   const recordingSkill = activeTaughtSkills.find((skill) => skill.status === "recording") ?? null;
   const routeBotId = useRef<string | undefined>(botId);
@@ -1480,7 +1570,6 @@ export function ShellPage() {
   }, [activeGroup?.id, groupId, notifyBrowserForEvent]);
 
   const sidebarGroups = useMemo(() => {
-    const needle = query.toLowerCase();
     const sidebarSpaces =
       spaces.length > 0
         ? spaces.map((space) =>
@@ -1493,6 +1582,7 @@ export function ShellPage() {
                 name: "Personal",
                 isDefault: true,
                 hasContent: true,
+                canRename: false,
                 canDelete: false,
                 bots,
                 groups,
@@ -1500,59 +1590,7 @@ export function ShellPage() {
               },
             ]
           : [];
-    const showSpaceNames = sidebarSpaces.length > 1;
-    return sidebarSpaces.flatMap((space) => {
-      const visibleBots = space.bots.filter((bot) =>
-        `${bot.name} ${bot.title ?? ""} ${bot.preview ?? ""}`.toLowerCase().includes(needle),
-      );
-      const visibleGroups = space.groups.filter((group) =>
-        `${group.name} ${group.preview}`.toLowerCase().includes(needle),
-      );
-      const sections = groupBotsForSidebar(
-        [
-          ...visibleBots.map((chat) => ({ kind: "bot" as const, chat })),
-          ...visibleGroups.map((chat) => ({ kind: "group" as const, chat })),
-        ].map((item) => ({
-          ...item,
-          id: item.chat.id,
-          parentBotId: item.kind === "bot" ? item.chat.parentBotId : null,
-          pinned: item.chat.pinned,
-          sectionId: item.chat.sectionId,
-        })),
-        space.botSections,
-      ).map((group, index) => ({
-        ...group,
-        sectionId: group.key.startsWith("section:") ? group.key.slice("section:".length) : null,
-        key: showSpaceNames ? `space:${space.id}:${group.key}` : group.key,
-        title: showSpaceNames
-          ? group.title
-            ? `${space.name} · ${group.title}`
-            : space.name
-          : group.title,
-        showLock: showSpaceNames,
-        emptySpaceId: undefined as string | undefined,
-        spaceId: space.id,
-        spaceName: space.name,
-        canDeleteSpace: index === 0 && space.canDelete === true,
-      }));
-      if (sections.length > 0) return sections;
-      // Keep empty spaces selectable; chat clicks are the only switch control.
-      if (!showSpaceNames) return [];
-      if (needle && (space.bots.length > 0 || space.groups.length > 0)) return [];
-      return [
-        {
-          key: `space:${space.id}:empty`,
-          title: space.name,
-          bots: [],
-          sectionId: null,
-          showLock: true,
-          emptySpaceId: space.id,
-          spaceId: space.id,
-          spaceName: space.name,
-          canDeleteSpace: space.canDelete === true,
-        },
-      ];
-    });
+    return sidebarGroupsForSpaces(sidebarSpaces, query);
   }, [bootstrapMe, botSections, bots, groups, spaces, query]);
 
   const railBots = useMemo(
@@ -1747,6 +1785,15 @@ export function ShellPage() {
       });
     }
   }
+
+  // The routine panel copies a routine's data into local draft state at click time
+  // rather than deriving it from `active`, so it goes stale across a bot switch —
+  // without this, Save on bot B could silently update bot A's routine.
+  useEffect(() => {
+    setEditingRoutine(null);
+    setDeleteRoutineTarget(null);
+    setPanelState((current) => (current === "routine" ? null : current));
+  }, [active?.id]);
 
   useEffect(() => {
     const messageId = searchParams.get("m");
@@ -1999,11 +2046,11 @@ export function ShellPage() {
     }
     const groupId = activeGroupId.current;
     if (groupId) {
-      void jumpToMessageRef.current({ groupId, messageId });
+      void jumpToMessageRef.current({ groupId, messageId }).catch(() => undefined);
       return;
     }
     const botId = activeBotId.current;
-    if (botId) void jumpToMessageRef.current({ botId, messageId });
+    if (botId) void jumpToMessageRef.current({ botId, messageId }).catch(() => undefined);
   }, []);
   const answerMessage = useCallback(
     async (message: ThreadMessage, text: string, username?: string) => {
@@ -2042,7 +2089,7 @@ export function ShellPage() {
           ? activeGroupId.current === groupId
           : activeBotId.current === botId;
         if (!stillHere) return;
-        setSendError(error instanceof Error ? error.message : t`Could not update reaction`);
+        setSendError(errorText(error, t`Could not update reaction`));
       }
     },
     [t],
@@ -2222,15 +2269,15 @@ export function ShellPage() {
         }
         if (groupTarget && activeGroupId.current === groupTarget) setAttachmentNotice(null);
         if (botTarget && activeBotId.current === botTarget) setAttachmentNotice(null);
-        if (groupTarget) await refreshGroupThreadRef.current(groupTarget);
-        else if (botTarget) await refreshThreadRef.current(botTarget);
+        if (groupTarget) void refreshGroupThreadRef.current(groupTarget).catch(() => undefined);
+        else if (botTarget) void refreshThreadRef.current(botTarget).catch(() => undefined);
       } catch (error) {
         if (reroutedToGroup && groupTarget) {
-          setSendError(error instanceof Error ? error.message : t`Failed to send message`);
+          setSendError(errorText(error, t`Failed to send message`));
         } else if (groupTarget && activeGroupId.current === groupTarget) {
-          setSendError(error instanceof Error ? error.message : t`Failed to send message`);
+          setSendError(errorText(error, t`Failed to send message`));
         } else if (botTarget && activeBotId.current === botTarget) {
-          setSendError(error instanceof Error ? error.message : t`Failed to send message`);
+          setSendError(errorText(error, t`Failed to send message`));
         }
       } finally {
         sendingRef.current = false;
@@ -2303,7 +2350,7 @@ export function ShellPage() {
           await rpc.threads.stop({ groupId: groupTarget });
         } catch (error) {
           if (activeGroupId.current === groupTarget) {
-            setSendError(error instanceof Error ? error.message : t`Failed to stop`);
+            setSendError(errorText(error, t`Failed to stop`));
           }
           return;
         }
@@ -2322,7 +2369,7 @@ export function ShellPage() {
         await rpc.threads.stop({ botId: botTarget });
       } catch (error) {
         if (activeBotId.current === botTarget) {
-          setSendError(error instanceof Error ? error.message : t`Failed to stop`);
+          setSendError(errorText(error, t`Failed to stop`));
         }
         return;
       }
@@ -2507,7 +2554,7 @@ export function ShellPage() {
       await refreshComputerFor(targetBotId);
     } catch (error) {
       if (!stillThisBoot() || !stillThisBot()) return;
-      setComputerError(error instanceof Error ? error.message : t`Could not take control`);
+      setComputerError(errorText(error, t`Could not take control`));
       setComputerErrorFromScreen(false);
       throw error;
     } finally {
@@ -2593,14 +2640,61 @@ export function ShellPage() {
     }
   }, [panel]);
 
-  // The routine panel copies a routine's data into local draft state at click time
-  // rather than deriving it from `active`, so it goes stale across a bot switch —
-  // without this, Save on bot B could silently update bot A's routine.
   useEffect(() => {
-    setEditingRoutine(null);
-    setDeleteRoutineTarget(null);
-    setPanel((current) => (current === "routine" ? null : current));
-  }, [active?.id]);
+    if (!panelStorageKey) return;
+    if (observedPanelKey.current !== panelStorageKey) {
+      observedPanelKey.current = panelStorageKey;
+      if (pendingExplicitPanel.current || explicitPanelTarget.current === panelStorageKey) {
+        pendingExplicitPanel.current = false;
+        explicitPanelTarget.current = null;
+        pendingPanelRestore.current = null;
+        setRestoredPanelKey(panelStorageKey);
+        return;
+      }
+      explicitPanelTarget.current = null;
+      // Reload starts with panel=null so storage restores. In-session chat switches used to
+      // keep computer/settings open; only routine was cleared (handled above). Carry is
+      // session-only — do not write the carried panel onto the destination's saved prefs.
+      if (panel === "computer" || panel === "settings" || panel === "group-settings") {
+        const carried = panel === "computer" ? "computer" : inGroup ? "group-settings" : "settings";
+        pendingPanelRestore.current = null;
+        if (carried !== panel) setPanelState(carried);
+        setRestoredPanelKey(null);
+        return;
+      }
+      pendingPanelRestore.current = readRightPanelState(panelStorageKey);
+    }
+    const saved = pendingPanelRestore.current;
+    if (!saved) return;
+    // Explicit routine links take precedence over a local layout preference.
+    if (searchParams.has("routine")) {
+      pendingPanelRestore.current = null;
+      return;
+    }
+    if (saved.panel === "routine" && saved.routineId && routinesBotId !== active?.id) return;
+    let next = saved.panel;
+    if (next === "routine") {
+      const routine = saved.routineId
+        ? routines.find((item) => item.id === saved.routineId)
+        : undefined;
+      if (saved.routineId && !routine) next = "computer";
+      setEditingRoutine(routine ?? null);
+      setRoutineDraft(routine ? draftFromRoutine(routine) : emptyRoutineDraft());
+      setRoutineWebhookSecret(null);
+    }
+    pendingPanelRestore.current = null;
+    setPanelState(next);
+    setRestoredPanelKey(panelStorageKey);
+  }, [panelStorageKey, active?.id, inGroup, panel, routinesBotId, routines, searchParams]);
+
+  useEffect(() => {
+    // Do not gate writes on ?routine= staying in the URL — a stuck/failed routine
+    // list would freeze layout prefs. Deep-link handling uses setPanelState for the
+    // bot-switch close so restoredPanelKey stays unset until an intentional setPanel.
+    if (!panelStorageKey || restoredPanelKey !== panelStorageKey || pendingPanelRestore.current)
+      return;
+    writeRightPanelState(panelStorageKey, panel, editingRoutine?.id);
+  }, [panelStorageKey, restoredPanelKey, panel, editingRoutine?.id]);
 
   useEffect(() => {
     const threadKey = inGroup ? groupId : active?.id;
@@ -2731,6 +2825,18 @@ export function ShellPage() {
         </Button>
       </div>
     ) : null;
+  const computerPreviewScreen =
+    !computerOpen &&
+    computer?.kind !== "desktop" &&
+    computer?.state === "running" &&
+    Boolean(embeddedScreenUrl) &&
+    !computerScreenError;
+  const showingRecoveryHint =
+    !computerOpen &&
+    computer?.kind !== "desktop" &&
+    !computerPreviewScreen &&
+    !computerScreenError &&
+    showComputerRecoveryHint;
 
   const userName = session.data?.user.name ?? t`You`;
   const initials = userName
@@ -2793,14 +2899,7 @@ export function ShellPage() {
         }}
       />
       {bootstrapMe !== undefined ? (
-        <HostComputerPrompt initialMe={bootstrapMe ?? undefined} />
-      ) : null}
-      {!mobileSidebarOpen ? (
-        <div
-          data-testid="mobile-sidebar-swipe-edge"
-          aria-hidden="true"
-          className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
-        />
+        <HostComputerPrompt initialMe={bootstrapMe ?? undefined} onMeUpdated={setBootstrapMe} />
       ) : null}
       <AppRail
         active="bots"
@@ -2982,85 +3081,99 @@ export function ShellPage() {
                   nestedRows.flatMap((row) =>
                     row.item.kind === "bot" && row.parentId === parentId ? [row.item.chat.id] : [],
                   );
+                const hasSpaceActions = group.canRenameSpace || group.canDeleteSpace;
                 return (
                   <div key={group.key} data-sidebar-group={group.key}>
-                    {group.title ? (
-                      <div className="flex items-center pt-3 pb-0.5">
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
-                          onClick={() => {
-                            if (group.emptySpaceId) {
-                              openSpaceChat(group.emptySpaceId, "/onboarding");
-                              return;
-                            }
-                            toggleSidebarSection(group.key);
-                          }}
-                          onContextMenu={
-                            group.sectionId
-                              ? (event) => {
-                                  event.preventDefault();
-                                  // Prefer section rename over delete-space when both apply;
-                                  // the dedicated space-actions button still opens the space menu.
-                                  const sections =
-                                    group.spaceId === bootstrapMe?.spaceId
-                                      ? botSections
-                                      : (spaces.find((space) => space.id === group.spaceId)
-                                          ?.botSections ?? []);
-                                  const section = sections.find(
-                                    (item) => item.id === group.sectionId,
-                                  );
-                                  if (!section) return;
-                                  sectionMenuAnchor.current = event.currentTarget;
-                                  setSectionMenu({
-                                    section,
-                                    spaceId: group.spaceId,
-                                    position: { x: event.clientX, y: event.clientY },
-                                  });
-                                }
-                              : group.canDeleteSpace
+                    {group.title || hasSpaceActions ? (
+                      <div
+                        className={
+                          group.title && hasSpaceActions
+                            ? "grid pt-3 pb-0.5"
+                            : `flex items-center pt-3 pb-0.5${group.title ? "" : " justify-end"}`
+                        }
+                      >
+                        {group.title ? (
+                          <button
+                            type="button"
+                            className={`flex min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full pe-8" : "flex-1"}`}
+                            onClick={() => {
+                              if (group.emptySpaceId) {
+                                openSpaceChat(group.emptySpaceId, "/onboarding");
+                                return;
+                              }
+                              toggleSidebarSection(group.key);
+                            }}
+                            onContextMenu={
+                              group.sectionId
                                 ? (event) => {
                                     event.preventDefault();
-                                    spaceMenuAnchor.current = event.currentTarget;
-                                    setSpaceMenu({
-                                      id: group.spaceId,
+                                    // Prefer section rename over the space menu when both apply;
+                                    // the dedicated space-actions button still opens the space menu.
+                                    const sections =
+                                      group.spaceId === bootstrapMe?.spaceId
+                                        ? botSections
+                                        : (spaces.find((space) => space.id === group.spaceId)
+                                            ?.botSections ?? []);
+                                    const section = sections.find(
+                                      (item) => item.id === group.sectionId,
+                                    );
+                                    if (!section) return;
+                                    sectionMenuAnchor.current = event.currentTarget;
+                                    setSectionMenu({
+                                      section,
+                                      spaceId: group.spaceId,
                                       position: { x: event.clientX, y: event.clientY },
                                     });
                                   }
-                                : undefined
-                          }
-                          aria-expanded={group.emptySpaceId ? undefined : !collapsed}
-                          aria-label={
-                            group.emptySpaceId
-                              ? t`Open ${group.title}`
-                              : collapsed
-                                ? t`Expand ${group.title}`
-                                : t`Collapse ${group.title}`
-                          }
-                        >
-                          <span className="flex min-w-0 items-center gap-1.5 truncate">
-                            {group.showLock ? (
-                              <Lock size={11} strokeWidth={2} aria-hidden="true" />
-                            ) : null}
-                            <span className="truncate">{group.title}</span>
-                          </span>
-                          {group.emptySpaceId ? null : (
-                            <ChevronDown
-                              size={14}
-                              strokeWidth={1.8}
-                              className={
-                                collapsed
-                                  ? "-rotate-90 transition-transform"
-                                  : "transition-transform"
-                              }
-                              aria-hidden="true"
-                            />
-                          )}
-                        </button>
-                        {group.canDeleteSpace ? (
+                                : hasSpaceActions
+                                  ? (event) => {
+                                      event.preventDefault();
+                                      spaceMenuAnchor.current = event.currentTarget;
+                                      setSpaceMenu({
+                                        id: group.spaceId,
+                                        position: { x: event.clientX, y: event.clientY },
+                                      });
+                                    }
+                                  : undefined
+                            }
+                            aria-expanded={group.emptySpaceId ? undefined : !collapsed}
+                            aria-label={
+                              group.emptySpaceId
+                                ? t`Open ${group.title}`
+                                : collapsed
+                                  ? t`Expand ${group.title}`
+                                  : t`Collapse ${group.title}`
+                            }
+                          >
+                            <span className="flex min-w-0 items-center gap-1.5 truncate">
+                              {group.showLock ? (
+                                <Lock size={11} strokeWidth={2} aria-hidden="true" />
+                              ) : null}
+                              <span className="truncate">{group.title}</span>
+                            </span>
+                            {group.emptySpaceId ? null : (
+                              <ChevronDown
+                                size={14}
+                                strokeWidth={1.8}
+                                className={
+                                  collapsed
+                                    ? "-rotate-90 transition-transform"
+                                    : "transition-transform"
+                                }
+                                aria-hidden="true"
+                              />
+                            )}
+                          </button>
+                        ) : null}
+                        {hasSpaceActions ? (
                           <Button
                             variant="ghost"
                             size="icon-sm"
+                            className={
+                              group.title
+                                ? "col-start-1 row-start-1 justify-self-end self-center"
+                                : undefined
+                            }
                             aria-label={t`Actions for ${group.spaceName}`}
                             onClick={(event) => {
                               const rect = event.currentTarget.getBoundingClientRect();
@@ -3083,6 +3196,15 @@ export function ShellPage() {
                         const selected =
                           (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
                           (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
+                        const workStatusLabel =
+                          item.kind === "bot" ? rosterWorkStatusLabel(item.chat.status) : null;
+                        const rosterLine =
+                          workStatusLabel ??
+                          (item.kind === "bot"
+                            ? item.chat.preview ||
+                              (item.chat.status !== "idle" ? item.chat.status : "")
+                            : item.chat.preview ||
+                              item.chat.members.map((member) => member.name).join(", "));
                         return (
                           <div
                             key={`${item.kind}:${item.chat.id}`}
@@ -3258,16 +3380,12 @@ export function ShellPage() {
                                 <div
                                   dir="auto"
                                   className={`mt-1 line-clamp-2 text-[12.5px] break-words whitespace-normal ${
-                                    item.chat.unread
+                                    workStatusLabel || item.chat.unread
                                       ? "font-medium text-foreground/75"
                                       : "text-muted-foreground/60"
                                   }`}
                                 >
-                                  {item.kind === "bot"
-                                    ? item.chat.preview ||
-                                      (item.chat.status !== "idle" ? item.chat.status : "")
-                                    : item.chat.preview ||
-                                      item.chat.members.map((member) => member.name).join(", ")}
+                                  {rosterLine}
                                 </div>
                               </div>
                             </button>
@@ -3422,10 +3540,6 @@ export function ShellPage() {
                 aria-label={t`Usage`}
                 onClick={() => {
                   setMenuOpen(false);
-                  void rpc.usage
-                    .summary()
-                    .then(setUsage)
-                    .catch(() => undefined);
                   openSettings("usage");
                 }}
               >
@@ -3496,11 +3610,20 @@ export function ShellPage() {
         />
       )}
 
+      {/* Keep the composer's z-index inside the chat so phone overlays like the side panel cover it. */}
       <main
         aria-hidden={mobileSidebarOpen || undefined}
         inert={mobileSidebarOpen}
-        className="flex min-w-0 flex-1 flex-col bg-background"
+        className="isolate flex min-w-0 flex-1 flex-col bg-background"
       >
+        {/* Inside main so the composer and its menus stay above it. */}
+        {!mobileSidebarOpen ? (
+          <div
+            data-testid="mobile-sidebar-swipe-edge"
+            aria-hidden="true"
+            className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
+          />
+        ) : null}
         <div className="app-drag flex items-center justify-between gap-2 border-b border-sidebar-border px-2 py-2 md:px-[22px] md:py-[17px]">
           <div className="flex min-w-0 items-center gap-2">
             {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
@@ -3593,6 +3716,7 @@ export function ShellPage() {
               onScrollRequestHandled={clearScrollRequest}
               artifactTarget={transcriptArtifactTarget}
               messages={transcriptMessages}
+              showToolActivity={showToolActivity}
               olderCursor={activeSnapshot?.olderCursor ?? null}
               loadingOlder={loadingOlder}
               answerableAskMessageId={answerableAskMessageId}
@@ -3657,7 +3781,9 @@ export function ShellPage() {
                 onOpenSettings={() => openSettings("voice")}
                 onClose={() => {
                   if (activeCallId && active) {
-                    void rpc.threads.endCall({ botId: active.id, callId: activeCallId }).catch(() => undefined);
+                    void rpc.threads
+                      .endCall({ botId: active.id, callId: activeCallId })
+                      .catch(() => undefined);
                   }
                   setCallOpen(false);
                   setActiveCallId(null);
@@ -3704,6 +3830,7 @@ export function ShellPage() {
             }
             onVoiceSetup={() => openSettings("voice")}
             transcribe={Boolean(voiceStatus?.transcribe)}
+            artifactTarget={transcriptArtifactTarget}
             replyTarget={activeReplyTarget}
             replyQuote={activeReplyQuote}
             replyTargetName={replyTargetName}
@@ -3721,10 +3848,6 @@ export function ShellPage() {
                 return;
               }
               if (action === "settings-usage") {
-                void rpc.usage
-                  .summary()
-                  .then(setUsage)
-                  .catch(() => undefined);
                 openSettings("usage");
               }
             }}
@@ -3732,17 +3855,13 @@ export function ShellPage() {
         ) : null}
       </main>
 
-      <aside
-        data-testid="side-panel"
-        data-panel={panel ?? "closed"}
-        className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-150 ease-out md:relative ${
-          panel && (active || activeGroup || panel === "create")
-            ? "w-full max-w-[384px] border-s border-sidebar-border md:w-[384px] md:max-w-none"
-            : "pointer-events-none w-0"
-        }`}
+      <ResizableSidePanel
+        botsSidebarCollapsed={botsSidebarCollapsed}
+        open={Boolean(panel && (active || activeGroup || panel === "create"))}
+        panel={panel ?? "closed"}
       >
         {panel && (active || activeGroup || panel === "create") ? (
-          <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px] md:w-[384px]">
+          <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px]">
             {panel !== "routine" &&
             panel !== "create" &&
             panel !== "create-group" &&
@@ -3796,7 +3915,9 @@ export function ShellPage() {
               <div>
                 <div
                   data-testid="computer-preview"
-                  className="group relative aspect-[16/10] overflow-hidden rounded-[14px] bg-background"
+                  className={`group relative rounded-[14px] bg-background ${
+                    showingRecoveryHint ? "" : "aspect-[16/10] overflow-hidden"
+                  }`}
                 >
                   {computerOpen ? (
                     <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
@@ -3816,8 +3937,22 @@ export function ShellPage() {
                   ) : (
                     <div className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80">
                       {computerScreenError ??
-                        (computersAreUnavailable(bootstrapMe?.sandboxProvider) ? (
-                          <ComputersUnavailableHint />
+                        (showComputerRecoveryHint ? (
+                          <ComputersUnavailableHint
+                            sandboxProvider={bootstrapMe?.sandboxProvider}
+                            onRecovered={(sandboxProvider) => {
+                              setBootstrapMe((prev) =>
+                                prev ? { ...prev, sandboxProvider } : prev,
+                              );
+                              holdComputerRecovery();
+                            }}
+                            onRecoveryDismissed={releaseComputerRecovery}
+                            onOpenComputerSettings={
+                              bootstrapMe?.isDeploymentOwner === true
+                                ? () => openSettings("computer")
+                                : undefined
+                            }
+                          />
                         ) : (
                           computerPlaceholder(
                             computer?.state,
@@ -3827,7 +3962,7 @@ export function ShellPage() {
                         ))}
                     </div>
                   )}
-                  {!computerScreenError ? (
+                  {!computerScreenError && !showingRecoveryHint ? (
                     <button
                       type="button"
                       data-testid="computer-preview-open"
@@ -3954,8 +4089,12 @@ export function ShellPage() {
                       mode: computerMode,
                     });
                   }
-                  await rpc.bots.update({ botId: active.id, ...patch });
-                  await refreshBots();
+                  const updated = await rpc.bots.update({ botId: active.id, ...patch });
+                  setBots((current) =>
+                    current.map((bot) => (bot.id === updated.id ? updated : bot)),
+                  );
+                  // Persistence succeeded; a failed navigation refresh must not undo the tool edit.
+                  await refreshBots().catch(() => undefined);
                 }}
                 onExport={async () => {
                   const manifest = await rpc.export.bot({ botId: active.id });
@@ -4085,9 +4224,7 @@ export function ShellPage() {
                     ) {
                       return;
                     }
-                    setRoutineError(
-                      error instanceof Error ? error.message : t`Could not save routine`,
-                    );
+                    setRoutineError(errorText(error, t`Could not save routine`));
                     return;
                   } finally {
                     routineSavePending.current = false;
@@ -4114,9 +4251,7 @@ export function ShellPage() {
                     await refreshThread(targetBotId);
                   } catch (error) {
                     if (activeBotId.current === targetBotId) {
-                      setRoutineError(
-                        error instanceof Error ? error.message : t`Could not run routine`,
-                      );
+                      setRoutineError(errorText(error, t`Could not run routine`));
                     }
                   } finally {
                     routineRunPending.current = false;
@@ -4134,7 +4269,7 @@ export function ShellPage() {
             ) : null}
           </div>
         ) : null}
-      </aside>
+      </ResizableSidePanel>
 
       <Suspense fallback={null}>
         {contextChat && botMenu ? (
@@ -4197,8 +4332,21 @@ export function ShellPage() {
               setBotMenu(null);
             }}
             onEdit={() => {
+              const destKey =
+                userId && bootstrapMe?.spaceId
+                  ? rightPanelStorageKey(
+                      userId,
+                      bootstrapMe.spaceId,
+                      contextBot ? "bot" : "group",
+                      contextChat.id,
+                    )
+                  : null;
+              explicitPanelTarget.current = destKey;
+              pendingPanelRestore.current = null;
               navigate(contextBot ? `/app/${contextBot.id}` : `/app/g/${contextGroup!.id}`);
-              setPanel(contextBot ? "settings" : "group-settings");
+              // Mark the destination key restored so we do not write settings onto the source chat.
+              setPanelState(contextBot ? "settings" : "group-settings");
+              setRestoredPanelKey(destKey);
               setBotMenu(null);
             }}
             onDuplicate={() => {
@@ -4270,17 +4418,29 @@ export function ShellPage() {
               sideOffset={0}
               className="w-[220px]"
             >
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  const target = spaces.find((space) => space.id === spaceMenu.id);
-                  if (target) setDeleteSpaceTarget(target);
-                  setSpaceMenu(null);
-                }}
-              >
-                <Trash2 />
-                {t`Delete space`}
-              </DropdownMenuItem>
+              {spaceMenuTarget?.canRename ? (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setRenameSpaceTarget(spaceMenuTarget);
+                    setSpaceMenu(null);
+                  }}
+                >
+                  <Pencil />
+                  {t`Rename space`}
+                </DropdownMenuItem>
+              ) : null}
+              {spaceMenuTarget?.canDelete ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    setDeleteSpaceTarget(spaceMenuTarget);
+                    setSpaceMenu(null);
+                  }}
+                >
+                  <Trash2 />
+                  {t`Delete space`}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
@@ -4308,6 +4468,28 @@ export function ShellPage() {
               setDeleteGroupTarget(null);
               setPanel(null);
               await refreshBots(true);
+            }}
+          />
+        ) : null}
+
+        {renameSpaceTarget ? (
+          <RenameSpaceDialog
+            space={renameSpaceTarget}
+            onCancel={() => setRenameSpaceTarget(null)}
+            onConfirm={async (name) => {
+              const spaceId = renameSpaceTarget.id;
+              await commitSpaceRename({
+                rename: async () => {
+                  await rpc.spaces.rename({ spaceId, name });
+                },
+                apply: () => {
+                  setSpaces((current) =>
+                    current.map((space) => (space.id === spaceId ? { ...space, name } : space)),
+                  );
+                },
+                refresh: () => refreshBots(),
+              });
+              setRenameSpaceTarget(null);
             }}
           />
         ) : null}
@@ -4520,10 +4702,15 @@ export function ShellPage() {
             name={userName}
             email={session.data?.user.email}
             usage={usage}
+            onUsageOpen={refreshUsage}
             initialSection={settingsSection}
             avatarStyle={bootstrapMe?.avatarStyle ?? "organic"}
             isDeploymentOwner={bootstrapMe?.isDeploymentOwner === true}
+            billingEnabled={bootstrapMe?.billingEnabled === true}
             sandboxProvider={bootstrapMe?.sandboxProvider}
+            onSandboxProviderChange={(sandboxProvider) =>
+              setBootstrapMe((prev) => (prev ? { ...prev, sandboxProvider } : prev))
+            }
             messagingEnabled={messagingSurfaceEnabled}
             onOpenMessaging={() => {
               setSettingsOpen(false);
@@ -4756,6 +4943,7 @@ const Transcript = memo(function Transcript({
   onScrollRequestHandled,
   artifactTarget,
   messages,
+  showToolActivity,
   olderCursor,
   loadingOlder,
   answerableAskMessageId,
@@ -4785,6 +4973,7 @@ const Transcript = memo(function Transcript({
   onScrollRequestHandled: () => void;
   artifactTarget: ArtifactTarget;
   messages: ThreadMessage[];
+  showToolActivity: boolean;
   olderCursor: number | null;
   loadingOlder: boolean;
   answerableAskMessageId: string | null;
@@ -4800,7 +4989,7 @@ const Transcript = memo(function Transcript({
   onJumpToMessage: (messageId: string) => void;
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
   memberName?: (botId: string | undefined) => string | undefined;
-  peerBot: (botId: string) => { color: string; status?: string } | undefined;
+  peerBot: (botId: string) => { name?: string; color: string; status?: string } | undefined;
   onRefresh: () => Promise<void>;
   onBotChanged: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
@@ -4821,6 +5010,11 @@ const Transcript = memo(function Transcript({
     [messages],
   );
   const reactionView = useMemo(() => projectMessageReactions(messages), [messages]);
+  const separatorIds = timeSeparatorIds(
+    reactionView.visibleMessages.filter((message) =>
+      messageHasVisibleBlocks(message.blocks, showToolActivity),
+    ),
+  );
   const workingBotName = workingBots.length === 1 ? workingBots[0]?.name : undefined;
   const workingLabel =
     workingBotName != null && workingBotName !== ""
@@ -5031,7 +5225,18 @@ const Transcript = memo(function Transcript({
     element.addEventListener("scrollend", endJumpScroll, { once: true });
     window.clearTimeout(jumpScrollTimer.current);
     jumpScrollTimer.current = window.setTimeout(endJumpScroll, 2_000);
-    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    row.animate(
+      reducedMotion
+        ? [{ backgroundColor: "var(--muted)" }, { backgroundColor: "var(--muted)" }]
+        : [
+            { backgroundColor: "transparent" },
+            { backgroundColor: "var(--muted)" },
+            { backgroundColor: "transparent" },
+          ],
+      { duration: 1200 },
+    );
     onScrollRequestHandled();
   }, [messages, scrollRequest, scrollRef, endJumpScroll, onScrollRequestHandled]);
 
@@ -5132,131 +5337,136 @@ const Transcript = memo(function Transcript({
           }
           if (item.kind === "voiceChat") {
             return (
-              <VoiceChatCard
-                key={item.key}
-                group={item}
-                revealMessageId={scrollRequest?.messageId}
-              />
+              <div key={item.key}>
+                {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
+                  <TimeSeparator
+                    createdAt={item.messages[0].createdAt}
+                    locale={i18n.locale || "en"}
+                  />
+                ) : null}
+                <VoiceChatCard group={item} revealMessageId={scrollRequest?.messageId} />
+              </div>
             );
           }
           const message = item.message;
           if (activeCallId && message.callId === activeCallId) return null;
-          if (!message.blocks.some((block) => !isToolActivityBlock(block))) return null;
+          if (!messageHasVisibleBlocks(message.blocks, showToolActivity)) return null;
           const peerReceipt = isPeerReceiptBlocks(message.blocks);
           const messageReactions = reactionView.reactions.get(message.id);
           return (
-            <div
-              key={message.id}
-              data-message-id={message.id}
-              data-touch-actions={touchActionsId === message.id ? "open" : undefined}
-              className={
-                peerReceipt
-                  ? "relative py-0.5"
-                  : "group/message relative hover:z-20 data-[touch-actions=open]:z-20"
-              }
-            >
-              {!peerReceipt && !message.id.startsWith("progress:") ? (
-                <time
-                  dateTime={message.createdAt}
-                  data-testid="message-hover-time"
-                  className={cn(
-                    "pointer-events-none absolute top-1 z-10 text-xs tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 group-has-[[aria-expanded=true]]/message:opacity-100 group-data-[touch-actions=open]/message:opacity-100",
-                    message.role === "user" ? "start-0" : "end-0",
-                  )}
-                >
-                  {new Date(message.createdAt).toLocaleTimeString(i18n.locale || "en", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </time>
+            <Fragment key={message.id}>
+              {separatorIds.has(message.id) ? (
+                <TimeSeparator createdAt={message.createdAt} locale={i18n.locale || "en"} />
               ) : null}
               <div
+                data-message-id={message.id}
+                data-touch-actions={touchActionsId === message.id ? "open" : undefined}
                 className={
                   peerReceipt
-                    ? undefined
-                    : `relative flex ${message.role === "user" ? "justify-end" : "justify-start"}`
+                    ? "relative py-0.5"
+                    : "group/message relative hover:z-20 data-[touch-actions=open]:z-20"
                 }
               >
+                {!peerReceipt && !message.id.startsWith("progress:") ? (
+                  <time
+                    dateTime={message.createdAt}
+                    data-testid="message-hover-time"
+                    className={cn(
+                      "pointer-events-none absolute top-1 z-10 text-xs tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 group-has-[[aria-expanded=true]]/message:opacity-100 group-data-[touch-actions=open]/message:opacity-100",
+                      message.role === "user" ? "start-0" : "end-0",
+                    )}
+                  >
+                    {formatMessageTime(message.createdAt, i18n.locale || "en")}
+                  </time>
+                ) : null}
                 <div
-                  {...(peerReceipt ? {} : touchActionHandlers(message.id))}
-                  data-testid={peerReceipt ? undefined : "message-bubble-frame"}
                   className={
                     peerReceipt
                       ? undefined
-                      : `relative w-fit min-w-0 ${
-                          message.role === "user"
-                            ? "max-w-[85%] [@media(hover:hover)_and_(pointer:fine)]:max-w-[min(84%,calc(100%_-_6rem))]"
-                            : "max-w-[94%] [@media(hover:hover)_and_(pointer:fine)]:max-w-[min(88%,calc(100%_-_6rem))]"
-                        }`
+                      : `relative flex ${message.role === "user" ? "justify-end" : "justify-start"}`
                   }
                 >
-                  {peerReceipt ? null : (
-                    <MessageHoverActions
-                      message={message}
-                      side={message.role === "user" ? "start" : "end"}
-                      onReply={onReply}
-                      onReact={onReact}
-                      onSpeak={
-                        voiceReady &&
-                        message.role === "bot" &&
-                        !message.id.startsWith("progress:") &&
-                        message.blocks.some((block) => block.kind === "text")
-                          ? () => onSpeak(message)
-                          : undefined
-                      }
-                      speaking={speakingMessageId === message.id}
-                    />
-                  )}
-                  <MessageView
-                    artifactTarget={artifactTarget}
-                    message={message}
-                    canAnswer={message.id === answerableAskMessageId}
-                    onOpenBot={onOpenBot}
-                    onOpenPeerMessages={onOpenPeerMessages}
-                    onAnswer={onAnswer}
-                    speakerName={
+                  <div
+                    {...(peerReceipt ? {} : touchActionHandlers(message.id))}
+                    data-testid={peerReceipt ? undefined : "message-bubble-frame"}
+                    className={
                       peerReceipt
                         ? undefined
-                        : message.role === "bot"
-                          ? memberName?.(message.botId)
+                        : `relative w-fit min-w-0 ${
+                            message.role === "user"
+                              ? "max-w-[85%] [@media(hover:hover)_and_(pointer:fine)]:max-w-[min(84%,calc(100%_-_8rem))]"
+                              : "max-w-[94%] [@media(hover:hover)_and_(pointer:fine)]:max-w-[min(88%,calc(100%_-_8rem))]"
+                          }`
+                    }
+                  >
+                    {peerReceipt ? null : (
+                      <MessageHoverActions
+                        message={message}
+                        side={message.role === "user" ? "start" : "end"}
+                        onReply={onReply}
+                        onReact={onReact}
+                        onSpeak={
+                          voiceReady &&
+                          message.role === "bot" &&
+                          !message.id.startsWith("progress:") &&
+                          message.blocks.some((block) => block.kind === "text")
+                            ? () => onSpeak(message)
+                            : undefined
+                        }
+                        speaking={speakingMessageId === message.id}
+                      />
+                    )}
+                    <MessageView
+                      artifactTarget={artifactTarget}
+                      message={message}
+                      canAnswer={message.id === answerableAskMessageId}
+                      onOpenBot={onOpenBot}
+                      onOpenPeerMessages={onOpenPeerMessages}
+                      onAnswer={onAnswer}
+                      speakerName={
+                        peerReceipt
+                          ? undefined
+                          : message.role === "bot"
+                            ? memberName?.(message.botId)
+                            : undefined
+                      }
+                      memberName={memberName}
+                      peerBot={peerBot}
+                      replyParent={
+                        message.replyToMessageId
+                          ? messageById.get(message.replyToMessageId)
                           : undefined
-                    }
-                    memberName={memberName}
-                    peerBot={peerBot}
-                    replyPreview={
-                      message.replyToMessageId
-                        ? messageById.get(message.replyToMessageId)
-                        : undefined
-                    }
-                    replyToMessageId={message.replyToMessageId}
-                    onJumpToMessage={onJumpToMessage}
-                    onRefresh={onRefresh}
-                    onBotChanged={onBotChanged}
-                    onAddRoutine={onAddRoutine}
-                    onOpenComputer={onOpenComputer}
-                  />
+                      }
+                      onJumpToMessage={onJumpToMessage}
+                      onRefresh={onRefresh}
+                      onBotChanged={onBotChanged}
+                      onAddRoutine={onAddRoutine}
+                      onOpenComputer={onOpenComputer}
+                      showToolActivity={showToolActivity}
+                    />
+                  </div>
                 </div>
+                {!peerReceipt && messageReactions ? (
+                  <div
+                    data-testid="message-reactions"
+                    className={cn(
+                      "mt-1 flex flex-wrap gap-1",
+                      message.role === "user" && "justify-end",
+                    )}
+                  >
+                    {[...messageReactions].map(([emoji, count]) => (
+                      <span
+                        key={emoji}
+                        className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs"
+                      >
+                        {emoji}
+                        {count > 1 ? ` ${count}` : ""}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              {!peerReceipt && messageReactions ? (
-                <div
-                  data-testid="message-reactions"
-                  className={cn(
-                    "mt-1 flex flex-wrap gap-1",
-                    message.role === "user" && "justify-end",
-                  )}
-                >
-                  {[...messageReactions].map(([emoji, count]) => (
-                    <span
-                      key={emoji}
-                      className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs"
-                    >
-                      {emoji}
-                      {count > 1 ? ` ${count}` : ""}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            </Fragment>
           );
         })}
         {running &&
@@ -5373,6 +5583,7 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
 });
 
 const Composer = memo(function Composer({
+  artifactTarget,
   activeName,
   running,
   disabled,
@@ -5422,6 +5633,7 @@ const Composer = memo(function Composer({
   /** Opens voice settings when this browser can't dictate without a provider. */
   onVoiceSetup?: () => void;
   transcribe?: boolean;
+  artifactTarget: ArtifactTarget;
   replyTarget?: ThreadMessage | null;
   replyQuote?: string | null;
   replyTargetName?: string;
@@ -5443,6 +5655,14 @@ const Composer = memo(function Composer({
   const dictatingRef = useRef(false);
   const voiceSetupRef = useRef(onVoiceSetup);
   voiceSetupRef.current = onVoiceSetup;
+  const [composerExpanded, setComposerExpanded] = useState(false);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
+  const composerActionsRef = useRef<HTMLDivElement>(null);
+  const composerBarRef = useRef<HTMLDivElement>(null);
+  const composerFieldRef = useRef<HTMLDivElement>(null);
+  const composerLayoutRef = useRef<ComposerLayout | null>(null);
+  const previousExpandedRef = useRef(false);
+  const composerAnimationsRef = useRef<Animation[]>([]);
   const [replyAnnouncement, setReplyAnnouncement] = useState("");
   // What the live region currently holds — a send disarming the reply clears
   // "reply" text, while an explicit cancel must keep "Reply cancelled".
@@ -5500,8 +5720,35 @@ const Composer = memo(function Composer({
     function syncHeight() {
       const textarea = textareaRef.current;
       if (!textarea) return;
-      textarea.style.height = "0px";
-      textarea.style.height = `${textarea.scrollHeight}px`;
+      const bar = composerBarRef.current;
+      // A chip can switch the grid in this commit; keep the previous box as the animation start.
+      if ((bar?.dataset.expanded === "true") === previousExpandedRef.current) {
+        const layout = readComposerLayout(bar, composerFieldRef.current);
+        if (layout) composerLayoutRef.current = layout;
+      }
+      const contentHeight = measureTextareaHeight(textarea);
+      textarea.style.height = `${contentHeight}px`;
+      if (draft.length === 0) {
+        setComposerExpanded(false);
+        return;
+      }
+      if (contentHeight > COMPOSER_SINGLE_LINE_MAX_PX) {
+        setComposerExpanded(true);
+        return;
+      }
+      const attach = attachButtonRef.current;
+      const actions = composerActionsRef.current;
+      if (!attach || !actions) return;
+      const besideControls =
+        actions.getBoundingClientRect().left -
+        attach.getBoundingClientRect().right -
+        2 * COMPOSER_ONE_LINE_GAP_PX;
+      const heightBeside = measureTextareaHeight(
+        textarea,
+        besideControls - COMPOSER_COLLAPSE_SLACK_PX,
+      );
+      textarea.style.height = `${contentHeight}px`;
+      if (heightBeside <= COMPOSER_SINGLE_LINE_MAX_PX) setComposerExpanded(false);
     }
 
     syncHeight();
@@ -5615,9 +5862,12 @@ const Composer = memo(function Composer({
       .slice(0, 10);
   }, [mentionQuery, mentionTargets]);
 
+  // Background refreshes rebuild the target list; only a change in what is offered resets the
+  // highlight, so Enter after ArrowDown still picks the highlighted option.
+  const mentionOptionsKey = mentionOptions.map(mentionChipKey).join("|");
   useEffect(() => {
     setMentionHighlightIndex(0);
-  }, [mentionQuery, mentionOptions]);
+  }, [mentionQuery, mentionOptionsKey]);
 
   const activeMentionIndex = clampMentionHighlightIndex(
     mentionHighlightIndex,
@@ -5733,6 +5983,60 @@ const Composer = memo(function Composer({
 
   const showComposerPlaceholder =
     draft.length === 0 && selectedSkill === null && selectedMentions.length === 0;
+  const expanded = composerExpanded || selectedSkill !== null || selectedMentions.length > 0;
+
+  useLayoutEffect(() => {
+    if (previousExpandedRef.current === expanded) return;
+    previousExpandedRef.current = expanded;
+    const bar = composerBarRef.current;
+    const field = composerFieldRef.current;
+    const textarea = textareaRef.current;
+    const start = composerLayoutRef.current;
+    if (!bar || !field || !textarea) return;
+    textarea.style.height = `${measureTextareaHeight(textarea)}px`;
+    const resting = readComposerLayout(bar, field);
+    // A send or a cleared draft snaps back; nothing is left to follow.
+    if (
+      !start ||
+      textarea.value === "" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      if (resting) composerLayoutRef.current = resting;
+      return;
+    }
+    if (!resting) return;
+    composerLayoutRef.current = resting;
+    // Grow from the fixed bottom edge so the controls stay put.
+    const timing = { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" };
+    composerAnimationsRef.current = [
+      bar.animate(
+        [
+          { height: `${start.barHeight}px`, overflow: "hidden" },
+          { height: `${resting.barHeight}px`, overflow: "hidden" },
+        ],
+        timing,
+      ),
+      field.animate(
+        [
+          {
+            transform: `translate(${start.fieldX - resting.fieldX}px, ${start.fieldY - resting.fieldY}px)`,
+          },
+          { transform: "none" },
+        ],
+        timing,
+      ),
+    ];
+    return () => {
+      const animations = composerAnimationsRef.current;
+      // A chip removed mid-transition must shrink from the box on screen, not the finished target.
+      if (animations.some((animation) => animation.playState === "running")) {
+        const onScreen = readComposerLayout(composerBarRef.current, composerFieldRef.current);
+        if (onScreen) composerLayoutRef.current = onScreen;
+      }
+      for (const animation of animations) animation.cancel();
+      composerAnimationsRef.current = [];
+    };
+  }, [expanded]);
   const replyName = replyTarget ? (replyTargetName ?? previewMessageText(replyTarget)) : "";
   const replyNameRef = useRef(replyName);
   replyNameRef.current = replyName;
@@ -5811,34 +6115,20 @@ const Composer = memo(function Composer({
         </div>
       ) : null}
       {replyTarget ? (
-        <div
-          data-testid="reply-chip"
-          className="mb-2 flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-[13px] text-foreground/75"
-        >
-          <span className="min-w-0 flex-1 truncate text-muted-foreground">
-            {replyQuote
-              ? t`Replying to ${replyName}: “${replyQuote}”`
-              : t`Replying to ${replyName}`}
-          </span>
-          <button
-            type="button"
-            aria-label={t`Cancel reply`}
-            onClick={() => {
-              replyAnnouncementKind.current = "cancelled";
-              // Kill a pending arm announce in this event — the effect's
-              // cleanup can lag the timer, and a late "Replying to" would
-              // then be cleared as stale, dropping the cancel announcement.
-              window.clearTimeout(announceTimer.current);
-              onClearReply?.();
-              setReplyAnnouncement(t`Reply cancelled`);
-              // The chip unmounts with this button — keep focus in the composer.
-              textareaRef.current?.focus();
-            }}
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-          >
-            <X size={13} strokeWidth={2} />
-          </button>
-        </div>
+        <ComposerReplyPreview
+          author={replyName}
+          text={previewMessageText(replyTarget)}
+          quote={replyQuote}
+          attachment={replyAttachment(replyTarget.blocks)}
+          target={artifactTarget}
+          onDismiss={() => {
+            replyAnnouncementKind.current = "cancelled";
+            window.clearTimeout(announceTimer.current);
+            onClearReply?.();
+            setReplyAnnouncement(t`Reply cancelled`);
+            textareaRef.current?.focus();
+          }}
+        />
       ) : null}
       {attachmentNotice ? (
         <div className="mb-3 rounded-[14px] border border-warning/40 bg-warning/10 px-4 py-2 text-[13px] text-warning">
@@ -5897,7 +6187,8 @@ const Composer = memo(function Composer({
                 aria-label={t`@${mention.name}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => insertMention(mention)}
-                onMouseEnter={() => setMentionHighlightIndex(index)}
+                // Opening the list under a stationary pointer must not steal the keyboard highlight.
+                onMouseMove={() => setMentionHighlightIndex(index)}
                 className={`flex w-full items-start gap-3 px-4 py-2.5 text-start hover:bg-accent ${
                   highlighted ? "bg-accent" : ""
                 }`}
@@ -5960,8 +6251,12 @@ const Composer = memo(function Composer({
         </div>
       ) : null}
       <div
+        ref={composerBarRef}
         data-testid="composer-bar"
-        className="flex items-center gap-3.5 rounded-full border border-border bg-background py-[9px] pe-2.5 ps-3 transition-colors focus-within:border-ring"
+        data-expanded={expanded}
+        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center rounded-[26px] border border-border bg-background pe-2.5 ps-3 transition-colors focus-within:border-ring ${
+          expanded ? "gap-x-2 gap-y-2 pb-[9px] pt-3" : "gap-x-3.5 py-[9px]"
+        }`}
       >
         <input
           ref={fileInputRef}
@@ -5972,16 +6267,24 @@ const Composer = memo(function Composer({
           onChange={(event) => void onAttachmentPick(event.target.files)}
         />
         <Button
+          ref={attachButtonRef}
           variant="ghost"
           size="icon"
           aria-label={t`Attach file`}
           disabled={disabled}
           onClick={() => fileInputRef.current?.click()}
-          className="size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
+            expanded ? "row-start-2" : ""
+          }`}
         >
           <Plus size={16} strokeWidth={2} />
         </Button>
-        <div className="flex min-w-0 flex-1 flex-wrap items-end gap-1.5">
+        <div
+          ref={composerFieldRef}
+          className={`flex min-w-0 flex-wrap items-end gap-1.5 ${
+            expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
+          }`}
+        >
           {selectedSkill ? (
             <span
               data-testid="skill-chip"
@@ -6092,71 +6395,110 @@ const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="max-h-32 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
+            className="rk-scroll max-h-25 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
           />
         </div>
-        <Button
-          variant={dictating ? "default" : "ghost"}
-          size="icon"
-          aria-label={dictating ? t`Stop dictating` : t`Dictate`}
-          aria-pressed={dictating}
-          title={dictating ? t`Stop dictating` : t`Dictate`}
-          disabled={disabled}
-          onClick={() => void toggleDictation()}
-          className="rounded-full text-foreground/75 aria-pressed:text-primary-foreground"
+        <div
+          ref={composerActionsRef}
+          className={`col-start-3 flex shrink-0 items-center gap-2 justify-self-end ${
+            expanded ? "row-start-2" : ""
+          }`}
         >
-          <Mic size={16} strokeWidth={1.8} />
-        </Button>
-        {onLive ? (
           <Button
-            variant="outline"
+            variant={dictating ? "default" : "ghost"}
             size="icon"
-            aria-label={t`Live talk`}
-            title={t`Live talk`}
+            aria-label={dictating ? t`Stop dictating` : t`Dictate`}
+            aria-pressed={dictating}
+            title={dictating ? t`Stop dictating` : t`Dictate`}
             disabled={disabled}
-            onClick={onLive}
-            className="size-8 shrink-0 rounded-full text-foreground/75"
+            onClick={() => void toggleDictation()}
+            className="rounded-full text-foreground/75 aria-pressed:text-primary-foreground"
           >
-            <AudioLines size={16} strokeWidth={1.8} />
+            <Mic size={16} strokeWidth={1.8} />
           </Button>
-        ) : null}
-        {running ? (
-          <div className="flex items-center gap-1.5 shrink-0">
+          {onLive ? (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t`Live talk`}
+              title={t`Live talk`}
+              disabled={disabled}
+              onClick={onLive}
+              className="size-8 shrink-0 rounded-full text-foreground/75"
+            >
+              <AudioLines size={16} strokeWidth={1.8} />
+            </Button>
+          ) : null}
+          {running ? (
+            <>
+              <Button
+                size="icon"
+                aria-label={t`Send`}
+                disabled={sending || !canSend || disabled}
+                onClick={send}
+                className="size-8 rounded-full bg-white text-black hover:bg-white/90 shadow-sm transition-transform active:scale-95"
+              >
+                <ArrowUp size={16} strokeWidth={2.2} />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={t`Stop`}
+                disabled={sending}
+                onClick={() => void onStop()}
+                className="size-8 rounded-full border border-border bg-muted text-foreground/80 shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Square size={11} strokeWidth={0} fill="currentColor" />
+              </Button>
+            </>
+          ) : (
             <Button
               size="icon"
               aria-label={t`Send`}
               disabled={sending || !canSend || disabled}
               onClick={send}
-              className="size-8 rounded-full bg-white text-black hover:bg-white/90 shadow-sm transition-transform active:scale-95"
+              className="size-8 shrink-0 rounded-full bg-white text-black hover:bg-white/90 shadow-sm transition-transform active:scale-95 disabled:bg-white/10 disabled:text-muted-foreground/30 disabled:shadow-none"
             >
               <ArrowUp size={16} strokeWidth={2.2} />
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t`Stop`}
-              disabled={sending}
-              onClick={() => void onStop()}
-              className="size-8 rounded-full border border-border bg-muted text-foreground/80 shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Square size={11} strokeWidth={0} fill="currentColor" />
-            </Button>
-          </div>
-        ) : (
-          <Button
-            size="icon"
-            aria-label={t`Send`}
-            disabled={sending || !canSend || disabled}
-            onClick={send}
-            className="size-8 shrink-0 rounded-full bg-white text-black hover:bg-white/90 shadow-sm transition-transform active:scale-95 disabled:bg-white/10 disabled:text-muted-foreground/30 disabled:shadow-none"
-          >
-            <ArrowUp size={16} strokeWidth={2.2} />
-          </Button>
-        )}
+          )}
+        </div>
       </div>
     </fieldset>
   );
 });
+
+type ComposerLayout = { barHeight: number; fieldX: number; fieldY: number };
+
+/** Screen coordinates; the bar grows upward from its bottom edge. */
+function readComposerLayout(
+  bar: HTMLElement | null,
+  field: HTMLElement | null,
+): ComposerLayout | null {
+  if (!bar || !field) return null;
+  const fieldBox = field.getBoundingClientRect();
+  return {
+    barHeight: bar.getBoundingClientRect().height,
+    fieldX: fieldBox.left,
+    fieldY: fieldBox.top,
+  };
+}
+
+/** Hides the scrollbar while measuring and leaves the height at 0. */
+function measureTextareaHeight(textarea: HTMLTextAreaElement, width?: number) {
+  const { style } = textarea;
+  style.overflowY = "hidden";
+  if (width !== undefined) {
+    style.flex = "none";
+    style.width = `${width}px`;
+  }
+  style.height = "0px";
+  const height = textarea.scrollHeight;
+  style.overflowY = "";
+  style.flex = "";
+  style.width = "";
+  return height;
+}
 
 function slashActionLabel(id: SlashActionId) {
   switch (id) {
@@ -6224,19 +6566,9 @@ function previewMessageText(message: ThreadMessage): string {
     .join(" ")
     .trim();
   if (text) return text;
-  if (message.blocks.some((block) => block.kind === "image" || block.kind === "file")) {
-    return t`Attachment`;
-  }
+  const attachment = replyAttachment(message.blocks);
+  if (attachment) return attachment.kind === "image" ? t`Photo` : attachment.name || t`Attachment`;
   return t`Message`;
-}
-
-/** Bound reply excerpts used in accessible names (visible UI truncates via CSS). */
-function accessibleReplyExcerpt(text: string, max = 120): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (normalized.length <= max) return normalized;
-  // Reserve a slot for the ellipsis; never split a surrogate pair at the cut.
-  const end = (normalized.charCodeAt(max - 2) & 0xfc00) === 0xd800 ? max - 2 : max - 1;
-  return `${normalized.slice(0, end).trimEnd()}…`;
 }
 
 function formatRosterTime(isoDate?: string | null): string {
@@ -6371,6 +6703,15 @@ function MessageHoverActions({
             <MoreHorizontal size={15} strokeWidth={1.7} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align={side === "end" ? "start" : "end"}>
+            <DropdownMenuItem
+              onClick={() => {
+                setMoreOpen(false);
+                onReply(message);
+              }}
+            >
+              <Reply size={14} strokeWidth={1.7} />
+              <Trans>Reply</Trans>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={copyMessage}>
               <Copy size={14} strokeWidth={1.7} />
               <Trans>Copy</Trans>
@@ -6445,13 +6786,13 @@ const MessageView = memo(function MessageView({
   speakerName,
   memberName,
   peerBot,
-  replyPreview,
-  replyToMessageId,
+  replyParent,
   onJumpToMessage,
   onRefresh,
   onBotChanged,
   onAddRoutine,
   onOpenComputer,
+  showToolActivity,
 }: {
   artifactTarget: ArtifactTarget;
   canAnswer: boolean;
@@ -6461,14 +6802,14 @@ const MessageView = memo(function MessageView({
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
   speakerName?: string;
   memberName?: (botId: string | undefined) => string | undefined;
-  peerBot: (botId: string) => { color: string; status?: string } | undefined;
-  replyPreview?: ThreadMessage;
-  replyToMessageId?: string;
+  peerBot: (botId: string) => { name?: string; color: string; status?: string } | undefined;
+  replyParent?: ThreadMessage;
   onJumpToMessage?: (messageId: string) => void;
   onRefresh: () => Promise<void>;
   onBotChanged: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
   onOpenComputer: (botId?: string) => void;
+  showToolActivity: boolean;
 }) {
   const { t } = useLingui();
   const isNarration =
@@ -6477,9 +6818,11 @@ const MessageView = memo(function MessageView({
     message.blocks.every(
       (block) => block.kind === "text" || block.kind === "progress" || block.kind === "steps",
     );
+  const isLive = message.id.startsWith("progress:");
   const quoteMessageId = message.id.includes(":") ? undefined : message.id;
-  const visibleNarrationBlocks = message.blocks.filter((block) => !isToolActivityBlock(block));
-  const parentJumpId = replyPreview?.id ?? replyToMessageId;
+  const visibleNarrationBlocks = renderableMessageBlocks(message.blocks, showToolActivity);
+
+  const replyBotId = message.replyPreview?.botId ?? replyParent?.botId;
   const speakerBot = message.botId ? peerBot?.(message.botId) : undefined;
   const speakerColorDef = useMemo(
     () => resolvePersonaColorDef(message.botId ?? "bot", speakerBot?.color),
@@ -6501,34 +6844,31 @@ const MessageView = memo(function MessageView({
           {speakerName}
         </div>
       ) : null}
-      {parentJumpId ? (
-        <button
-          type="button"
-          data-testid="reply-parent-preview"
-          // Name the action and a short excerpt; a bare action label would
-          // hide the quote, and an unbounded quote can be thousands of chars.
-          aria-label={
-            message.replyQuote
-              ? t`Jump to replied message: “${accessibleReplyExcerpt(message.replyQuote)}”`
-              : replyPreview
-                ? t`Jump to replied message: ${accessibleReplyExcerpt(previewMessageText(replyPreview))}`
-                : t`Jump to replied message`
-          }
-          onClick={() => onJumpToMessage?.(parentJumpId)}
-          className="mb-2 block max-w-[74%] truncate rounded-[14px] border border-border bg-background px-3 py-2 text-start text-[12.5px] text-muted-foreground hover:border-border hover:text-foreground/75"
-          dir="auto"
-        >
-          {message.replyQuote
-            ? `“${message.replyQuote}”`
-            : replyPreview
-              ? previewMessageText(replyPreview)
-              : t`Earlier message`}
-        </button>
-      ) : null}
+      <ReplyLine
+        target={artifactTarget}
+        message={message}
+        fallbackText={replyParent ? previewMessageText(replyParent) : undefined}
+        author={
+          (message.replyPreview?.role ?? replyParent?.role) === "user"
+            ? t`You`
+            : ((replyBotId ? peerBot(replyBotId)?.name : undefined) ??
+              memberName?.(replyBotId) ??
+              t`Bot`)
+        }
+        onJump={onJumpToMessage}
+      />
     </>
   );
   if (isNarration) {
     if (visibleNarrationBlocks.length === 0) return null;
+    if (isToolOnlyNarration(message.blocks, showToolActivity)) {
+      return (
+        <>
+          {messageContext}
+          <ToolOnlyNarration blocks={visibleNarrationBlocks} live={isLive} />
+        </>
+      );
+    }
     return (
       <>
         {messageContext}
@@ -6541,6 +6881,22 @@ const MessageView = memo(function MessageView({
             <ClampedText>
               <div className="space-y-2.5">
                 {visibleNarrationBlocks.map((block, i) => {
+                  if (block.kind === "steps") {
+                    return (
+                      <ToolActivityDisclosure
+                        key={i}
+                        live={isLive}
+                        stepCount={toolStepCount(block.steps)}
+                        durationMs={block.durationMs}
+                      >
+                        <ToolSteps
+                          steps={block.steps}
+                          currentIndex={isLive ? block.steps.length - 1 : undefined}
+                          limit={isLive ? LIVE_TOOL_STEP_WINDOW : undefined}
+                        />
+                      </ToolActivityDisclosure>
+                    );
+                  }
                   if (block.kind === "text" || block.kind === "progress") {
                     return (
                       <div
@@ -6566,6 +6922,17 @@ const MessageView = memo(function MessageView({
     <>
       {messageContext}
       {message.blocks.map((block, i) => {
+        if (block.kind === "steps" && shouldRenderToolCard(block, showToolActivity)) {
+          return (
+            <StandaloneToolActivity
+              key={i}
+              live={isLive}
+              steps={block.steps}
+              stepCount={toolStepCount(block.steps)}
+              durationMs={block.durationMs}
+            />
+          );
+        }
         if (isToolActivityBlock(block)) return null;
         if (block.kind === "handoff") {
           const from = memberName?.(block.fromBotId) ?? t`bot`;

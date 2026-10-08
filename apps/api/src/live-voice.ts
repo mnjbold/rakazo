@@ -1,8 +1,8 @@
-import type { Context, Hono } from "hono";
 import { createNodeWebSocket } from "@hono/node-ws";
-import type { Actor } from "@rakazo/contracts";
 import { GeminiLiveSession } from "@rakazo/adapters";
+import type { Actor } from "@rakazo/contracts";
 import { getLogger } from "@rakazo/logging";
+import type { Context, Hono } from "hono";
 import { loadDefaultVoiceCredential, type VoiceDeps } from "./voice.js";
 
 export function mountLiveVoiceRoute(

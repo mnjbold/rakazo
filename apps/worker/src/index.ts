@@ -1,6 +1,7 @@
 import type { JobPublisher, JobWorkerHost } from "@rakazo/adapter-kit";
 import { ComposioConnector, IntegrationProviderSettings } from "@rakazo/adapters";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
+import { createWorkerSecretStore } from "./secret-store.js";
 
 loadRootEnv();
 
@@ -19,7 +20,6 @@ import {
   createRunSecretWriter,
   createWebProvider,
   databaseCapacityBackoffMs,
-  EncryptedSecretStore,
   ExpoPushProvider,
   GraphileJobPublisher,
   GraphileJobWorkerHost,
@@ -46,6 +46,7 @@ import {
   ScriptedAgentRuntime,
   SpaceMemoryProviderResolver,
   sandboxProviderOptionsFromEnv,
+  withSecretPersistence,
 } from "@rakazo/adapters";
 import { resolveEncryptionKey, resolveSupervisorToken } from "@rakazo/core";
 import {
@@ -53,6 +54,7 @@ import {
   createThreadEvents,
   isTooManyDatabaseConnections,
   parsePositiveInteger,
+  pushSessionExpiresAt,
 } from "@rakazo/db";
 import { SERVICE_NAMES } from "@rakazo/logging";
 import { createRootLogger } from "@rakazo/logging/axiom";
@@ -68,15 +70,20 @@ async function main() {
   // of four separate ones. Keep this modest: graphile holds a LISTEN client and
   // leadership holds an advisory-lock client for the process lifetime, and a
   // larger max just competes for Postgres max_connections (53300).
-  const { prisma, pool } = createDb(databaseUrl, {
+  const created = createDb(databaseUrl, {
     poolMax: parsePositiveInteger(process.env.DB_POOL_MAX, 8),
     applicationName: "rakazo-worker",
   });
+  const { pool } = created;
+  let { prisma } = created;
   const realtime = new PostgresRealtimeFanout({
     connectionString: process.env.REALTIME_DATABASE_URL ?? databaseUrl,
     publisher: pool,
   });
-  const secrets = new EncryptedSecretStore(resolveEncryptionKey(process.env));
+  const secrets = await createWorkerSecretStore(process.env, realtime);
+  if (secrets.describe().capabilities.degraded)
+    logger.warn("Secret storage degraded; encrypted credentials remain available");
+  prisma = withSecretPersistence(prisma, secrets);
   const events = createThreadEvents(prisma, realtime, {
     runSecretWriter: createRunSecretWriter(secrets),
   });
@@ -144,7 +151,7 @@ async function main() {
     },
   );
   const stack = createConnectorStack(false, undefined, [
-    new InstalledConnectorProvider(prisma, secrets),
+    new InstalledConnectorProvider(prisma, secrets, {}, allowPrivateEndpoint),
     ...integrationSettings.providers(),
     mcp,
   ]);
@@ -164,6 +171,10 @@ async function main() {
   // One provider instance so emulator launches and polls share the same Map.
   const cloudAgent = createCloudAgentConnection();
   const replyJudge = createReplyJudge(process.env);
+  // Shared with the reconciler so a stuck wait uses the same push path as a finish notice.
+  const notifications = new ExpoPushProvider(dataDir, (sessionId) =>
+    pushSessionExpiresAt(prisma, sessionId),
+  );
   const executor = createRunExecutor({
     prisma,
     runtime,
@@ -197,7 +208,7 @@ async function main() {
     mcpAllowPrivateEndpoint: process.env.MCP_ALLOW_PRIVATE_ENDPOINT === "true",
     deploymentModelKey,
     dataDir,
-    notifications: new ExpoPushProvider(dataDir),
+    notifications,
     jobs,
     events,
     messaging: messaging ? createMessagingContextLoader(prisma) : undefined,
@@ -245,6 +256,7 @@ async function main() {
     prisma,
     jobs,
     events,
+    notifications,
     leadership: createPostgresReconciliationLeadership(pool),
     reconcileCloudAgents: () => reconcileCloudAgents({ prisma, jobs, cloudAgent }),
     reconcileComputerUpdates: () => reconcileComputerUpdates({ prisma, jobs }),
@@ -259,6 +271,7 @@ async function main() {
       await reconciler.stop();
       await jobHost.stop();
       await jobs.close();
+      await secrets.close();
       await realtime.close();
       await connector.stop();
       await mcp.close();
@@ -286,7 +299,7 @@ async function main() {
     void stop().finally(() => process.exit(1));
   });
 
-  logger.info("worker ready");
+  logger.info("worker ready", { degraded: secrets.describe().capabilities.degraded ?? false });
 }
 
 main().catch(async (error) => {

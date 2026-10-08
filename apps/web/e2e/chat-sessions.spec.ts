@@ -14,14 +14,16 @@ test("starts a new chat, reopens the old one, and keeps its context", async ({
 
   await composer.fill(`plan the ${keyword}`);
   await composer.press("Enter");
-  await expect(transcript.getByText(`plan the ${keyword}`)).toBeVisible({ timeout: 20_000 });
+  await expect(transcript.getByText(`plan the ${keyword}`, { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
   // New chat appears once the reply's run has finished.
   await expect(page.getByRole("button", { name: "New chat" })).toBeVisible({ timeout: 60_000 });
   // Nothing archived yet, so there is no history to open.
   await expect(page.getByRole("button", { name: "Chat history" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "New chat" }).click();
-  await expect(transcript.getByText(`plan the ${keyword}`)).toHaveCount(0);
+  await expect(transcript.getByText(`plan the ${keyword}`, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "New chat" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Chat history" }).click();

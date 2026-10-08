@@ -5,8 +5,16 @@ export * from "./artifacts.js";
 export * from "./auto-review.js";
 export * from "./auto-review-factory.js";
 export * from "./background-job-handlers.js";
+export * from "./billing-emulator.js";
 export * from "./bot-avatar.js";
 export * from "./bot-messages.js";
+export {
+  forgetBotSecret,
+  getBotSecretMetadata,
+  listBotSecretMetadata,
+  normalizeSecretDestination,
+  storeBotSecret,
+} from "./bot-secrets.js";
 export * from "./box-emulator.js";
 export * from "./box-sandbox.js";
 export * from "./browser-emulator.js";
@@ -57,6 +65,7 @@ export * from "./expo-push.js";
 export * from "./fake-browser.js";
 export * from "./fake-sandbox.js";
 export * from "./fake-web.js";
+export * from "./favicon.js";
 export * from "./fish-audio-voice.js";
 export * from "./gemini-live.js";
 export * from "./github-webhook-emulator.js";
@@ -64,6 +73,7 @@ export * from "./graphql-connectors.js";
 export * from "./group-handoff.js";
 export * from "./home.js";
 export * from "./host-aware-sandbox.js";
+export * from "./infisical-secret-store.js";
 export * from "./installed-connectors.js";
 export * from "./integration-provider-settings.js";
 export * from "./jev-auto-review.js";
@@ -97,6 +107,7 @@ export * from "./pi-openai-compatible-provider.js";
 export * from "./pi-runtime.js";
 export * from "./pi-session.js";
 export * from "./pipedream-connector.js";
+export * from "./private-endpoint.js";
 export * from "./realtime.js";
 export * from "./release-watch.js";
 export * from "./remote-mcp.js";
@@ -113,11 +124,15 @@ export * from "./scripted-auto-review.js";
 export * from "./scripted-runtime.js";
 export * from "./scripted-voice.js";
 export * from "./secret-grants.js";
+export * from "./secret-migration.js";
+export * from "./secret-persistence.js";
+export * from "./secret-store-factory.js";
 export * from "./secrets.js";
 export * from "./sendblue-emulator.js";
 export { SerenityMemoryProvider } from "./serenity-memory-provider.js";
 export * from "./skill-tools.js";
 export * from "./smtp-email.js";
+export * from "./stripe-billing.js";
 export { SupermemoryMemoryProvider } from "./supermemory-memory-provider.js";
 export * from "./task-catalog.js";
 export * from "./teaching-session.js";

@@ -58,7 +58,8 @@ export const VOICE_CATALOG = [
   {
     id: "telnyx",
     name: "Telnyx",
-    description: "Kokoro, Ultra, MiniMax voices plus Whisper transcription. Pre-configured on server.",
+    description:
+      "Kokoro, Ultra, MiniMax voices plus Whisper transcription. Pre-configured on server.",
     transcribe: true,
     managed: true,
   },

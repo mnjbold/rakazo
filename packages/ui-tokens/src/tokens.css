@@ -31,6 +31,7 @@
   --sidebar-accent-foreground: #ececee;
   --link: #34d399;
   --brand: #34d399;
+  --favicon-plate: #ffffff;
   --success: #4ecb71;
   --warning: #e9c46a;
   --overlay: rgba(4, 4, 5, 0.72);
@@ -69,6 +70,7 @@
   --sidebar-accent-foreground: #1a1a1a;
   --link: #047857;
   --brand: #047857;
+  --favicon-plate: #ffffff;
   --success: #228b3b;
   --warning: #b7791f;
   --overlay: rgba(20, 20, 22, 0.45);

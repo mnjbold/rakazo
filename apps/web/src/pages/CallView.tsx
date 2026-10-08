@@ -17,8 +17,8 @@ import { Mic, MicOff, Settings, X } from "lucide-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { startBargeInMonitor } from "../lib/barge-in";
 import { dictation } from "../lib/dictation";
-import { speaker } from "../lib/tts";
 import type { LiveSession } from "../lib/live-session.js";
+import { speaker } from "../lib/tts";
 import "./live-call.css";
 
 type Phase = "listening" | "thinking" | "speaking";
@@ -91,7 +91,6 @@ export function CallView({
   /** Holds the active LiveSession instance when liveMode is true. */
   const liveSessionRef = useRef<LiveSession | null>(null);
 
-
   const runActive = Boolean(snapshot?.run && RUN_ACTIVE.includes(snapshot.run.status));
   const lastReply = [...(snapshot?.messages ?? [])]
     .reverse()
@@ -151,7 +150,6 @@ export function CallView({
     } else dictation.stop("cancel");
     void listen();
   }
-
 
   async function listen() {
     if (closing.current) return;
@@ -505,8 +503,7 @@ export function CallView({
             }
           } else if (p === "speaking") {
             const speechWobble =
-              Math.abs(Math.sin(now / 110 + i * 0.45)) *
-              Math.abs(Math.cos(now / 190 + i * 0.32));
+              Math.abs(Math.sin(now / 110 + i * 0.45)) * Math.abs(Math.cos(now / 190 + i * 0.32));
             scale = Math.max(0.16, Math.min(1, 0.32 + 0.68 * speechWobble));
           } else {
             const ripple = Math.abs(Math.sin(now / 160 - i * 0.28));
@@ -575,7 +572,12 @@ export function CallView({
           <span className="sr-only" aria-live="polite">
             {status}
           </span>
-          <div ref={waveRef} className="live-wave" data-muted={muted || undefined} aria-hidden="true">
+          <div
+            ref={waveRef}
+            className="live-wave"
+            data-muted={muted || undefined}
+            aria-hidden="true"
+          >
             {WAVE_BARS.map((bar) => (
               <span key={bar} />
             ))}
@@ -637,7 +639,11 @@ export function CallView({
                 {heard}
               </p>
             ) : said ? (
-              <p className="live-transcript-turn text-muted-foreground" dir="auto" aria-live="polite">
+              <p
+                className="live-transcript-turn text-muted-foreground"
+                dir="auto"
+                aria-live="polite"
+              >
                 <span className="font-medium text-muted-foreground/75">{t`You`}: </span>
                 {said}
               </p>
@@ -767,4 +773,3 @@ function activeTaskFromSnapshot(snapshot: ThreadSnapshot | null): string | null 
   }
   return null;
 }
-

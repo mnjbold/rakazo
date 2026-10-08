@@ -6,6 +6,7 @@ import type {
   MessagingSurface,
   ReplyJudge,
   SandboxProvider,
+  SecretStore,
 } from "@rakazo/adapter-kit";
 import { messagingDeliverJob } from "@rakazo/adapter-kit";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
@@ -20,7 +21,6 @@ import { compactHistory, summarizeChatSession } from "./history-compaction.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import { deliverMessagingOutbound, mirrorMessagingOutbound } from "./messaging-delivery.js";
 import { judgeRunReply } from "./reply-quality.js";
-import type { EncryptedSecretStore } from "./secrets.js";
 import { expireTaughtSkillTeaching } from "./teaching-session.js";
 
 export function createBackgroundJobHandlers(deps: {
@@ -32,7 +32,7 @@ export function createBackgroundJobHandlers(deps: {
   events: ThreadEvents;
   workerId: string;
   runtime: AgentRuntime;
-  secretStore: EncryptedSecretStore;
+  secretStore: SecretStore;
   memoryProviders: MemoryProviderResolver;
   deploymentModelKey?: string;
   messaging?: MessagingSurface;
@@ -111,6 +111,9 @@ export function createBackgroundJobHandlers(deps: {
       );
     },
     "history.compact": async (payload) => {
+      // Retrieval policies use stored context without paid message-count compaction.
+      // Skip legacy backlog work after a policy change.
+      if (deps.executor.contextStrategy && deps.executor.contextStrategy !== "current") return;
       await compactHistory(summarizerDeps, payload.threadId);
     },
     "chat.session.summarize": async (payload) => {
