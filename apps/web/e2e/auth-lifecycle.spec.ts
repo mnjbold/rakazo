@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { PRODUCT_NAME } from "@rakazo/core";
 import { captureScreenshot, completeOnboarding, signup } from "./helpers";
 
 for (const mode of ["sign-in", "sign-up", "sso-only"] as const) {
@@ -69,13 +70,13 @@ test("signed-out welcome fits a narrow phone and offers sign in", async ({ page 
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
   const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { name: "Rakazo", level: 1 })).toBeVisible();
+  await expect(main.getByRole("heading", { name: PRODUCT_NAME, level: 1 })).toBeVisible();
   await expect(main.getByRole("button", { name: "Sign up", exact: true })).toBeVisible();
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 320);
   await captureScreenshot(page, testInfo, "logged-out-welcome-phone");
   await main.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
-  await expect(page.getByRole("heading", { name: "Sign in to Rakazo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `Sign in to ${PRODUCT_NAME}` })).toBeVisible();
 });
 
 test("logout protects bot deep links and sign-in restores the session", async ({

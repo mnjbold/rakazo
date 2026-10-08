@@ -336,11 +336,12 @@ function RobotAvatar({
     >
       <svg
         className="rakazo-bot-avatar-ring pointer-events-none absolute"
+        // Working state stays inside the idle footprint: the ring is drawn within the box.
         style={{
-          inset: -4,
-          width: size + 8,
-          height: size + 8,
-          filter: `drop-shadow(0 0 6px ${colorDef.light}) drop-shadow(0 0 10px #ffffff)`,
+          inset: 0,
+          width: size,
+          height: size,
+          filter: `drop-shadow(0 0 1.5px ${colorDef.light})`,
         }}
         viewBox="0 0 48 48"
         fill="none"

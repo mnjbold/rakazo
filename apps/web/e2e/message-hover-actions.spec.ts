@@ -529,19 +529,9 @@ test.describe("touch message actions", () => {
     await bubble.tap();
     await rail.getByRole("button", { name: "More" }).tap();
     await expect(page.getByRole("menuitem", { name: "Copy" })).toBeVisible();
-    const time = row.getByTestId("message-hover-time");
-    await expect(time).toHaveCSS("opacity", "1");
-    await expect(time).toHaveCSS("position", "static");
-    await expect(time).toHaveText(/\d/);
-    const timeBox = await time.boundingBox();
-    const openBubbleBox = await botBubble.boundingBox();
-    const openRailBox = await rail.boundingBox();
-    expect(timeBox).not.toBeNull();
-    expect(openBubbleBox).not.toBeNull();
-    expect(openRailBox).not.toBeNull();
-    // A date uses this same label. Under the actions it cannot cover the bubble.
-    expect(timeBox!.y).toBeGreaterThanOrEqual(openBubbleBox!.y + openBubbleBox!.height - 1);
-    expect(timeBox!.y).toBeGreaterThanOrEqual(openRailBox!.y + openRailBox!.height - 1);
+    // The fork pins the time to the bubble's corner and hangs the action pill below the bubble.
+    await expect(row.getByTestId("message-hover-time")).toHaveCSS("opacity", "1");
+    await expect(row.getByTestId("message-hover-time")).toHaveText(/\d/);
     await expect(page.getByRole("menu")).toBeVisible();
     await expect(page.getByRole("menu").locator("time")).toHaveCount(0);
     await captureScreenshot(page, testInfo, "message-actions-touch-menu");

@@ -60,7 +60,7 @@ test("skills and plugins shared to the marketplace install for another person", 
   const settings = page.getByTestId("bot-settings");
   await settings.getByText("Advanced", { exact: true }).click();
   const knowledge = settings.getByTestId("bot-knowledge");
-  await knowledge.getByRole("tab", { name: "Skills", exact: true }).click();
+  await knowledge.getByRole("tab", { name: "Shared skills", exact: true }).click();
   await knowledge.getByRole("button", { name: new RegExp(skillName) }).click();
   await knowledge.getByRole("button", { name: `Share ${skillName}`, exact: true }).click();
   await page.getByRole("menuitem", { name: "Everyone", exact: true }).click();
