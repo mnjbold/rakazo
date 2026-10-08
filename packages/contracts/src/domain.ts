@@ -1,6 +1,6 @@
 import * as z from "zod";
-import { ATTACHMENT_IMAGE_MIME_TYPES } from "./attachments.js";
 import { AGENT_SECRET_NAME_PATTERN } from "./agent-secret-name.js";
+import { ATTACHMENT_IMAGE_MIME_TYPES } from "./attachments.js";
 import { BotAvatarValueSchema } from "./bot-avatar.js";
 import { DisabledBuiltinToolsSchema } from "./builtin-tools.js";
 import {
