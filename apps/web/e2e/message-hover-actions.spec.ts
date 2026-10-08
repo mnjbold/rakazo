@@ -541,7 +541,9 @@ test.describe("touch message actions", () => {
     const userRow = page.locator("[data-message-id]").filter({ hasText: "touch-width-" }).first();
     await expect(userRow).toBeVisible({ timeout: 20_000 });
     await expectNoTouchSideGutter(userRow.getByTestId("message-bubble-frame"));
-    await rail.scrollIntoViewIfNeeded();
+    // Sending moved touch focus off the bot reply, which closes its pill; reopen it to reply.
+    await bubble.tap();
+    await expect(rail).toHaveCSS("opacity", "1");
     await rail.getByRole("button", { name: "Reply", exact: true }).tap();
     await expect(page.getByRole("button", { name: "Cancel reply" })).toBeVisible();
   });

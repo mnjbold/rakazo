@@ -5862,9 +5862,12 @@ const Composer = memo(function Composer({
       .slice(0, 10);
   }, [mentionQuery, mentionTargets]);
 
+  // Background refreshes rebuild the target list; only a change in what is offered resets the
+  // highlight, so Enter after ArrowDown still picks the highlighted option.
+  const mentionOptionsKey = mentionOptions.map(mentionChipKey).join("|");
   useEffect(() => {
     setMentionHighlightIndex(0);
-  }, [mentionQuery, mentionOptions]);
+  }, [mentionQuery, mentionOptionsKey]);
 
   const activeMentionIndex = clampMentionHighlightIndex(
     mentionHighlightIndex,
