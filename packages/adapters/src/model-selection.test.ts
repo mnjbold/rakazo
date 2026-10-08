@@ -14,7 +14,11 @@ import { listAvailablePiCatalog } from "./pi-catalog-availability.js";
 
 type SelectionInput = Parameters<typeof selectConfiguredModel>[0];
 
-function credential(provider: string, defaultModel: string | null) {
+function credential(
+  provider: string,
+  defaultModel: string | null,
+  thinkingLevel: string | null = null,
+) {
   return {
     id: `credential-${provider}`,
     userId: "user-1",
@@ -25,6 +29,7 @@ function credential(provider: string, defaultModel: string | null) {
     updatedAt: new Date(0),
     isDefault: false,
     defaultModel,
+    thinkingLevel,
   };
 }
 
@@ -130,6 +135,42 @@ describe("configured model selection", () => {
       },
     },
     {
+      name: "applies the preference thinking level to the space default model",
+      input: { defaultCredential: credential("space-provider", "space-model", "low") },
+      expected: {
+        provider: "space-provider",
+        id: "space-model",
+        credential: credential("space-provider", "space-model", "low"),
+        thinkingLevel: "low",
+      },
+    },
+    {
+      name: "bot override thinking beats the preference level",
+      input: {
+        bot: { modelProvider: null, modelId: null, thinkingLevel: "high" },
+        defaultCredential: credential("space-provider", "space-model", "low"),
+      },
+      expected: {
+        provider: "space-provider",
+        id: "space-model",
+        credential: credential("space-provider", "space-model", "low"),
+        thinkingLevel: "high",
+      },
+    },
+    {
+      name: "does not leak a preference level onto a different override model",
+      input: {
+        bot: { modelProvider: "bot-provider", modelId: "other-model", thinkingLevel: null },
+        overrideCredential: credential("bot-provider", "stored-model", "xhigh"),
+      },
+      expected: {
+        provider: "bot-provider",
+        id: "other-model",
+        credential: credential("bot-provider", "stored-model", "xhigh"),
+        thinkingLevel: null,
+      },
+    },
+    {
       name: "does not treat a sentinel bot override as a selected model",
       input: { bot: { ...bot, modelId: "null" }, overrideCredential },
       expected: {
@@ -137,6 +178,19 @@ describe("configured model selection", () => {
         id: "space-model",
         credential: spaceCredential,
         thinkingLevel: "high",
+      },
+    },
+    {
+      name: "inherits the preference level when the override names its model",
+      input: {
+        bot: { modelProvider: "bot-provider", modelId: "stored-model", thinkingLevel: null },
+        overrideCredential: credential("bot-provider", "stored-model", "xhigh"),
+      },
+      expected: {
+        provider: "bot-provider",
+        id: "stored-model",
+        credential: credential("bot-provider", "stored-model", "xhigh"),
+        thinkingLevel: "xhigh",
       },
     },
   ])("$name", ({ input, expected }) => {
@@ -240,7 +294,9 @@ describe("space catalog auth", () => {
       ],
       secrets: [{ id: "secret-oauth", ciphertext: "cipher-oauth" }],
     });
-    const load = vi.fn((ciphertext: string) => (ciphertext === "cipher-oauth" ? oauth : apiKey));
+    const load = vi.fn(async (ciphertext: string) =>
+      ciphertext === "cipher-oauth" ? oauth : apiKey,
+    );
 
     const auth = await modelCredentialAuthKindsForSpace(prisma, { load }, scope);
 
@@ -283,7 +339,7 @@ describe("space catalog auth", () => {
         { id: "secret-api", ciphertext: "cipher-api" },
       ],
     });
-    const load = vi.fn((_ciphertext: string, secretId: string) =>
+    const load = vi.fn(async (_ciphertext: string, secretId: unknown) =>
       secretId === "secret-oauth" ? oauth : apiKey,
     );
 
@@ -334,7 +390,7 @@ describe("space catalog auth", () => {
     const auth = await modelCredentialAuthKindsForSpace(
       prisma,
       {
-        load: (_ciphertext: string, secretId: string) =>
+        load: async (_ciphertext: string, secretId: unknown) =>
           secretId === "secret-oauth" ? oauth : apiKey,
       },
       scope,
@@ -358,7 +414,7 @@ describe("space catalog auth", () => {
         { id: "secret-api", ciphertext: "cipher-api" },
       ],
     });
-    const load = vi.fn((ciphertext: string) => {
+    const load = vi.fn(async (ciphertext: string) => {
       if (ciphertext === "cipher-broken") throw new Error("unreadable");
       return apiKey;
     });
@@ -405,7 +461,7 @@ describe("space catalog auth", () => {
         { id: "secret-oauth", ciphertext: "cipher-oauth" },
       ],
     });
-    const load = vi.fn((_ciphertext: string, secretId: string) => {
+    const load = vi.fn(async (_ciphertext: string, secretId: unknown) => {
       if (secretId === "secret-oauth") throw new Error("unreadable");
       return apiKey;
     });
@@ -414,6 +470,25 @@ describe("space catalog auth", () => {
 
     expect(auth.byModel["openai-codex"]?.[spark]).toBe("disconnected");
     expect(listsSpark(auth)).toBe(false);
+  });
+
+  it("decrypts a provider credential once, not once per catalog model", async () => {
+    const { prisma } = authPrisma({
+      credentials: [
+        {
+          ...storedCredential("cred-or", "secret-or", "2026-03-01T00:00:00.000Z"),
+          provider: "openrouter",
+        },
+      ],
+      preferences: [],
+      secrets: [{ id: "secret-or", ciphertext: "cipher-or" }],
+    });
+    const load = vi.fn(async () => apiKey);
+
+    const auth = await modelCredentialAuthKindsForSpace(prisma, { load }, scope);
+
+    expect(auth.byProvider.openrouter).toBe("api_key");
+    expect(load).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -472,7 +547,7 @@ describe("stored model auth", () => {
       return null;
     });
     const prisma = { secret: { findFirst } } as unknown as PrismaClient;
-    const load = vi.fn((ciphertext: string) => {
+    const load = vi.fn(async (ciphertext: string) => {
       if (ciphertext === "cipher-broken") throw new Error("unreadable");
       return JSON.stringify({
         type: "oauth",
@@ -516,7 +591,7 @@ describe("stored model auth", () => {
       },
     } as unknown as PrismaClient;
     // Decrypts fine, but the stored JSON claims oauth without a credential.
-    const load = vi.fn(() => JSON.stringify({ kind: "oauth" }));
+    const load = vi.fn(async () => JSON.stringify({ kind: "oauth" }));
     const live = {
       read: vi.fn(async () => [
         {
@@ -558,7 +633,7 @@ describe("stored model auth", () => {
       expires: Date.now() + 60_000,
       accountId: "acct-live",
     });
-    const load = vi.fn(() => oauthWithAccount);
+    const load = vi.fn(async () => oauthWithAccount);
     const live = {
       read: vi.fn(async (_userId: string, account: { accountId: string }) =>
         account.accountId === "acct-live"
@@ -617,7 +692,7 @@ describe("stored model auth", () => {
         })),
       },
     } as unknown as PrismaClient;
-    const load = vi.fn(() =>
+    const load = vi.fn(async () =>
       JSON.stringify({
         type: "oauth",
         access: "access-token",
@@ -668,7 +743,7 @@ describe("stored model auth", () => {
       expires: Date.now() - 1_000,
       accountId: "acct-live",
     });
-    const load = vi.fn(() => plaintext);
+    const load = vi.fn(async () => plaintext);
     const read = vi.fn(
       async (
         _userId: string,
@@ -736,7 +811,7 @@ describe("stored model auth", () => {
         })),
       },
     } as unknown as PrismaClient;
-    const load = vi.fn(() =>
+    const load = vi.fn(async () =>
       JSON.stringify({
         type: "oauth",
         access: "access-token",
@@ -836,6 +911,7 @@ describe("connected model validation", () => {
             credential: credential("openai-compatible", "newest-model"),
             isDefault: true,
             modelId: "newest-model",
+            thinkingLevel: null,
           };
         }
         return null;

@@ -48,6 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fluxbox \
     xterm \
     xdotool \
+    wmctrl \
     x11-utils \
     x11-xserver-utils \
     imagemagick \
@@ -74,13 +75,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     xclip \
     xsel \
+    poppler-utils \
+    pandoc \
+    python3-openpyxl \
   && rm -rf /var/lib/apt/lists/* \
+  && pdftotext -v \
+  && pdfinfo -v \
+  && pandoc --version \
+  && python3 -c 'import openpyxl; print(openpyxl.__version__)' \
   && groupadd --gid 1000 rakazo \
   && useradd --uid 1000 --gid rakazo --create-home --shell /bin/bash rakazo \
   && mkdir -p /etc/rakazo/fluxbox \
   && printf '%s\n' '#!/bin/sh' 'exec xsetroot -solid "#111113" "$@"' > /usr/bin/fbsetbg \
   && chmod +x /usr/bin/fbsetbg \
   && ln -sfn /bin/true /usr/bin/xmessage
+RUN ln -s "$(dpkg -L libnss-wrapper | grep '/libnss_wrapper.so$')" /usr/local/lib/libnss_wrapper.so
 ARG TARGETARCH
 ARG UV_VERSION=0.12.19
 RUN set -eux; \
@@ -125,11 +134,13 @@ WORKDIR /home/rakazo
 # --chmod normalizes modes: a restrictive host umask (e.g. 077 on hardened hosts) would
 # otherwise leave these files unreadable to USER 1000 at runtime.
 COPY --chmod=755 start.sh /usr/local/bin/rakazo-computer
+COPY --chmod=644 user-env.sh /usr/local/lib/rakazo-user-env.sh
 COPY --chmod=755 control.py /usr/local/bin/rakazo-computer-control
 COPY --from=capture-builder /build/librakazo-xcapture.so /usr/local/lib/librakazo-xcapture.so
 COPY --from=coding-clis /out/opencode/opencode /usr/local/bin/opencode
 COPY --from=coding-clis /out/kilo /opt/kilo
 COPY --chmod=755 rakazo-browser /usr/local/bin/rakazo-browser
+COPY --chmod=755 rakazo-focus-or-launch /usr/local/bin/rakazo-focus-or-launch
 COPY --chmod=755 rakazo-page-browser /usr/local/bin/rakazo-page-browser
 COPY --chmod=644 rakazo-browser.desktop /usr/share/applications/rakazo-browser.desktop
 COPY --chmod=644 fluxbox.init /etc/rakazo/fluxbox/init
@@ -144,9 +155,14 @@ COPY --chmod=644 rakazo-local-bin.sh /etc/profile.d/rakazo-local-bin.sh
 # Strip CR so shebangs work even if the build context came from a CRLF checkout.
 RUN ldconfig \
   && ln -s /opt/kilo/kilo /usr/local/bin/kilo \
-  && sed -i 's/\r$//' /usr/local/bin/rakazo-computer /usr/local/bin/rakazo-computer-control /usr/local/bin/rakazo-browser /usr/local/bin/rakazo-page-browser \
+  && sed -i 's/\r$//' /usr/local/bin/rakazo-computer /usr/local/lib/rakazo-user-env.sh /usr/local/bin/rakazo-computer-control /usr/local/bin/rakazo-browser /usr/local/bin/rakazo-focus-or-launch /usr/local/bin/rakazo-page-browser \
     /etc/rakazo/fluxbox/init /etc/rakazo/fluxbox/apps /etc/rakazo/fluxbox/menu \
     /etc/profile.d/rakazo-local-bin.sh
 EXPOSE 7070 6080 6081 6082 6083 6084 6085 6086 6087 6088 6089 6090 6091 6092 6093 6094 6095
+# Docker exec does not inherit PID 1's exports, so every process gets the same
+# identity lookup. Startup creates these private files for the effective UID/GID.
+ENV LD_PRELOAD=/usr/local/lib/libnss_wrapper.so \
+    NSS_WRAPPER_PASSWD=/tmp/rakazo-nss/passwd \
+    NSS_WRAPPER_GROUP=/tmp/rakazo-nss/group
 USER 1000:1000
 CMD ["/usr/local/bin/rakazo-computer"]

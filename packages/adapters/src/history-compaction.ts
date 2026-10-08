@@ -3,7 +3,7 @@ import { historyCompactJob } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
 import { blocksToAgentHistoryText } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
-import { CHAT_SESSION_SUMMARY_CHARS, chatTranscriptTail } from "@rakazo/db";
+import { CHAT_SESSION_SUMMARY_CHARS, chatTranscriptTail, recordUsage } from "@rakazo/db";
 import { getLogger, unwrapJobPayload } from "@rakazo/logging";
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
@@ -46,6 +46,7 @@ export const MAX_RECALLED_MEMORIES = 5;
 
 export type CompactedHistoryMessage = {
   id?: string;
+  createdAt?: string;
   seq: number;
   role: "user" | "assistant" | "system";
   content: string;
@@ -277,6 +278,13 @@ async function runSummarizer(
     return null;
   }
 
+  const usageAttribution = {
+    spaceId: thread.spaceId,
+    userId: thread.userId,
+    botId: thread.botId,
+    operationId: request.runId,
+    operationKind: "compaction" as const,
+  };
   let summary = "";
   let runtimeReportedFailure = false;
   for await (const event of deps.runtime.run(
@@ -284,6 +292,10 @@ async function runSummarizer(
       botId: thread.botId,
       threadId: request.threadId,
       runId: request.runId,
+      usageOperationKind: "compaction",
+      onUsage: async (event) => {
+        await recordUsage(deps.prisma, event, usageAttribution);
+      },
       prompt: request.prompt,
       instructions: [formatCurrentTimeInstruction(), request.instructions].join(" "),
       history: [],
@@ -301,6 +313,9 @@ async function runSummarizer(
       signal: AbortSignal.timeout(summarizeTimeoutMs(request.prompt.length)),
     },
   )) {
+    if (event.type === "usage" && !event.accounted) {
+      await recordUsage(deps.prisma, event, usageAttribution);
+    }
     if (event.type === "text" && /^(?:I hit a problem:|Unknown model )/i.test(event.text.trim())) {
       runtimeReportedFailure = true;
     }

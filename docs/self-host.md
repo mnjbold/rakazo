@@ -189,6 +189,76 @@ account before exposing the service. Further accounts still need SMTP.
 For a public deployment, configure SMTP and an allowlist before the API's first start.
 Keep an installation without email on a trusted local network.
 
+### Optional OpenID Connect SSO
+
+SSO works with a self-hosted or hosted OpenID Connect provider. Leave its settings unset to
+keep password authentication alone. Configure all three credentials together on the API:
+
+```env
+OIDC_ISSUER=https://identity.example.com
+OIDC_CLIENT_ID=replace-with-client-id
+OIDC_CLIENT_SECRET=replace-with-client-secret
+OIDC_NAME=SSO
+OIDC_SCOPES=openid email profile
+AUTH_PASSWORD_ENABLED=true
+OIDC_ALLOW_SIGNUP_BYPASS=false
+```
+
+The issuer must be HTTPS and exactly match the discovery document's issuer. Rakazo loads
+`<issuer>/.well-known/openid-configuration`, verifies ID tokens against discovery JWKS with
+issuer, audience and nonce checks, and uses authorization codes with PKCE. Additional scopes
+may be space- or comma-separated; `openid email profile` are always requested. `OIDC_NAME`
+is the button label, defaulting to “SSO”. Secrets remain on the API; Compose clears the worker's
+OIDC credentials. The capabilities endpoint exposes only the label, discovery availability,
+and enabled authentication methods.
+
+Register this redirect URI at the provider (using your public `BETTER_AUTH_URL` origin):
+
+```text
+https://app.example.com/api/auth/callback/oidc
+```
+
+Web, Electron and mobile use the same provider redirect URI. Electron completes SSO in a
+sandboxed in-app popup sharing the app's session, then returns to the main window. Mobile completes the callback
+on the API, then returns to `rakazo://sign-in` (or `rakazo://account` for linking and reauthentication) through Better Auth's Expo authorization proxy
+and a native auth browser session. The `rakazo` app scheme is trusted by the auth server;
+never register a client secret in the mobile app. Mobile stores the resulting session with
+SecureStore, like password sign-in. Native builds need the Expo WebBrowser module.
+
+Provider emails are verified only when `email_verified` is the boolean `true`. False or missing
+claims stay unverified, including on subsequent sign-ins. Sign-in never links accounts by email.
+If an email belongs to another account, sign in to that existing account and choose **Link SSO**
+in account settings. Linking requires an authenticated session, a verified provider email and
+matching email addresses. The issuer and provider subject identify the linked account thereafter. Changing issuers does
+not reuse an old identity. Old-issuer links remain stored but do not count as linked to the
+current provider, so **Link SSO** becomes available again. Link the new identity from the
+existing signed-in account; authenticated-session, verified-email and matching-email checks
+still apply. Restoring the old issuer makes its existing links usable again.
+
+SSO signup follows closed registration and the deployment allowlist before creating an account.
+Allowlisted provider emails must be verified; the password signup's first-account exemption
+never upgrades an OIDC email. `OIDC_ALLOW_SIGNUP_BYPASS=true` explicitly admits IdP identities
+without applying the allowlist or its email-verification admission requirement. Enable it only
+when the IdP controls who may join this deployment. It does **not** reopen closed registration,
+and does not change email verification claims or linking rules. Existing admitted accounts can
+sign in while registration is closed.
+
+Set `AUTH_PASSWORD_ENABLED=false` for SSO-only operation. Password sign-in, signup, password
+reset and password mutation endpoints are disabled server-side, and sign-in forms are hidden.
+The API refuses to start in this mode unless all OIDC credentials are configured. It can still
+start while discovery is temporarily unavailable: the provider remains registered, sign-in
+returns a temporary error, and background retries recover without restarting. Discovery is lazy
+on first use, refreshed in the background, and failures back off up to one minute. Availability
+reflects discovery, not a guarantee that the provider's token endpoint is currently reachable.
+
+Account deletion keeps the existing password confirmation for password users. Users without a
+password may delete after a provider sign-in within five minutes; **Sign in again** starts a fresh
+provider round-trip bound to the signed-in account. Choosing a different identity cannot confirm
+deletion or create another account in that flow. A stale or borrowed session alone cannot authorize deletion. With transactional
+email configured, **Send deletion code** sends a single-use code to the account email, valid for ten
+minutes. Enter it in account settings to confirm deletion. Email-code requests are rate-limited;
+invalid, expired or wrong-account codes fail. No password needs to be created for deletion.
+
 ### Verification and password recovery email
 
 Password changes for signed-in users require no email configuration. Forgotten-password recovery
@@ -218,6 +288,12 @@ The emulator is forcibly disabled when `NODE_ENV=production` and requires the AP
 loopback host. In `NODE_ENV=development`, captured messages are available from
 `http://127.0.0.1:3100/api/dev/emails` with cache disabled; the API logs only delivery
 metadata, never reset tokens. The inbox route is not registered in test, staging, or production.
+
+### Billing
+
+Billing stays off, with no paywall, unless `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+`STRIPE_PRICE_ID` are all set (see `.env.example`). Setting only some of them stops the API at
+startup.
 
 ### Logging
 
@@ -282,9 +358,10 @@ screenshot computer tools stay available. Existing connections default to disabl
 managed endpoints, the deployment-wide fallback remains
 `RAKAZO_OPENAI_COMPATIBLE_VISION_MODELS=gpt4o-vision,llava`.
 
-Remote MCP defaults to public HTTPS. The deployment owner can attach a server on localhost, the
-same LAN, or a Docker network. Set `MCP_ALLOW_PRIVATE_ENDPOINT=true` on the API and worker to allow it for
-every user. Cloud metadata addresses stay blocked. Leave the flag unset on public installs.
+Remote MCP servers and installed API / GraphQL connectors default to public HTTPS. The deployment
+owner can attach one on localhost, the same LAN, or a Docker network. Set
+`MCP_ALLOW_PRIVATE_ENDPOINT=true` on the API and worker to allow these for every user. Cloud
+metadata addresses stay blocked. Leave the flag unset on public installs.
 
 For servers that accept standard `reasoning_effort`, enable **Supports thinking** under
 **Advanced** when connecting. The setting is saved on the connection (no env var or restart).
@@ -419,7 +496,15 @@ curl --fail https://app.example.com/health
 registry serves, so the commands above build `api`, `worker`, and `web` from the checkout you just
 cloned. The opt-in command under [Updater sidecar](#updater-sidecar) builds `updater` when needed.
 
-Passing `GIT_SHA` is what makes `GET /health` report a `"revision"`; a locally built image has no
+The public `/health` only reports liveness. Runtime, sandbox, and revision details stay on the API
+port at `/internal/health`, which the edge does not route:
+
+```bash
+docker compose --env-file .env -f infra/compose/docker-compose.prod.yml exec api \
+  node -e "fetch('http://127.0.0.1:3100/internal/health').then(r=>r.text()).then(console.log)"
+```
+
+Passing `GIT_SHA` is what makes `/internal/health` report a `"revision"`; a locally built image has no
 other way to know its commit. Prebuilt images from the registry bake it in at publish time, so when
 you switch to a release tag you should leave `GIT_SHA` unset — a value in `.env` would override what
 the image already knows.
@@ -449,6 +534,15 @@ checkout's `.env` and production Compose file. If the stack was started with a c
 set the same `COMPOSE_PROJECT_NAME` in that file. For a manual run, export these variables instead.
 When updating an existing backup installation, reinstall both the script and service unit,
 then run `systemctl daemon-reload`.
+
+To deploy from CI, install `infra/compose/deploy-main.sh` as `/usr/local/sbin/rakazo-deploy-main`
+and give CI a key restricted to it in the deploy user's `authorized_keys`
+(`restrict,command="/usr/local/sbin/rakazo-deploy-main" ssh-ed25519 …`). It builds `origin/main`,
+restarts the stack, waits for `https://$RAKAZO_HOST/health`, and rolls back on failure. Build and
+start are time-limited so a stuck build fails the deploy instead of holding its lock; a deploy that
+finds the lock held exits non-zero. For a checkout outside `/srv/rakazo`, put
+`RAKAZO_DEPLOY_DIR=/absolute/path` in a root-owned `/etc/rakazo/deploy.env` readable by the
+deploy user.
 
 ### Docker computers on the production stack
 

@@ -87,10 +87,10 @@ example.
 bash install-images.sh --prepare-only   # creates .env + fills empties
 # inspect key NAMES only if debugging; never log values
 bash install-images.sh                  # pull + up; preserves .env
-curl -fsS http://127.0.0.1:3100/health
+curl -fsS http://127.0.0.1:3100/internal/health
 ```
 
-If `sandbox` in `/health` is `"none"` or the supervisor never becomes healthy,
+If `sandbox` in `/internal/health` is `"none"` or the supervisor never becomes healthy,
 check that `SANDBOX_SUPERVISOR_TOKEN` is set and non-empty for the Docker
 computer path. A missing token is a setup failure, not an "optional tighten
 later" item.
@@ -120,3 +120,8 @@ HTTPS origin and never gives the value to the model. Space Agent Secrets are bro
 shown to the agent and their values are supplied only to shell processes, with output redaction. Do
 not use Agent Secrets for untrusted workloads. Scoped execution grants are the migration path for
 per-bot and per-computer delivery.
+
+## Optional credential storage
+
+Stored credentials can use self-hosted Infisical while short-lived secrets stay
+encrypted in Postgres. See [Infisical setup, migration, and rollback](./infisical-secrets.md).

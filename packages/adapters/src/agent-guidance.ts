@@ -24,3 +24,16 @@ export const PRODUCT_GUIDE = `You run inside ${PRODUCT_NAME}. When someone asks 
 - Routines run a bot on a schedule; watch routines speak up only when something matters (important email, meeting prep, deadlines).
 - Integrations connect apps (Gmail, Drive, calendars and more); Marketplace shares bots, skills, and plugins. Saved logins and API keys live in the secret vault: use request_secret, never ask for them in chat.
 - Artifacts (the </> page) keeps files and pages bots made. Settings connect WhatsApp, voice, and models. New bots can start from a template or an image.`;
+
+/** Drops guidance bullets that name a built-in tool this bot has turned off. */
+export function offeredGuidance(text: string, disabled?: ReadonlySet<string>): string {
+  if (!disabled?.size) return text;
+  const names = [...disabled];
+  return text
+    .split("\n")
+    .filter(
+      (line) =>
+        !line.startsWith("- ") || !names.some((name) => new RegExp(`\\b${name}\\b`).test(line)),
+    )
+    .join("\n");
+}

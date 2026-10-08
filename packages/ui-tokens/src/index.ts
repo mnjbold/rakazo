@@ -41,6 +41,8 @@ export type ColorTokens = {
   link: string;
   /** Product accent (JEWL emerald). Used sparingly: wordmark gem and brand moments. */
   brand: string;
+  /** Backing behind a link's site icon. White in both themes so dark logos stay visible. */
+  faviconPlate: string;
   success: string;
   warning: string;
   overlay: string;
@@ -77,6 +79,7 @@ export const darkTokens = {
   sidebarAccentForeground: "#ECECEE",
   link: "#34D399",
   brand: "#34D399",
+  faviconPlate: "#FFFFFF",
   success: "#4ECB71",
   warning: "#E9C46A",
   overlay: "rgba(4, 4, 5, 0.72)",
@@ -113,6 +116,7 @@ export const lightTokens = {
   sidebarAccentForeground: "#1A1A1A",
   link: "#047857",
   brand: "#047857",
+  faviconPlate: "#FFFFFF",
   success: "#228B3B",
   warning: "#B7791F",
   overlay: "rgba(20, 20, 22, 0.45)",

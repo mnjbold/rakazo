@@ -1,4 +1,3 @@
-import type { Actor } from "@rakazo/contracts";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { mountLiveVoiceRoute } from "./live-voice.js";
