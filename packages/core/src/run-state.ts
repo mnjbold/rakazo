@@ -20,8 +20,10 @@ const TERMINAL: RunStatus[] = ["completed", "failed", "cancelled"];
  * These turns carry their own prompt and must not take a user message as steering.
  * Routine and webhook runs are not the conversation. The creation intro has no tools;
  * a message that lands during it waits, and the continuation after the intro finishes answers it.
+ * A peer (bot_message) run answers another bot: an owner message folded into it would be
+ * answered to the peer, not the owner. It waits and gets its own follow-up run instead.
  */
-const NON_CONVERSATIONAL_RUN_TRIGGERS = new Set(["routine", "webhook", "created"]);
+const NON_CONVERSATIONAL_RUN_TRIGGERS = new Set(["routine", "webhook", "created", "bot_message"]);
 
 const allowed: Record<RunStatus, RunStatus[]> = {
   queued: ["leased", "cancelled"],

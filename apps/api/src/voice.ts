@@ -27,6 +27,9 @@ import type { Context, Hono } from "hono";
 import { readBoundedBody } from "./http-body.js";
 import { withSerializableRetry } from "./serializable-retry.js";
 
+/** Server-key MiniMax fallback voice. A model name such as speech-2.8-turbo is not a voice id. */
+export const MINIMAX_FALLBACK_VOICE_ID = "English_expressive_narrator";
+
 export interface VoiceDeps {
   prisma: PrismaClient;
   secrets: SecretStore;
@@ -130,7 +133,7 @@ export async function loadVoiceCredential(deps: VoiceDeps, actor: Actor, provide
           cred: {
             id: "server-minimax",
             provider: "minimax",
-            voiceId: "speech-2.8-turbo",
+            voiceId: MINIMAX_FALLBACK_VOICE_ID,
             speechModel: null,
             isDefault: true,
           },

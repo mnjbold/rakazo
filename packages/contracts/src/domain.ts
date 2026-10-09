@@ -116,7 +116,7 @@ export function truncateReplyQuote(value: string): string {
 }
 
 export const GROUP_MEMBER_MIN = 2;
-export const GROUP_MEMBER_MAX = 6;
+export const GROUP_MEMBER_MAX = 50;
 
 export const GroupSchema = z.object({
   id: Id,

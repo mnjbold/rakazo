@@ -791,13 +791,17 @@ export async function sendThreadMessage(
               runId: steersUserMessage(active) ? active.id : null,
             },
           });
-          await tx.message.update({ where: { id: message.id }, data: { runId: active.id } });
+          // A peer run's rows are filtered from the owner's view; keep the owner's message off it.
+          const linkRunId = active.trigger === "bot_message" ? undefined : active.id;
+          if (linkRunId) {
+            await tx.message.update({ where: { id: message.id }, data: { runId: linkRunId } });
+          }
           const event = await appendEventInTransaction(tx, {
             spaceId: actor.spaceId,
             threadId: target.threadId,
             botId: target.botId,
             type: "thread.message.created",
-            runId: active.id,
+            runId: linkRunId,
             payload: {
               messageId: message.id,
               role: "user",

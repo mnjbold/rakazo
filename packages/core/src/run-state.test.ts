@@ -15,6 +15,8 @@ describe("run state machine", () => {
     expect(isConversationalRun("routine")).toBe(false);
     expect(isConversationalRun("webhook")).toBe(false);
     expect(isConversationalRun("created")).toBe(false);
+    // Owner messages must not be folded into a bot-to-bot run.
+    expect(isConversationalRun("bot_message")).toBe(false);
   });
 
   it("rejects rewriting a completed run", () => {
