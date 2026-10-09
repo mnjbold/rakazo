@@ -41,7 +41,8 @@ jobs:
   playwright:
     name: Web E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # GitHub copy: 20. The single self-hosted runner (capacity 1, 6 CPUs) needs longer for 216 specs.
+    timeout-minutes: 45
     concurrency:
       group: ${{ inputs.publish_report && 'playwright-publication' || format('playwright-{0}', github.run_id) }}
       cancel-in-progress: false

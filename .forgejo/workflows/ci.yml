@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Node sees the host's 12 CPUs, but the runner's DinD is capped at 6, so vitest's default worker
+  # count oversubscribes it and process-spawning tests (desktop-runtime, browser-profile) hit their
+  # spawnSync timeouts. 4 matches GitHub's ubuntu-latest (4 vCPU).
+  VITEST_MAX_WORKERS: "4"
+
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
