@@ -106,7 +106,8 @@ jobs:
   test-integration:
     name: Postgres journeys
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # GitHub copy: 10. On the self-hosted runner all 29 suites pass in ~10.5 min, so 10 cut off the last one.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
