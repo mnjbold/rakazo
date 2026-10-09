@@ -195,9 +195,9 @@ export default function SignIn() {
                 {resetSent
                   ? t("Check your email")
                   : mode === "in"
-                    ? t("Sign in to Rakazo")
+                    ? t("Sign in to JEWL")
                     : mode === "up"
-                      ? t("Sign up for Rakazo")
+                      ? t("Sign up for JEWL")
                       : t("Reset your password")}
               </Text>
               {resetSent ? (

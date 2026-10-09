@@ -16,3 +16,16 @@ export const JEWL_MARK = {
   pavilion:
     "M7.2 25.5H56.8L32 58Z M26.5 29A4 4 0 0 1 30.5 33V38A4 4 0 0 1 22.5 38V33A4 4 0 0 1 26.5 29Z M37.5 29A4 4 0 0 1 41.5 33V38A4 4 0 0 1 33.5 38V33A4 4 0 0 1 37.5 29Z",
 } as const;
+
+/**
+ * JEWL_X environment variables take precedence over the upstream RAKAZO_X names, which keep
+ * working. Copies each non-empty JEWL_X onto RAKAZO_X so existing readers need no change.
+ */
+export function applyJewlEnvAliases<T extends Record<string, string | undefined>>(env: T): T {
+  for (const [key, value] of Object.entries(env)) {
+    if (key.startsWith("JEWL_") && value) {
+      (env as Record<string, string | undefined>)[`RAKAZO_${key.slice("JEWL_".length)}`] = value;
+    }
+  }
+  return env;
+}

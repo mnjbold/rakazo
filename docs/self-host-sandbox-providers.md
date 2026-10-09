@@ -80,10 +80,10 @@ Local Docker computers can opt into gVisor after `runsc` is installed as a Docke
 RAKAZO_COMPUTER_RUNTIME=runsc
 ```
 
-The default is `runc`. Rakazo fails closed on any other value and includes the runtime in computer
+The default is `runc`. JEWL fails closed on any other value and includes the runtime in computer
 replacement checks. Installing `runsc` and restarting Docker is a host maintenance action; test the
 full desktop lifecycle in staging before enabling it for production.
 
 Per-computer provider selection supports `docker` and `box` for idle Private Computers. Docker stays
 the default. A Box selection is unavailable unless the API and worker have the operator-only
-`BOX_API_KEY`; Rakazo never copies that key into a computer.
+`BOX_API_KEY`; JEWL never copies that key into a computer.

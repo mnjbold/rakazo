@@ -16,6 +16,14 @@ describe("loadEnv", () => {
     expect(env.nodeEnv).toBe("test");
   });
 
+  it("prefers JEWL_* variables and still accepts RAKAZO_*", () => {
+    const source = { ...base, RAKAZO_IMAGE_TAG: "old", JEWL_IMAGE_TAG: "new" };
+    expect(loadEnv(source).imageTag).toBe("new");
+    expect(source.RAKAZO_IMAGE_TAG).toBe("old");
+    expect(loadEnv({ ...base, RAKAZO_IMAGE_TAG: "old" }).imageTag).toBe("old");
+    expect(loadEnv({ ...base, RAKAZO_IMAGE_TAG: "old", JEWL_IMAGE_TAG: "" }).imageTag).toBe("old");
+  });
+
   it("defaults Pi JSONL session recording to off", () => {
     expect(loadEnv(base).piSessionRecording).toBe(false);
     expect(loadEnv({ ...base, PI_SESSION_RECORDING: "false" }).piSessionRecording).toBe(false);
@@ -203,12 +211,12 @@ describe("loadEnv", () => {
       loadEnv({
         ...base,
         SMTP_URL: " smtps://user:secret@smtp.example.test:465 ",
-        EMAIL_FROM: " Rakazo <no-reply@example.test> ",
+        EMAIL_FROM: " JEWL <no-reply@example.test> ",
         EMAIL_EMULATOR: "true",
       }),
     ).toMatchObject({
       smtpUrl: "smtps://user:secret@smtp.example.test:465",
-      emailFrom: "Rakazo <no-reply@example.test>",
+      emailFrom: "JEWL <no-reply@example.test>",
       emailEmulator: true,
     });
     expect(
