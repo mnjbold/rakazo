@@ -94,14 +94,12 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
     .getByRole("button", { name: /^Draft team/ })
     .locator(".rakazo-group-avatar");
   await expect(groupAvatar).toBeVisible();
-  // New accounts use the living (organic) avatar; the working bot swaps to its working shape.
-  await expect(groupAvatar.locator(".rakazo-organic-avatar")).toHaveCount(2);
-  const workingAvatar = groupAvatar.locator('[data-working="true"]');
-  await expect(workingAvatar).toHaveCount(1);
-  await expect(workingAvatar.locator(".rakazo-organic-avatar-body-working")).toHaveCSS(
-    "opacity",
-    "1",
+  // New accounts use the jewel avatar; the working bot shows a working mood.
+  await expect(groupAvatar.locator(".rakazo-jewel-avatar")).toHaveCount(2);
+  const workingAvatar = groupAvatar.locator(
+    '.rakazo-jewel-avatar:is([data-mood="working"], [data-mood="thinking"], [data-mood="trying_hard"])',
   );
+  await expect(workingAvatar).toHaveCount(1);
   await captureScreenshot(page, testInfo, "group-avatar-active");
   await page.unroute("**/rpc/groups/list");
   await page.unroute("**/rpc/threads/get");
