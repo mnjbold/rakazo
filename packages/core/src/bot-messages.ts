@@ -49,7 +49,8 @@ export function botMessageAllowsSilence(
   intent: BotMessageIntent | undefined,
   repliesToRequest = false,
 ): boolean {
-  return intent === "fyi" && !repliesToRequest;
+  // A reply to a request this bot delegated is still always surfaced.
+  return (intent === "fyi" || intent === "result" || intent === "status") && !repliesToRequest;
 }
 
 /** Resolve a target by id first, then by exact name, then case-insensitively. */
@@ -161,7 +162,7 @@ export function buildBotMessageWakePrompt(args: {
   const intent = args.intent ?? "request";
   const action =
     intent === "result" || intent === "status"
-      ? `This is a ${intent} for work you delegated. Relay it to the user now, and include the actual substance — the real names, dates, numbers, and details ${safeName} sent — not just a note that a ${intent} arrived. A reply like "the summary came through" or "it's done" without repeating what it says is not acceptable. Do not stay silent and do not merely acknowledge it.`
+      ? `This is a ${intent} for work you delegated. When it matters to the user, tell them and include the actual substance — the real names, dates, numbers, and details ${safeName} sent — not just a note that a ${intent} arrived. When several peer replies cover the same work, combine them into one summary instead of reporting each. If it holds nothing the user needs to know or act on, staying silent is fine. Never send a bare acknowledgement.`
       : intent === "question"
         ? `This is a question about delegated work. Answer it if you can, then continue the coordination and keep the user informed.`
         : intent === "fyi"

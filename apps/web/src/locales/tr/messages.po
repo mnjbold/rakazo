@@ -106,6 +106,7 @@ msgstr "{botName} adlı botun bilgisayarı"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} ayrılmıştır ve komut değişkeni olarak kullanılamaz. Başka bir ad seçin."
@@ -2240,6 +2241,7 @@ msgid "Extra high"
 msgstr "Çok yüksek"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "başarısız"
 
@@ -2576,6 +2578,10 @@ msgstr ""
 #: src/pages/shell/dialogs.tsx
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "Sohbeti, dosyaları ve rutinleri kalıcı olarak silinecek. Oluşturduğu botlar listende kalır."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Jewel"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
@@ -3082,6 +3088,10 @@ msgstr "Devralma bekliyor"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -4675,8 +4685,8 @@ msgid "This space"
 msgstr "Bu alan"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
-msgstr "Bu abonelik girişi Rakazo'da henüz kullanılamıyor. Bir dağıtım kimlik bilgisi kullan veya başka bir sağlayıcı seç."
+msgid "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider."
+msgstr "Bu abonelik girişi JEWL'da henüz kullanılamıyor. Bir dağıtım kimlik bilgisi kullan veya başka bir sağlayıcı seç."
 
 #: src/pages/Artifacts.tsx
 msgid "This week"

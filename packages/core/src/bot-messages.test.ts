@@ -37,6 +37,14 @@ describe("bot message silence", () => {
     expect(botMessageAllowsSilence("fyi", true)).toBe(false);
     expect(botMessageAllowsSilence("fyi")).toBe(true);
   });
+
+  it("lets unprompted peer results and status updates stay silent, but not replies to a request", () => {
+    expect(botMessageAllowsSilence("result")).toBe(true);
+    expect(botMessageAllowsSilence("status")).toBe(true);
+    expect(botMessageAllowsSilence("result", true)).toBe(false);
+    expect(botMessageAllowsSilence("question")).toBe(false);
+    expect(botMessageAllowsSilence("request")).toBe(false);
+  });
 });
 
 describe("hop bounding", () => {
@@ -350,18 +358,20 @@ describe("inbound wake prompt", () => {
     expect(prompt).toContain("untrusted peer content");
   });
 
-  it("requires a received result to be surfaced to the user", () => {
+  it("surfaces a result's substance without forcing one report per peer reply", () => {
     const resultPrompt = buildBotMessageWakePrompt({
       from: { id: "b_1", name: "Researcher" },
       text: "The answer is 42.",
       intent: "result",
     });
-    expect(resultPrompt).toContain("Relay it to the user now");
     expect(resultPrompt).toContain("include the actual substance");
-    expect(resultPrompt).not.toContain("staying silent is fine");
+    expect(resultPrompt).toContain("combine them into one summary");
+    expect(resultPrompt).toContain("staying silent is fine");
+    expect(resultPrompt).not.toContain("Relay it to the user now");
+    expect(resultPrompt).not.toContain("Do not stay silent");
   });
 
-  it("keeps silence available only for an explicit FYI", () => {
+  it("lets an FYI stay silent", () => {
     const fyiPrompt = buildBotMessageWakePrompt({
       from: { id: "b_1", name: "Researcher" },
       text: "No action needed.",

@@ -18,7 +18,7 @@ export type ComputerMode = z.infer<typeof ComputerModeSchema>;
 export const MemoryScopeSchema = z.enum(["isolated", "shared"]);
 export type MemoryScopeValue = z.infer<typeof MemoryScopeSchema>;
 
-export const AvatarStyleSchema = z.enum(["robot", "organic"]);
+export const AvatarStyleSchema = z.enum(["robot", "organic", "jewel"]);
 export type AvatarStyle = z.infer<typeof AvatarStyleSchema>;
 
 export const ThinkingLevelSchema = z.enum([
@@ -48,6 +48,10 @@ export const AgentSecretInputSchema = z.object({
 });
 export type AgentSecretInput = z.infer<typeof AgentSecretInputSchema>;
 
+/** Why a bot wants the person: an answer or takeover it waits on, or a run that failed unseen. */
+export const BotAttentionSchema = z.enum(["needs_you", "error"]);
+export type BotAttention = z.infer<typeof BotAttentionSchema>;
+
 export const BotSchema = z.object({
   id: Id,
   spaceId: Id,
@@ -66,6 +70,8 @@ export const BotSchema = z.object({
   threadId: Id,
   preview: z.string(),
   status: z.string(),
+  /** Set by bot lists so the sidebar can show attention without subscribing to every thread. */
+  attention: BotAttentionSchema.nullable().optional(),
   computerMode: ComputerModeSchema,
   updatedAt: z.string(),
   createdAt: z.string(),
@@ -110,7 +116,7 @@ export function truncateReplyQuote(value: string): string {
 }
 
 export const GROUP_MEMBER_MIN = 2;
-export const GROUP_MEMBER_MAX = 6;
+export const GROUP_MEMBER_MAX = 50;
 
 export const GroupSchema = z.object({
   id: Id,
@@ -181,6 +187,7 @@ export const SpaceBotSchema = BotSchema.pick({
   parentBotId: true,
   preview: true,
   status: true,
+  attention: true,
   updatedAt: true,
 });
 export type SpaceBot = z.infer<typeof SpaceBotSchema>;

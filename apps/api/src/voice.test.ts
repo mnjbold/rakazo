@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   disconnectVoiceCredential,
   fishSpeechModelValue,
+  loadVoiceCredential,
   MAX_SPEAK_REQUEST_BYTES,
   MAX_TRANSCRIBE_REQUEST_BYTES,
+  MINIMAX_FALLBACK_VOICE_ID,
   mountVoiceHttpRoutes,
   synthesizeVoice,
   toVoiceStatus,
@@ -479,5 +481,24 @@ describe("synthesizeVoice", () => {
     await synthesizeVoice(deps, actor, { text: "Hello" });
 
     expect(synthesize.mock.calls[0]?.[0]).toMatchObject({ model: undefined });
+  });
+});
+
+describe("server MiniMax voice fallback", () => {
+  it("uses a real MiniMax voice id, not the speech model name", async () => {
+    vi.stubEnv("TELNYX_API_KEY", "");
+    const deps = {
+      prisma: { spaceVoicePreference: { findFirst: vi.fn().mockResolvedValue(null) } },
+      secrets: {},
+      env: { minimaxApiKey: "test-minimax-key" },
+    } as unknown as VoiceDeps;
+    const actor = { spaceId: "space-1", userId: "user-1" } as Actor;
+    const loaded = await loadVoiceCredential(deps, actor);
+    expect(loaded?.cred).toMatchObject({
+      provider: "minimax",
+      voiceId: "English_expressive_narrator",
+    });
+    expect(MINIMAX_FALLBACK_VOICE_ID).not.toMatch(/^speech-/);
+    vi.unstubAllEnvs();
   });
 });

@@ -106,6 +106,7 @@ msgstr "{botName}’s computer"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr "{botName}'s screen"
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
@@ -2240,6 +2241,7 @@ msgid "Extra high"
 msgstr "Extra high"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "failed"
 
@@ -2576,6 +2578,10 @@ msgstr "Isolated preview — no access to your account"
 #: src/pages/shell/dialogs.tsx
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Jewel"
+msgstr "Jewel"
 
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
@@ -3083,6 +3089,10 @@ msgstr "Needs takeover"
 #: src/pages/shell/bot-panel.tsx
 msgid "Needs work"
 msgstr "Needs work"
+
+#: src/lib/roster-status.ts
+msgid "needs you"
+msgstr "needs you"
 
 #: src/pages/Shell.tsx
 msgid "Needs you"
@@ -4675,8 +4685,8 @@ msgid "This space"
 msgstr "This space"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
-msgstr "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
+msgid "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider."
+msgstr "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider."
 
 #: src/pages/Artifacts.tsx
 msgid "This week"

@@ -1,8 +1,10 @@
-import type { AvatarStyle } from "@rakazo/contracts";
+import type { AvatarStyle, BotAttention } from "@rakazo/contracts";
+import type { BotMood } from "@rakazo/core";
 import {
-  ACTIVE_RUN_STATUSES,
   avatarIdentitySeed,
+  deriveBotMood,
   organicAvatarPath,
+  resolvePersonaColorDef,
   SHIPPED_BOT_AVATAR_CENTER,
   SHIPPED_BOT_AVATAR_VIEWBOX,
 } from "@rakazo/core";
@@ -23,6 +25,7 @@ import { workingAvatarDuration, workingAvatarFrame } from "../lib/avatar-motion"
 import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
 import { useI18n } from "../lib/i18n";
 import { useAvatarStyle } from "./avatar-style";
+import { JewelAvatar } from "./jewel-avatar";
 import { NativeSymbol } from "./native-symbol";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -31,6 +34,9 @@ export const BotAvatar = memo(function BotAvatar({
   color,
   size = 54,
   status,
+  attention,
+  mood: liveMood,
+  interactive = false,
   identity,
   variant,
   muted = false,
@@ -38,12 +44,18 @@ export const BotAvatar = memo(function BotAvatar({
   color: string;
   size?: number;
   status?: string;
+  attention?: BotAttention | null;
+  mood?: BotMood;
+  interactive?: boolean;
   identity?: string;
   variant?: AvatarStyle;
   muted?: boolean;
 }) {
   const { t } = useI18n();
-  const isWorking = ACTIVE_RUN_STATUSES.some((activeStatus) => activeStatus === status);
+  const mood = liveMood ?? deriveBotMood({ runStatus: status, attention, now: 0 }).mood;
+  // Waiting on the person is not work; it gets the attention dot instead.
+  const isWorking = mood === "working" || mood === "thinking" || mood === "trying_hard";
+  const badge = mood === "needs_you" || mood === "error" ? mood : null;
   const { avatarStyle } = useAvatarStyle();
   const parsed = mobileBotAvatarPresentation(color);
   const fillColor = parsed.kind === "shape" || parsed.kind === "color" ? parsed.color : color;
@@ -70,6 +82,14 @@ export const BotAvatar = memo(function BotAvatar({
         eyeColor={parsed.eyeColor}
         shapePath={parsed.shapePath}
         size={size}
+      />
+    ) : (variant ?? avatarStyle) === "jewel" ? (
+      <JewelAvatar
+        colorDef={resolvePersonaColorDef(identity || fillColor, fillColor)}
+        identity={identity || fillColor}
+        size={size}
+        mood={mood}
+        interactive={interactive}
       />
     ) : (variant ?? avatarStyle) === "organic" ? (
       <OrganicAvatar color={fillColor} identity={identity} size={size} isWorking={isWorking} />
@@ -113,6 +133,22 @@ export const BotAvatar = memo(function BotAvatar({
   return (
     <View style={{ width: size, height: size }}>
       {picture}
+      {badge ? (
+        <View
+          accessibilityLabel={badge === "error" ? t("Failed") : t("Needs you")}
+          style={{
+            position: "absolute",
+            right: 0,
+            top: 0,
+            width: Math.max(7, Math.round(size * 0.24)),
+            height: Math.max(7, Math.round(size * 0.24)),
+            borderRadius: size,
+            borderWidth: 2,
+            borderColor: "#000",
+            backgroundColor: badge === "error" ? "#EF4444" : "#F5A03C",
+          }}
+        />
+      ) : null}
       {isWorking ? (
         <View
           accessibilityLabel={t("Working")}

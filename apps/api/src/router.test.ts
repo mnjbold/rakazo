@@ -121,7 +121,7 @@ describe("account preferences", () => {
     });
   });
 
-  it("rejects avatar styles outside robot|organic", async () => {
+  it("rejects avatar styles outside robot|organic|jewel", async () => {
     const { update, actor, handler } = preferencesDeps("robot");
 
     const { response } = await handler.handle(
@@ -135,6 +135,24 @@ describe("account preferences", () => {
 
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("returns the stored jewel avatar style on me", async () => {
+    const { actor, handler } = preferencesDeps("jewel");
+
+    const { response } = await handler.handle(
+      new Request("http://127.0.0.1/rpc/me", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ json: null }),
+      }),
+      { prefix: "/rpc", context: { actor } },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      json: expect.objectContaining({ avatarStyle: "jewel" }),
+    });
   });
 
   it("coerces unknown stored avatar styles to organic on me", async () => {

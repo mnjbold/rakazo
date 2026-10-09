@@ -333,6 +333,7 @@ describe("createRepos.listSpaceBotsForSpaces", () => {
         parentBotId: null,
         preview: "Waiting for a reply",
         status: "running",
+        attention: null,
         updatedAt: "2026-08-20T00:00:00.000Z",
       },
     ]);
@@ -343,6 +344,63 @@ describe("createRepos.listSpaceBotsForSpaces", () => {
     expect(query.select).not.toHaveProperty("description");
     expect(query.select).not.toHaveProperty("instructions");
     expect(query.select).not.toHaveProperty("computer");
+  });
+});
+
+describe("sidebar bot attention", () => {
+  function sidebarBot(id: string, unread: boolean, runs: { status: string }[]) {
+    return {
+      id,
+      spaceId: "ws-2",
+      name: id,
+      title: "",
+      color: "#123456",
+      notifyOnFinish: true,
+      pinned: false,
+      sectionId: null,
+      updatedAt: new Date("2026-08-20T00:00:00.000Z"),
+      parentBotId: null,
+      thread: { id: `thread-${id}`, unread, messages: [] },
+      runs,
+    };
+  }
+
+  it("marks waiting bots as needing you and unread failed bots as errors", async () => {
+    const findMany = vi.fn(async () => [
+      sidebarBot("waiting", false, [{ status: "waiting_input" }]),
+      sidebarBot("takeover", true, [{ status: "waiting_takeover" }]),
+      sidebarBot("working", true, [{ status: "running" }]),
+      sidebarBot("failed-unread", true, []),
+      sidebarBot("failed-read", false, []),
+      sidebarBot("done-unread", true, []),
+    ]);
+    const latest: Record<string, string> = {
+      "failed-unread": "failed",
+      "failed-read": "failed",
+      "done-unread": "completed",
+    };
+    const findFirst = vi.fn(async (query: { where: { botId: string } }) => ({
+      status: latest[query.where.botId] ?? "completed",
+    }));
+    const repos = createRepos({
+      bot: { findMany },
+      run: { findFirst },
+    } as unknown as PrismaClient);
+
+    const bots = await repos.listSpaceBotsForSpaces(actor, ["ws-2"]);
+    expect(Object.fromEntries(bots.map((bot) => [bot.id, bot.attention]))).toEqual({
+      waiting: "needs_you",
+      takeover: "needs_you",
+      working: null,
+      "failed-unread": "error",
+      "failed-read": null,
+      "done-unread": null,
+    });
+    // Only unread bots without an active run look up their newest run.
+    expect(findFirst.mock.calls.map(([query]) => query.where.botId).sort()).toEqual([
+      "done-unread",
+      "failed-unread",
+    ]);
   });
 });
 

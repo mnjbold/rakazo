@@ -111,7 +111,7 @@ later" item.
 
 ## Runtime secret boundaries
 
-`BOX_API_KEY` is an operator credential for Rakazo's API and worker. Never save it as an Agent
+`BOX_API_KEY` is an operator credential for JEWL's API and worker. Never save it as an Agent
 Secret, send it to a bot, or inject it into a computer. Box provisioning uses `noEnv: true` so the
 provider credential stays outside the remote VM.
 

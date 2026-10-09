@@ -1,7 +1,7 @@
 import { MenuView } from "@expo/ui/community/menu";
 import type { RunActivityRow, SearchHit, SpaceBot, SpaceGroup } from "@rakazo/contracts";
 import { normalizeCreateBotProfile } from "@rakazo/contracts";
-import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
+import { isBotWorkingRunStatus } from "@rakazo/core";
 import { botColors } from "@rakazo/ui-tokens";
 import { Redirect, useFocusEffect, useNavigation, useRouter } from "expo-router";
 import type { ReactNode } from "react";
@@ -1120,7 +1120,7 @@ function BotRow({
   const preview = previewSnippet(bot.preview, 40) || bot.title || t("No messages yet");
   const time = bot.updatedAt ? formatThreadTime(bot.updatedAt) : "";
   const tag = botTag(bot.title, bot.name);
-  const working = ACTIVE_RUN_STATUSES.some((status) => status === bot.status);
+  const working = isBotWorkingRunStatus(bot.status);
   // Only flat avatars carry a usable color; image avatars fall back to the muted dot.
   const presentation = mobileBotAvatarPresentation(bot.color || FALLBACK_COLOR);
   const tint =
@@ -1130,6 +1130,7 @@ function BotRow({
     bot.name,
     tag,
     working ? t("Working…") : null,
+    bot.attention === "needs_you" ? t("Needs you") : bot.attention === "error" ? t("Failed") : null,
     bot.notifyOnFinish ? null : t("notifications silenced"),
     bot.unread ? t("unread") : null,
     time,
@@ -1160,6 +1161,7 @@ function BotRow({
           color={bot.color || FALLBACK_COLOR}
           identity={bot.id}
           status={bot.status}
+          attention={bot.attention}
           muted={!bot.notifyOnFinish}
         />
       }

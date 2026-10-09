@@ -1,4 +1,4 @@
-import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
+import { BOT_MOODS, WAITING_RUN_STATUSES } from "@rakazo/core";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AvatarStyleProvider } from "./avatar-style.js";
@@ -31,7 +31,23 @@ describe("BotAvatar", () => {
     }
   });
 
-  it.each([...ACTIVE_RUN_STATUSES])("marks active run status %s as working", (status) => {
+  it.each([...WAITING_RUN_STATUSES])("shows needs-you, not working, for %s", (status) => {
+    const html = renderToString(<BotAvatar color="#3B82F6" status={status} />);
+    expect(html).toContain('data-working="false"');
+    expect(html).toContain('data-attention="needs_you"');
+    expect(html).toContain('data-attention-badge="needs_you"');
+  });
+
+  it("shows the error badge for server error attention on every style", () => {
+    for (const variant of ["robot", "organic", "jewel"] as const) {
+      const html = renderToString(
+        <BotAvatar color="#3B82F6" identity="ada" attention="error" variant={variant} />,
+      );
+      expect(html).toMatch(/data-(attention-badge|mood)="error"/);
+    }
+  });
+
+  it.each(["running", "queued", "leased"])("marks active run status %s as working", (status) => {
     const html = renderToString(<BotAvatar color="#3B82F6" status={status} />);
     expect(html).toContain("<svg");
     expect(html).toContain('data-working="true"');
@@ -274,3 +290,61 @@ function robotFaceFromHtml(html: string) {
     eyeGap,
   };
 }
+
+describe("JewelAvatar", () => {
+  const jewel = (props: Partial<Parameters<typeof BotAvatar>[0]> = {}) =>
+    renderToString(
+      <AvatarStyleProvider value="jewel">
+        <BotAvatar color="#8B5CF6" identity="ada" size={48} {...props} />
+      </AvatarStyleProvider>,
+    );
+
+  it("is the deterministic faceted gem for an identity", () => {
+    const html = jewel();
+    expect(html).toContain("rakazo-jewel-avatar");
+    expect(html).toContain('data-mood="idle"');
+    expect(html).toMatch(/data-cut="[a-z]+"/);
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toBe(jewel());
+    expect(html).not.toBe(
+      renderToString(
+        <AvatarStyleProvider value="jewel">
+          <BotAvatar color="#8B5CF6" identity="grace" size={48} />
+        </AvatarStyleProvider>,
+      ),
+    );
+    // Small enough for a 50-bot sidebar.
+    expect(html.length).toBeLessThan(4_000);
+  });
+
+  it.each([...BOT_MOODS])("renders the %s mood", (mood) => {
+    const html = jewel({ mood });
+    expect(html).toContain(`data-mood="${mood}"`);
+    expect(html).toMatchSnapshot();
+  });
+
+  it("derives needs-you and working from status alone", () => {
+    expect(jewel({ status: "waiting_input" })).toContain('data-mood="needs_you"');
+    expect(jewel({ status: "running" })).toContain('data-mood="working"');
+    expect(jewel({ status: "running" })).toContain("rakazo-jewel-ring");
+  });
+
+  it("hops toward an open computer panel, otherwise shows the monitor glyph", () => {
+    const glyph = jewel({ mood: "working", onComputer: true });
+    expect(glyph).toContain("rakazo-jewel-monitor");
+    expect(glyph).not.toContain('data-hop="true"');
+    expect(jewel({ mood: "working", onComputer: true, computerOpen: true })).toContain(
+      'data-hop="true"',
+    );
+  });
+
+  it("keeps uploaded images as images with the badge only", () => {
+    const html = jewel({
+      color: "data:image/png;base64,AAAA",
+      status: "waiting_takeover",
+    });
+    expect(html).toContain("<img");
+    expect(html).not.toContain("rakazo-jewel-avatar");
+    expect(html).toContain('data-attention-badge="needs_you"');
+  });
+});

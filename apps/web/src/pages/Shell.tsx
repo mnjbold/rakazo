@@ -5,6 +5,7 @@ import { ChatMarkdown, LinkifiedText } from "@rakazo/chat-ui/web";
 import type {
   AgentSkillCatalogEntry,
   Bot,
+  BotAttention,
   BotSection,
   ChatSession,
   ComputerReleaseReason,
@@ -33,6 +34,7 @@ import {
   type MessageReaction,
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
+import type { BotMoodEvent } from "@rakazo/core";
 import {
   attachmentsForThread,
   buildComposerMentionOptions,
@@ -175,6 +177,7 @@ import { readActivityMode, writeActivityMode } from "../lib/activity-mode";
 import type { ArtifactTarget } from "../lib/artifact-open";
 import { authClient } from "../lib/auth";
 import { takeInitialBootstrap } from "../lib/bootstrap";
+import { appendMoodEvent, useBotMood } from "../lib/bot-mood";
 import {
   BOTS_SIDEBAR_EDGE_DRAG_PX,
   readBotsSidebarCollapsed,
@@ -213,7 +216,7 @@ import {
   rightPanelStorageKey,
   writeRightPanelState,
 } from "../lib/right-panel-state";
-import { rosterWorkStatusLabel } from "../lib/roster-status";
+import { rosterAttentionLabel, rosterWorkStatusLabel } from "../lib/roster-status";
 import { clearSpaceSelection, rpc, selectedSpaceId, selectSpace } from "../lib/rpc";
 import { readSeenRunErrorIds, rememberSeenRunErrorId } from "../lib/run-error-storage";
 import { sharedInflight } from "../lib/shared-inflight";
@@ -515,6 +518,10 @@ export function ShellPage() {
   >([]);
   const [teachBusy, setTeachBusy] = useState(false);
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
+  const [moodEvents, setMoodEvents] = useState<{
+    botId: string | null;
+    events: readonly BotMoodEvent[];
+  }>({ botId: null, events: [] });
   const computerRef = useRef<ComputerStatus | null>(null);
   const threadRefreshEpoch = useRef(0);
   const groupRefreshEpoch = useRef(0);
@@ -1424,6 +1431,12 @@ export function ShellPage() {
       applyEvent: (event) =>
         applyThreadEvent(event, commitSnapshot, commitComputer, snapshotRef, computerRef),
       onEvent: (event, initial) => {
+        setMoodEvents((current) => ({
+          botId: active.id,
+          events: appendMoodEvent(current.botId === active.id ? current.events : [], event),
+        }));
+        // A failure marks the thread unread for the sidebar; reading it here acknowledges it.
+        if (event.type === "run.failed") markBotReadIfVisible(active.id);
         const currentBot = botsRef.current.find((bot) => bot.id === active.id);
         notifyBrowserForEvent(
           event,
@@ -1847,6 +1860,18 @@ export function ShellPage() {
     setReplyQuote(null);
   }, []);
   const currentRuns = activeThreadRuns(activeSnapshot);
+  const activeMood = useBotMood({
+    runStatus: currentRuns[0]?.status ?? active?.status,
+    attention: active?.attention === "error" ? null : active?.attention,
+    events: moodEvents.botId === active?.id ? moodEvents.events : [],
+    computerSuspended: computer?.state === "suspended",
+  });
+  const needsYouCount = bots.filter((bot) => bot.attention === "needs_you").length;
+  useEffect(() => {
+    const title = document.title.replace(/^\(\d+\) /, "");
+    document.title = needsYouCount > 0 ? `(${needsYouCount}) ${title}` : title;
+  }, [needsYouCount]);
+  const attentionAnnouncement = useAttentionAnnouncement(bots);
   const answerableAskMessageId = latestAnswerableAskMessageId(activeSnapshot);
   const workingRuns = currentRuns.filter((run) =>
     ["running", "queued", "leased"].includes(run.status),
@@ -2929,6 +2954,8 @@ export function ShellPage() {
                 name={chat.name}
                 color={chat.color}
                 status={chat.status}
+                attention={chat.attention}
+                attentionLabel={rosterAttentionLabel(chat.attention)}
                 unread={chat.unread}
                 selected={!inGroup && active?.id === chat.id}
                 onSelect={() => openSpaceChat(spaceId, `/app/${chat.id}`)}
@@ -3329,6 +3356,7 @@ export function ShellPage() {
                                   identity={item.chat.id}
                                   size={38}
                                   status={item.chat.status}
+                                  attention={item.chat.attention}
                                 />
                               ) : (
                                 <GroupAvatar
@@ -3352,6 +3380,11 @@ export function ShellPage() {
                                     >
                                       {item.chat.name}
                                     </span>
+                                    {item.kind === "bot" && item.chat.attention ? (
+                                      <span className="sr-only">
+                                        , {rosterAttentionLabel(item.chat.attention)}
+                                      </span>
+                                    ) : null}
                                     {item.chat.unread ? (
                                       <span className="sr-only">
                                         <Trans> (unread)</Trans>
@@ -3653,6 +3686,11 @@ export function ShellPage() {
                   identity={active.id}
                   size={26}
                   status={active.status}
+                  attention={active.attention}
+                  mood={activeMood.mood}
+                  onComputer={activeMood.onComputer}
+                  computerOpen={computerOpen}
+                  interactive
                 />
               ) : null}
               <span className="min-w-0">
@@ -4704,7 +4742,7 @@ export function ShellPage() {
             usage={usage}
             onUsageOpen={refreshUsage}
             initialSection={settingsSection}
-            avatarStyle={bootstrapMe?.avatarStyle ?? "organic"}
+            avatarStyle={bootstrapMe?.avatarStyle ?? "jewel"}
             isDeploymentOwner={bootstrapMe?.isDeploymentOwner === true}
             billingEnabled={bootstrapMe?.billingEnabled === true}
             sandboxProvider={bootstrapMe?.sandboxProvider}
@@ -4933,8 +4971,33 @@ export function ShellPage() {
   );
 
   return (
-    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>{shell}</AvatarStyleProvider>
+    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "jewel"}>
+      {shell}
+      <div aria-live="polite" className="sr-only">
+        {attentionAnnouncement}
+      </div>
+    </AvatarStyleProvider>
   );
+}
+
+/** Announces a bot moving into needs-you or error, once per transition. */
+function useAttentionAnnouncement(
+  bots: readonly { id: string; name: string; attention?: BotAttention | null }[],
+): string {
+  const previous = useRef<Map<string, BotAttention | null> | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = new Map(bots.map((bot) => [bot.id, bot.attention ?? null]));
+    // The first list is the starting state, not news.
+    if (!before) return;
+    const changed = bots.find(
+      (bot) => bot.attention && before.has(bot.id) && before.get(bot.id) !== bot.attention,
+    );
+    const label = changed ? rosterAttentionLabel(changed.attention) : null;
+    if (changed && label) setAnnouncement(`${changed.name}, ${label}`);
+  }, [bots]);
+  return announcement;
 }
 
 const Transcript = memo(function Transcript({
