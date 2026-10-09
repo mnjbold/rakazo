@@ -133,6 +133,7 @@ import type {
 } from "@rakazo/contracts";
 import {
   ATTACHMENT_MAX_BYTES,
+  AvatarStyleSchema,
   appContract,
   BotSecretAuth,
   ComputerCommandSchema,
@@ -6345,7 +6346,7 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     computerHost: computerHostFor(setup.settings?.computerHost, deps.env.sandboxProvider),
     canChooseHostComputer: actor.isDeploymentOwner && deps.env.sandboxProvider === "docker",
     sandboxProvider: deps.env.sandboxProvider,
-    avatarStyle: user.avatarStyle === "robot" ? "robot" : "organic",
+    avatarStyle: AvatarStyleSchema.safeParse(user.avatarStyle).data ?? "organic",
     billingEnabled: Boolean(deps.billing) && !actor.isDeploymentOwner,
   };
 }

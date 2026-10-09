@@ -106,6 +106,7 @@ msgstr "{botName}의 컴퓨터"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable}은(는) 예약되어 있어 명령 변수로 사용할 수 없습니다. 다른 이름을 선택하세요."
@@ -2240,6 +2241,7 @@ msgid "Extra high"
 msgstr "매우 높음"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "실패"
 
@@ -2576,6 +2578,10 @@ msgstr ""
 #: src/pages/shell/dialogs.tsx
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "대화, 파일, 자동 실행이 영구 삭제됩니다. 이 Bot이 만든 다른 Bot은 목록에 남습니다."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Jewel"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
@@ -3082,6 +3088,10 @@ msgstr "인수 필요"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
 msgstr ""
 
 #: src/pages/Shell.tsx

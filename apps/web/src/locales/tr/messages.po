@@ -106,6 +106,7 @@ msgstr "{botName} adlı botun bilgisayarı"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} ayrılmıştır ve komut değişkeni olarak kullanılamaz. Başka bir ad seçin."
@@ -2240,6 +2241,7 @@ msgid "Extra high"
 msgstr "Çok yüksek"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "başarısız"
 
@@ -2576,6 +2578,10 @@ msgstr ""
 #: src/pages/shell/dialogs.tsx
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "Sohbeti, dosyaları ve rutinleri kalıcı olarak silinecek. Oluşturduğu botlar listende kalır."
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Jewel"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
@@ -3082,6 +3088,10 @@ msgstr "Devralma bekliyor"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
 msgstr ""
 
 #: src/pages/Shell.tsx

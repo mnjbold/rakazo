@@ -106,6 +106,7 @@ msgstr "{botName} का कंप्यूटर"
 #: src/pages/CallView.tsx
 msgid "{botName}'s screen"
 msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} आरक्षित है और कमांड वेरिएबल के रूप में इस्तेमाल नहीं हो सकता। दूसरा नाम चुनें।"
@@ -2240,6 +2241,7 @@ msgid "Extra high"
 msgstr "अतिरिक्त उच्च"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "असफल"
 
@@ -2576,6 +2578,10 @@ msgstr ""
 #: src/pages/shell/dialogs.tsx
 msgid "Its conversation, files, and routines will be permanently deleted. Bots it created stay in your list."
 msgstr "इसकी बातचीत, फ़ाइलें और रूटीन स्थायी रूप से डिलीट कर दिए जाएंगे। इसके बनाए बॉट आपकी सूची में बने रहेंगे।"
+
+#: src/pages/AccountSettingsOverlay.tsx
+msgid "Jewel"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Jump to latest"
@@ -3082,6 +3088,10 @@ msgstr "नियंत्रण लेना ज़रूरी"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
 msgstr ""
 
 #: src/pages/Shell.tsx

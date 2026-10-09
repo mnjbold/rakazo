@@ -28,17 +28,17 @@ describe("mobile avatar style cache", () => {
 
     await clearAvatarStyle();
 
-    expect(store.get(AVATAR_STYLE_KEY)).toBe("organic");
-    await expect(loadAvatarStyle()).resolves.toBe("organic");
+    expect(store.get(AVATAR_STYLE_KEY)).toBe("jewel");
+    await expect(loadAvatarStyle()).resolves.toBe("jewel");
   });
 
-  it("defaults to organic and ignores an unknown stored value", async () => {
+  it("defaults to jewel and ignores an unknown stored value", async () => {
     const { AVATAR_STYLE_KEY, getCachedAvatarStyle, loadAvatarStyle } = await import(
       "./avatar-style"
     );
-    expect(getCachedAvatarStyle()).toBe("organic");
+    expect(getCachedAvatarStyle()).toBe("jewel");
     store.set(AVATAR_STYLE_KEY, "pixel");
-    await expect(loadAvatarStyle()).resolves.toBe("organic");
+    await expect(loadAvatarStyle()).resolves.toBe("jewel");
   });
 
   it("starts from the last confirmed style on the next launch", async () => {
@@ -48,7 +48,7 @@ describe("mobile avatar style cache", () => {
 
     vi.resetModules();
     const next = await import("./avatar-style");
-    expect(next.getCachedAvatarStyle()).toBe("organic");
+    expect(next.getCachedAvatarStyle()).toBe("jewel");
     await expect(next.loadAvatarStyle()).resolves.toBe("robot");
     expect(next.getCachedAvatarStyle()).toBe("robot");
   });
@@ -57,7 +57,7 @@ describe("mobile avatar style cache", () => {
     const SecureStore = await import("expo-secure-store");
     const { loadAvatarStyle } = await import("./avatar-style");
     vi.mocked(SecureStore.getItemAsync).mockRejectedValueOnce(new Error("device locked"));
-    await expect(loadAvatarStyle()).resolves.toBe("organic");
+    await expect(loadAvatarStyle()).resolves.toBe("jewel");
   });
 
   it("retries a style whose save failed", async () => {
@@ -80,7 +80,7 @@ describe("mobile avatar style cache", () => {
     await saveAvatarStyle("robot");
     await clearAvatarStyle();
     expect(store.has(AVATAR_STYLE_KEY)).toBe(false);
-    expect(getCachedAvatarStyle()).toBe("organic");
+    expect(getCachedAvatarStyle()).toBe("jewel");
   });
 
   it("discards a late save that finishes after clear", async () => {
@@ -104,7 +104,7 @@ describe("mobile avatar style cache", () => {
     await Promise.all([save, clearing]);
 
     expect(store.has(AVATAR_STYLE_KEY)).toBe(false);
-    expect(getCachedAvatarStyle()).toBe("organic");
+    expect(getCachedAvatarStyle()).toBe("jewel");
   });
 
   it("keeps the newer style when an older save finishes last", async () => {

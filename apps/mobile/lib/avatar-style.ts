@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 /** The last avatar style the server confirmed, so an offline launch starts from it. */
 export const AVATAR_STYLE_KEY = "rakazo.avatar-style";
 /** Shown until the server confirms the account's style. */
-const DEFAULT_AVATAR_STYLE: AvatarStyle = "organic";
+const DEFAULT_AVATAR_STYLE: AvatarStyle = "jewel";
 
 let memoryStyle: AvatarStyle | null = null;
 /** What SecureStore holds. A failed write leaves this unchanged so the same style is retried. */

@@ -152,8 +152,8 @@ export function GeneralSettingsPanels({
         <h3 className="text-[15px] font-medium text-foreground">
           <Trans>Avatars</Trans>
         </h3>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {(["robot", "organic"] as const).map((style) => (
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {(["jewel", "robot", "organic"] as const).map((style) => (
             <Toggle
               key={style}
               variant="outline"
@@ -169,7 +169,15 @@ export function GeneralSettingsPanels({
                 size={32}
                 variant={style}
               />
-              <span>{style === "robot" ? <Trans>Robot</Trans> : <Trans>Organic</Trans>}</span>
+              <span>
+                {style === "jewel" ? (
+                  <Trans>Jewel</Trans>
+                ) : style === "robot" ? (
+                  <Trans>Robot</Trans>
+                ) : (
+                  <Trans>Organic</Trans>
+                )}
+              </span>
             </Toggle>
           ))}
         </div>
