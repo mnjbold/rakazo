@@ -45,9 +45,11 @@ jobs:
           NAME: ${{ matrix.name }}
           DOCKERFILE: ${{ matrix.dockerfile }}
           CONTEXT: ${{ matrix.context }}
+          # Public registry host; GITHUB_SERVER_URL is the runner's internal Forgejo URL here.
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ci.getbijou.xyz' }}
         run: |
           set -euo pipefail
-          registry="${GITHUB_SERVER_URL#https://}"
+          registry="$REGISTRY"
           image="$registry/${GITHUB_REPOSITORY,,}/$NAME"
           tags=("sha-$GITHUB_SHA")
           case "$GITHUB_REF" in
