@@ -1,0 +1,72 @@
+name: publish-server-image
+
+# Forgejo variant of .github/workflows/publish-server-image.yml for https://ci.getbijou.xyz.
+# Differences: amd64 only (no native arm64 runner), images go to the Forgejo container registry
+# (ci.getbijou.xyz/<owner>/<repo>/<name>) instead of GHCR, layer cache lives in the runner's
+# Docker-in-Docker daemon instead of the gha cache, and there are no GitHub attestations.
+# Tags: sha-<full sha> always; edge on main; vX.Y.Z, vX.Y and latest (stable only) on v* tags;
+# br-<branch> on manual dispatches from other branches (e.g. release/jewl-20261009).
+# Prod pulls with RAKAZO_IMAGE=ci.getbijou.xyz/<owner>/<repo>/app RAKAZO_IMAGE_TAG=sha-<sha>|edge.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-server-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and push ${{ matrix.name }} amd64
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: app
+            dockerfile: infra/compose/Dockerfile
+            context: .
+          - name: updater
+            dockerfile: infra/updater/Dockerfile
+            context: .
+          - name: computer
+            dockerfile: infra/sandboxes/computer/Dockerfile
+            context: infra/sandboxes/computer
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Build and push
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          NAME: ${{ matrix.name }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          CONTEXT: ${{ matrix.context }}
+        run: |
+          set -euo pipefail
+          registry="${GITHUB_SERVER_URL#https://}"
+          image="$registry/${GITHUB_REPOSITORY,,}/$NAME"
+          tags=("sha-$GITHUB_SHA")
+          case "$GITHUB_REF" in
+            refs/heads/main) tags+=(edge) ;;
+            refs/tags/v*)
+              version="${GITHUB_REF#refs/tags/}"
+              tags+=("$version" "$(cut -d. -f1,2 <<< "$version")")
+              [[ "$version" == *-* ]] || tags+=(latest) ;;
+            refs/heads/*) tags+=("br-${GITHUB_REF_NAME//\//-}") ;;
+          esac
+          build_args=()
+          [[ "$NAME" == app ]] && build_args+=(--build-arg "GIT_SHA=$GITHUB_SHA")
+          echo "$REGISTRY_TOKEN" | docker login "$registry" -u "$GITHUB_REPOSITORY_OWNER" --password-stdin
+          docker build "${build_args[@]}" -t "$image:${tags[0]}" -f "$DOCKERFILE" "$CONTEXT"
+          for tag in "${tags[@]}"; do
+            docker tag "$image:${tags[0]}" "$image:$tag"
+            docker push "$image:$tag"
+          done
+          {
+            echo "### $NAME"
+            for tag in "${tags[@]}"; do echo "- \`$image:$tag\`"; done
+          } >> "$GITHUB_STEP_SUMMARY"
