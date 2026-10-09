@@ -323,7 +323,7 @@ install_persistence() {
   fi
   cat >"$UNIT_PATH" <<EOF
 [Unit]
-Description=Restrict Rakazo bot-computer egress (rakazo-c* bridges)
+Description=Restrict JEWL bot-computer egress (rakazo-c* bridges)
 After=docker.service
 Wants=docker.service
 

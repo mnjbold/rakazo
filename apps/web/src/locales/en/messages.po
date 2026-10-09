@@ -4675,8 +4675,8 @@ msgid "This space"
 msgstr "This space"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
-msgstr "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
+msgid "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider."
+msgstr "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider."
 
 #: src/pages/Artifacts.tsx
 msgid "This week"

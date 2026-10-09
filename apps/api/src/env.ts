@@ -6,6 +6,7 @@ import {
 } from "@rakazo/adapters";
 import type { OidcConfig } from "@rakazo/auth";
 import {
+  applyJewlEnvAliases,
   resolveAuthSecret,
   resolveEncryptionKey,
   resolveScreenProxySecret,
@@ -122,7 +123,8 @@ export interface AppEnv {
   imageTag: string | undefined;
 }
 
-export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
+export function loadEnv(rawSource: NodeJS.ProcessEnv = process.env): AppEnv {
+  const source = applyJewlEnvAliases({ ...rawSource });
   secretStoreOptionsFromEnv(source);
   const issuer = optional(source.OIDC_ISSUER);
   const clientId = optional(source.OIDC_CLIENT_ID);
