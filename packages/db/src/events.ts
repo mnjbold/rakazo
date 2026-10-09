@@ -1193,6 +1193,8 @@ async function finalizeRunOnce(
         data: { runId: null },
       });
     } else {
+      // A failure is news: the bot list shows it as attention until the thread is opened.
+      await tx.thread.update({ where: { id: input.threadId }, data: { unread: true } });
       const { sourceMessage } = await tx.run.findUniqueOrThrow({
         where: { id: input.runId },
         select: { sourceMessage: { select: { seq: true } } },

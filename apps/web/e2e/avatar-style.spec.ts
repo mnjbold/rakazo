@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { captureScreenshot, completeOnboarding, openUserSettings, signup } from "./helpers";
 
-test("account settings avatar style previews differ for robot and organic", async ({
+test("account settings avatar style previews differ for jewel, robot, and organic", async ({
   page,
 }, testInfo) => {
   const stamp = Date.now();
@@ -13,11 +13,16 @@ test("account settings avatar style previews differ for robot and organic", asyn
 
   const robot = settings.getByTestId("avatar-style-robot");
   const organic = settings.getByTestId("avatar-style-organic");
+  const jewel = settings.getByTestId("avatar-style-jewel");
   await expect(robot).toBeVisible();
   await expect(organic).toBeVisible();
-  // New accounts start with the living (organic) avatar.
-  await expect(organic).toHaveAttribute("aria-pressed", "true");
+  await expect(jewel).toBeVisible();
+  // New accounts start with the jewel character.
+  await expect(jewel).toHaveAttribute("aria-pressed", "true");
+  await expect(organic).toHaveAttribute("aria-pressed", "false");
   await expect(robot).toHaveAttribute("aria-pressed", "false");
+  await expect(jewel.locator(".rakazo-jewel-avatar")).toBeVisible();
+  await expect(robot.locator(".rakazo-jewel-avatar")).toHaveCount(0);
   await expect(robot.locator(".rakazo-bot-avatar")).toBeVisible();
   await expect(organic.locator(".rakazo-organic-avatar")).toBeVisible();
   await expect(robot.locator(".rakazo-organic-avatar")).toHaveCount(0);

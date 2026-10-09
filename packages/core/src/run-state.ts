@@ -7,6 +7,14 @@ export const ACTIVE_RUN_STATUSES = [
   "waiting_input",
   "waiting_takeover",
 ] as const satisfies readonly RunStatus[];
+/**
+ * Active runs that wait on the person rather than the bot. Scheduling still treats them as
+ * active (ACTIVE_RUN_STATUSES); display uses this to show "needs you" instead of "working".
+ */
+export const WAITING_RUN_STATUSES = [
+  "waiting_input",
+  "waiting_takeover",
+] as const satisfies readonly RunStatus[];
 const TERMINAL: RunStatus[] = ["completed", "failed", "cancelled"];
 /**
  * These turns carry their own prompt and must not take a user message as steering.
@@ -38,6 +46,17 @@ export function assertTransition(from: RunStatus, to: RunStatus): void {
 
 export function isActive(status: RunStatus): boolean {
   return (ACTIVE_RUN_STATUSES as readonly RunStatus[]).includes(status);
+}
+
+export function isWaitingRunStatus(status: string | null | undefined): boolean {
+  return (WAITING_RUN_STATUSES as readonly string[]).includes(status ?? "");
+}
+
+/** Active and the bot, not the person, holds the turn. */
+export function isBotWorkingRunStatus(status: string | null | undefined): boolean {
+  return (
+    (ACTIVE_RUN_STATUSES as readonly string[]).includes(status ?? "") && !isWaitingRunStatus(status)
+  );
 }
 
 export function isTerminal(status: RunStatus): boolean {

@@ -1,8 +1,8 @@
-import type { GrokColorDef } from "@rakazo/core";
+import type { BotAttention, BotMood, GrokColorDef } from "@rakazo/core";
 import {
-  ACTIVE_RUN_STATUSES,
   avatarIdentitySeed,
   DEFAULT_GROK_BOT_COLOR,
+  deriveBotMood,
   GROK_BOT_COLORS,
   GROK_COLOR_LIST,
   JEWL_MARK,
@@ -21,6 +21,7 @@ import type { CSSProperties } from "react";
 import { memo, useId, useMemo, useSyncExternalStore } from "react";
 import type { AvatarStyle } from "./avatar-style.js";
 import { useAvatarStyle } from "./avatar-style.js";
+import { JewelAvatar } from "./jewel-avatar.js";
 import { cn } from "./lib/utils.js";
 import "./styles.css";
 
@@ -92,6 +93,14 @@ export interface BotAvatarProps {
   color: string;
   size?: number;
   status?: string;
+  /** Server-derived attention for bots whose thread is not open. */
+  attention?: BotAttention | null;
+  /** Live mood from the open thread; derived from `status` and `attention` when omitted. */
+  mood?: BotMood;
+  onComputer?: boolean;
+  computerOpen?: boolean;
+  /** Pointer reactions on the jewel (header avatar). */
+  interactive?: boolean;
   identity?: string;
   className?: string;
   variant?: AvatarStyle;
@@ -101,12 +110,21 @@ export const BotAvatar = memo(function BotAvatar({
   color,
   size = 36,
   status,
+  attention,
+  mood: liveMood,
+  onComputer,
+  computerOpen,
+  interactive,
   identity = "",
   className,
   variant,
 }: BotAvatarProps) {
   const id = useId().replace(/[^a-zA-Z0-9-_]/g, "");
-  const isWorking = ACTIVE_RUN_STATUSES.some((s) => s === status);
+  const derived = deriveBotMood({ runStatus: status, attention, now: 0 });
+  const mood = liveMood ?? derived.mood;
+  // Waiting on the person is not work: those runs show the attention badge instead.
+  const isWorking = mood === "working" || mood === "thinking" || mood === "trying_hard";
+  const badge = mood === "needs_you" || mood === "error" ? mood : null;
   const preferredVariant = useAvatarStyle();
 
   const parsed = useMemo(() => parseBotAvatar(color, identity), [color, identity]);
@@ -132,6 +150,7 @@ export const BotAvatar = memo(function BotAvatar({
           className,
         )}
         data-working={isWorking}
+        data-attention={badge ?? undefined}
         style={{
           width: size,
           height: size,
@@ -158,7 +177,23 @@ export const BotAvatar = memo(function BotAvatar({
           </svg>
         ) : null}
         <img src={parsed.imageUrl} alt="" className="h-full w-full object-cover" />
+        <AttentionBadge attention={badge} size={size} />
       </div>
+    );
+  }
+
+  if (parsed.shapeIndex === undefined && (variant ?? preferredVariant) === "jewel") {
+    return (
+      <JewelAvatar
+        colorDef={colorDef}
+        identity={effectiveId}
+        size={size}
+        mood={mood}
+        onComputer={onComputer ?? derived.onComputer}
+        computerOpen={computerOpen}
+        interactive={interactive}
+        className={className}
+      />
     );
   }
 
@@ -169,6 +204,7 @@ export const BotAvatar = memo(function BotAvatar({
         identity={effectiveId}
         size={size}
         isWorking={isWorking}
+        attention={badge}
         className={className}
       />
     );
@@ -180,6 +216,7 @@ export const BotAvatar = memo(function BotAvatar({
         colorDef={colorDef}
         size={size}
         isWorking={isWorking}
+        attention={badge}
         className={className}
         identity={effectiveId}
         gradientId={id}
@@ -198,6 +235,7 @@ export const BotAvatar = memo(function BotAvatar({
         height: size,
       }}
       data-working={isWorking}
+      data-attention={badge ?? undefined}
     >
       <svg
         className="rakazo-bot-avatar-ring absolute pointer-events-none"
@@ -261,9 +299,27 @@ export const BotAvatar = memo(function BotAvatar({
           </g>
         </g>
       </svg>
+      <AttentionBadge attention={badge} size={size} />
     </div>
   );
 });
+
+/** One dot for needs-you or error; the row label names the state for assistive tech. */
+function AttentionBadge({ attention, size }: { attention: BotAttention | null; size: number }) {
+  if (!attention) return null;
+  const dot = Math.max(7, Math.round(size * 0.26));
+  return (
+    <span
+      aria-hidden="true"
+      data-attention-badge={attention}
+      className={cn(
+        "pointer-events-none absolute end-0 top-0 z-20 rounded-full border-2 border-background",
+        attention === "error" ? "bg-destructive" : "bg-warning",
+      )}
+      style={{ width: dot, height: dot }}
+    />
+  );
+}
 
 const VISOR_BORDER_PX = 1;
 
@@ -288,6 +344,7 @@ function RobotAvatar({
   colorDef,
   size,
   isWorking,
+  attention,
   className,
   identity,
   gradientId,
@@ -295,6 +352,7 @@ function RobotAvatar({
   colorDef: GrokColorDef;
   size: number;
   isWorking: boolean;
+  attention: BotAttention | null;
   className?: string;
   identity: string;
   gradientId: string;
@@ -325,6 +383,7 @@ function RobotAvatar({
         className,
       )}
       data-working={isWorking}
+      data-attention={attention ?? undefined}
       style={{
         width: size,
         height: size,
@@ -402,6 +461,7 @@ function RobotAvatar({
           </div>
         ))}
       </div>
+      <AttentionBadge attention={attention} size={size} />
     </div>
   );
 }
@@ -411,12 +471,14 @@ function OrganicAvatar({
   identity,
   size,
   isWorking,
+  attention,
   className,
 }: {
   color: string;
   identity?: string;
   size: number;
   isWorking: boolean;
+  attention: BotAttention | null;
   className?: string;
 }) {
   const reducedMotion = useSyncExternalStore(
@@ -429,7 +491,7 @@ function OrganicAvatar({
   const shapeA = organicAvatarPath(seed);
   const shapeB = organicAvatarPath(seed, 0.42);
 
-  return (
+  const picture = (
     <svg
       viewBox="-60 -60 120 120"
       aria-hidden="true"
@@ -484,6 +546,13 @@ function OrganicAvatar({
         </g>
       </g>
     </svg>
+  );
+  if (!attention) return picture;
+  return (
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+      {picture}
+      <AttentionBadge attention={attention} size={size} />
+    </span>
   );
 }
 

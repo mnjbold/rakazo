@@ -12,7 +12,7 @@ import { type ComputerMode, ensureComputerRecord, parseComputerMode } from "./co
 import { createThreadMessageInTransaction } from "./messages.js";
 import { BotSectionNameConflictError, IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
-import { activeRunSelection, previewFromBlocks } from "./thread-listing.js";
+import { activeRunSelection, listBotAttention, previewFromBlocks } from "./thread-listing.js";
 import { withTransactionRetry } from "./transaction-retry.js";
 
 /** Newest messages loaded for sidebar preview; enough to skip a short peer-run tail. */
@@ -141,6 +141,7 @@ export function createRepos(prisma: PrismaClient) {
         parentBotId: true,
         thread: {
           select: {
+            id: true,
             unread: true,
             messages: {
               orderBy: { seq: "desc" },
@@ -153,6 +154,7 @@ export function createRepos(prisma: PrismaClient) {
       },
       orderBy: [{ pinned: "desc" }, { position: "asc" }, { createdAt: "asc" }],
     });
+    const attention = await listBotAttention(prisma, bots);
     return bots.map((bot) => {
       if (!bot.thread) throw new IsolationError("Bot is missing its thread");
       return {
@@ -168,6 +170,7 @@ export function createRepos(prisma: PrismaClient) {
         parentBotId: bot.parentBotId,
         preview: previewFromBlocks(bot.thread.messages[0]?.blocks),
         status: bot.runs[0]?.status ?? "idle",
+        attention: attention.get(bot.id) ?? null,
         updatedAt: bot.updatedAt.toISOString(),
       };
     });
@@ -319,6 +322,7 @@ export function createRepos(prisma: PrismaClient) {
       const peerRunIds = new Set(peerRuns.map((run) => run.id));
       // Cache negative results too; ordinary runs were already checked in the batch above.
       const checkedRunIds = new Set(candidateRunIds);
+      const attention = await listBotAttention(prisma, bots);
       return Promise.all(
         bots.map(async (bot) => {
           const sessionStartSeq = bot.thread?.sessionStartSeq ?? 0;
@@ -361,7 +365,10 @@ export function createRepos(prisma: PrismaClient) {
             });
             if (messages.length === 0) break;
           }
-          return mapBot(bot, preview, bot.runs[0]?.status ?? "idle");
+          return {
+            ...mapBot(bot, preview, bot.runs[0]?.status ?? "idle"),
+            attention: attention.get(bot.id) ?? null,
+          };
         }),
       );
     },

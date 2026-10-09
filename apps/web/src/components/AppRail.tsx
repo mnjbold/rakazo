@@ -1,4 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
+import type { BotAttention } from "@rakazo/contracts";
 import { BotAvatar, Tooltip, TooltipContent, TooltipTrigger } from "@rakazo/ui-web";
 import { Bot, Code2 } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
@@ -47,6 +48,8 @@ export function RailBot({
   name,
   color,
   status,
+  attention,
+  attentionLabel,
   unread,
   selected,
   onSelect,
@@ -56,6 +59,9 @@ export function RailBot({
   name: string;
   color: string;
   status?: string;
+  attention?: BotAttention | null;
+  /** Spoken state, e.g. "needs you"; the badge shows it visually. */
+  attentionLabel?: string | null;
   unread?: boolean;
   selected: boolean;
   onSelect: () => void;
@@ -65,7 +71,7 @@ export function RailBot({
     <Tooltip>
       <TooltipTrigger
         data-rail-bot-id={id}
-        aria-label={name}
+        aria-label={attentionLabel ? `${name}, ${attentionLabel}` : name}
         aria-current={selected ? "page" : undefined}
         onClick={onSelect}
         onContextMenu={onContextMenu}
@@ -73,8 +79,8 @@ export function RailBot({
           selected ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60"
         }`}
       >
-        <BotAvatar color={color} identity={id} size={30} status={status} />
-        {unread ? (
+        <BotAvatar color={color} identity={id} size={30} status={status} attention={attention} />
+        {unread && !attention ? (
           <span
             aria-hidden="true"
             className="absolute end-0.5 top-0.5 size-2.5 rounded-full border-2 border-sidebar bg-foreground"

@@ -23,7 +23,7 @@ test("bot settings open Avatar Studio on the Bot tab", async ({ page }, testInfo
   await expect(studio.getByText("Shape", { exact: true })).toBeVisible();
   await expect(studio.getByText("Color", { exact: true })).toBeVisible();
 
-  // New accounts default to the organic style, so the default look is the organic avatar.
+  // New accounts default to the jewel style, so the default look is the jewel character.
   const defaultLook = studio.getByTestId("avatar-studio-default");
   const wedge = studio.getByRole("button", { name: "wedge", exact: true });
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
@@ -32,13 +32,13 @@ test("bot settings open Avatar Studio on the Bot tab", async ({ page }, testInfo
   await wedge.click();
   await expect(wedge).toHaveAttribute("aria-pressed", "true");
   await expect(defaultLook).toHaveAttribute("aria-pressed", "false");
-  await expect(studio.locator(".rakazo-organic-avatar")).toHaveCount(0);
+  await expect(studio.locator(".rakazo-jewel-avatar")).toHaveCount(0);
 
   await defaultLook.click();
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
   await expect(wedge).toHaveAttribute("aria-pressed", "false");
-  await expect(studio.locator(".rakazo-organic-avatar")).toHaveCount(1);
-  await expect(studio.locator(".rakazo-organic-avatar-eyes").first()).toBeVisible();
+  await expect(studio.locator(".rakazo-jewel-avatar")).toHaveCount(1);
+  await expect(studio.locator(".rakazo-jewel-eyes").first()).toBeVisible();
 
   await studio.getByRole("button", { name: "Color #EAB308" }).click();
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
@@ -48,7 +48,7 @@ test("bot settings open Avatar Studio on the Bot tab", async ({ page }, testInfo
   await studio.getByRole("button", { name: "Reset", exact: true }).click();
   await expect(defaultLook).toHaveAttribute("aria-pressed", "true");
   await expect(wedge).toHaveAttribute("aria-pressed", "false");
-  await expect(studio.locator(".rakazo-organic-avatar")).toHaveCount(1);
+  await expect(studio.locator(".rakazo-jewel-avatar")).toHaveCount(1);
 
   await captureScreenshot(page, testInfo, "avatar-studio-bot-tab");
 });

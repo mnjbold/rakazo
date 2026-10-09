@@ -541,3 +541,437 @@
     transition: none;
   }
 }
+
+/* Jewel characters: poses and keyframes animate transform and opacity only. */
+.rakazo-jewel-avatar :is(g, circle, path, polygon, rect, text) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.rakazo-jewel-svg {
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rakazo-jewel-avatar:is([data-mood="working"], [data-mood="trying_hard"]) .rakazo-jewel-svg {
+  transform: scale(0.78);
+}
+
+.rakazo-jewel-avatar[data-mood="needs_you"] .rakazo-jewel-svg {
+  transform: scale(0.82);
+}
+
+.rakazo-jewel-ring {
+  animation: rakazo-avatar-spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.rakazo-jewel-pulse {
+  animation: rakazo-jewel-pulse 2s ease-in-out infinite;
+}
+
+.rakazo-jewel-eyes-open {
+  animation: rakazo-jewel-blink var(--jewel-blink) linear var(--jewel-delay) infinite;
+}
+
+.rakazo-jewel-avatar[data-double-blink="true"] .rakazo-jewel-eyes-open {
+  animation-name: rakazo-jewel-double-blink;
+}
+
+.rakazo-jewel-glint {
+  opacity: 0;
+  animation: rakazo-jewel-glint var(--jewel-glint) ease-in-out var(--jewel-delay) infinite;
+}
+
+.rakazo-jewel-gaze {
+  transform: translate(var(--jewel-gx, 0), var(--jewel-gy, 0));
+  transition: transform 120ms ease-out;
+}
+
+.rakazo-jewel-avatar[data-mood="idle"] .rakazo-jewel-face {
+  animation: rakazo-jewel-drift calc(var(--jewel-glint) * 2.6) ease-in-out var(--jewel-delay)
+    infinite;
+}
+
+.rakazo-jewel-avatar[data-mood="thinking"] .rakazo-jewel-gem {
+  transform: rotate(-6deg);
+}
+
+.rakazo-jewel-avatar[data-mood="thinking"] .rakazo-jewel-face {
+  transform: translate(2.5px, -3px);
+}
+
+.rakazo-jewel-avatar[data-mood="thinking"] .rakazo-jewel-facets {
+  animation: rakazo-jewel-shimmer 2.6s ease-in-out infinite;
+}
+
+.rakazo-jewel-avatar[data-mood="working"] .rakazo-jewel-face {
+  animation: rakazo-jewel-scan 1.4s ease-in-out infinite alternate;
+}
+
+.rakazo-jewel-avatar[data-mood="needs_you"] .rakazo-jewel-face {
+  transform: translateY(-3px);
+}
+
+.rakazo-jewel-avatar[data-mood="listening"] .rakazo-jewel-gem {
+  transform: translateY(2px) rotate(3deg);
+}
+
+.rakazo-jewel-avatar[data-mood="trying_hard"] .rakazo-jewel-gem {
+  animation: rakazo-jewel-effort 1s ease-in-out infinite;
+}
+
+.rakazo-jewel-sweat {
+  animation: rakazo-jewel-sweat 1.6s ease-in infinite;
+}
+
+.rakazo-jewel-avatar[data-mood="happy"] .rakazo-jewel-gem {
+  animation: rakazo-jewel-pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.rakazo-jewel-sparkles path {
+  opacity: 0;
+  animation: rakazo-jewel-sparkle 900ms ease-out both;
+}
+
+.rakazo-jewel-sparkles path:nth-child(2n) {
+  animation-delay: 120ms;
+}
+
+.rakazo-jewel-avatar[data-mood="error"] .rakazo-jewel-gem {
+  opacity: 0.72;
+}
+
+.rakazo-jewel-eyes-x {
+  animation: rakazo-jewel-fade-out 1.4s step-end both;
+}
+
+.rakazo-jewel-eyes-sorry {
+  transform: translateY(2px);
+  animation: rakazo-jewel-fade-in 1.4s step-end both;
+}
+
+.rakazo-jewel-avatar[data-mood="sleeping"] .rakazo-jewel-gem {
+  animation: rakazo-jewel-breathe 5s ease-in-out infinite;
+}
+
+.rakazo-jewel-z {
+  animation: rakazo-jewel-z 5s ease-in-out infinite;
+}
+
+.rakazo-jewel-avatar[data-hop="true"] .rakazo-jewel-hop {
+  animation: rakazo-jewel-hop 400ms cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+
+.rakazo-jewel-avatar[data-hop="true"] .rakazo-jewel-monitor {
+  opacity: 0;
+}
+
+.rakazo-jewel-avatar[data-interactive="true"] {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.rakazo-jewel-avatar[data-interactive="true"]:hover .rakazo-jewel-eyes-open {
+  scale: 1.1;
+}
+
+.rakazo-jewel-avatar[data-interactive="true"]:hover .rakazo-jewel-glint {
+  animation-duration: 1.2s;
+}
+
+.rakazo-jewel-avatar[data-pet="squish"] .rakazo-jewel-pet {
+  animation: rakazo-jewel-squish 320ms ease-out;
+}
+
+.rakazo-jewel-avatar[data-pet="spin"] .rakazo-jewel-pet {
+  animation: rakazo-jewel-spin 760ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.rakazo-jewel-avatar[data-pet="spin"] .rakazo-jewel-glint {
+  animation: rakazo-jewel-sparkle 760ms ease-out;
+}
+
+.rakazo-jewel-avatar[data-pet="dizzy"] .rakazo-jewel-face {
+  animation: rakazo-jewel-dizzy 1s ease-in-out;
+}
+
+.rakazo-jewel-avatar[data-pet="wobble"] .rakazo-jewel-pet {
+  animation: rakazo-jewel-wobble 520ms ease-in-out infinite;
+}
+
+.rakazo-jewel-avatar[data-pet="bounce"] .rakazo-jewel-pet {
+  animation: rakazo-jewel-bounce 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.rakazo-jewel-avatar[data-pet="ack"] .rakazo-jewel-eyes {
+  animation: rakazo-jewel-ack 260ms ease-in-out;
+}
+
+.rakazo-jewel-avatar[data-offscreen="true"],
+.rakazo-jewel-avatar[data-offscreen="true"] * {
+  animation-play-state: paused;
+}
+
+@keyframes rakazo-jewel-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes rakazo-jewel-double-blink {
+  0%,
+  88%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  90.5%,
+  95.5% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes rakazo-jewel-glint {
+  0%,
+  78%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  86% {
+    opacity: 0.95;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes rakazo-jewel-drift {
+  0%,
+  42%,
+  100% {
+    transform: translate(0, 0);
+  }
+  48%,
+  62% {
+    transform: translate(2.5px, -1px);
+  }
+  68%,
+  80% {
+    transform: translate(-2px, 0.5px);
+  }
+}
+
+@keyframes rakazo-jewel-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes rakazo-jewel-scan {
+  from {
+    transform: translateX(-3px);
+  }
+  to {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes rakazo-jewel-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes rakazo-jewel-effort {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.05, 0.94);
+  }
+}
+
+@keyframes rakazo-jewel-sweat {
+  0% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes rakazo-jewel-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes rakazo-jewel-sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes rakazo-jewel-fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes rakazo-jewel-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes rakazo-jewel-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes rakazo-jewel-z {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translate(0, 2px);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate(2px, -3px);
+  }
+}
+
+@keyframes rakazo-jewel-hop {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(5px, -12px);
+  }
+  100% {
+    transform: translate(9px, 0);
+  }
+}
+
+@keyframes rakazo-jewel-squish {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.92);
+  }
+  70% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes rakazo-jewel-spin {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(200deg) scale(1.08);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes rakazo-jewel-dizzy {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(720deg);
+  }
+}
+
+@keyframes rakazo-jewel-wobble {
+  0%,
+  100% {
+    transform: rotate(-7deg) scale(1.04);
+  }
+  50% {
+    transform: rotate(7deg) scale(1.04);
+  }
+}
+
+@keyframes rakazo-jewel-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes rakazo-jewel-ack {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rakazo-jewel-avatar,
+  .rakazo-jewel-avatar * {
+    animation: none !important;
+    transition: opacity 150ms linear !important;
+  }
+
+  .rakazo-jewel-eyes-x {
+    opacity: 0;
+  }
+
+  .rakazo-jewel-avatar[data-hop="true"] .rakazo-jewel-monitor {
+    opacity: 1;
+  }
+}
