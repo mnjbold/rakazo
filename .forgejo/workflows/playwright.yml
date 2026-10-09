@@ -85,7 +85,9 @@ jobs:
           E2B_API_KEY: ${{ inputs.sandbox_provider == 'e2b' && secrets.E2B_API_KEY || '' }}
           DAYTONA_API_KEY: ${{ inputs.sandbox_provider == 'daytona' && secrets.DAYTONA_API_KEY || '' }}
           BOX_API_KEY: ${{ inputs.sandbox_provider == 'box' && secrets.BOX_API_KEY || '' }}
-        run: pnpm test:e2e -- --sandbox="$SANDBOX_TEST_PROVIDER"
+        # Forgejo: Playwright defaults to half of the 12 host CPUs Node sees (6 workers), but the runner is capped
+        # at 6 CPUs shared with the API and web servers; GitHub ubuntu-latest (4 vCPU) runs 2.
+        run: pnpm test:e2e -- --sandbox="$SANDBOX_TEST_PROVIDER" --spec=--workers=3
       # Homepage screenshots only: no copy or layout assertions.
       # Runs after product e2e so shared apps/web/test-results is not wiped by the product run.
       - name: Capture marketing homepage screenshots
