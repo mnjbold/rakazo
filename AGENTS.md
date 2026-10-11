@@ -1,5 +1,21 @@
 # AGENTS.md
 
+<!-- langfuse-onboarding:start -->
+## 🚨 FIRST TASK EVERY SESSION: Langfuse observability check
+
+Do this **before any other work**. Details: `docs/observability/LANGFUSE.md`.
+
+1. **Env** — `.env` must have `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`.
+   Missing → run `python %USERPROFILE%\.langfuse-onboarding\fetch_secrets.py .` (never print, paste or commit the values).
+2. **Smoke test** — `python observability/langfuse_smoke.py` → must end with `PASS` (one real LLM call via the gateway + one custom span + one score, read back from the Langfuse API).
+3. **Confirm the trace** — open the printed `View:` link (Langfuse project `rakazo`, tag `repo:rakazo`) or quote the API read-back line.
+4. **Report** PASS/FAIL to the user with those output lines as evidence, then **wait for the user's OK**. Do not start other work while `.langfuse-onboarding.json` is `pending` or the test fails.
+5. **Only after the user confirms**: set `.langfuse-onboarding.json` → `"status": "verified"`, `"verified_at": "<ISO-8601 time>"`, commit it on `chore/langfuse-observability`, ask whether to merge that branch into `main`, then continue the dev work.
+
+Once `verified`: still run step 2 at session start and report the one-line result; stop and ask only if it fails.
+When you touch LLM code, route it through `observability/langfuse.mjs` (traces, `session_id`, `user_id`, `tags`, scores) and log lessons in `docs/observability/LESSONS.md`.
+<!-- langfuse-onboarding:end -->
+
 - This is a public repository: assume all tracked content and diffs are public. Never commit secrets, `.env` files, private URLs, personal/customer data, or real production data; use fake placeholders. Review `git status` and the staged diff before committing, and never force-add ignored files. If private data appears, stop and alert the maintainer.
 - JEWL is one product across web, Electron desktop, and Expo mobile; Electron hosts the web UI. Put shared behavior, contracts, API logic, and reusable UI in packages. Keep only genuinely native navigation, storage, permissions, and interactions platform-specific. Core workflows must cover every applicable surface or degrade safely for an explicit reason.
 - No hosted vendor is required to run the core product. Keep LLMs, sandboxes, memory, voice, integrations, and future external services optional and behind provider-neutral interfaces. Vendor SDKs, configuration, and translation belong only in adapters and composition roots. New providers must reuse shared contracts and deterministic offline conformance tests.

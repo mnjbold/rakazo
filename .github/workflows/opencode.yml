@@ -1,0 +1,39 @@
+name: opencode
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned, labeled]
+
+jobs:
+  opencode:
+    if: |
+      github.event_name == 'issues' ||
+      contains(github.event.comment.body, '/opencode') ||
+      contains(github.event.comment.body, '/oc')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run OpenCode
+        uses: anomalyco/opencode/github@latest
+        env:
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Verified 2026-10-12 via GET /v1/models: MiniMax-M3 is live.
+          model: minimax/MiniMax-M3
+          use_github_token: true
+          prompt: |
+            Triggered from a GitHub issue event (opened, assigned, or labeled).
+            Read the full issue thread, explore the repo, and if there is a
+            clear fix or implementation, create a branch, implement it, and
+            open a PR. Otherwise reply on the issue explaining your findings.
