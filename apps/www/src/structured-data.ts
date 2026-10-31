@@ -28,7 +28,7 @@ export function homeStructuredData(input: HomeStructuredDataInput) {
         name: SITE_NAME,
         legalName: LEGAL_NAME,
         url: `${SITE_URL}/`,
-        logo: `${SITE_URL}/brand/rakazo-mark.svg`,
+        logo: `${SITE_URL}/brand/rakazo-mark.png`,
         email: "hello@rakazo.com",
         contactPoint: {
           "@type": "ContactPoint",
@@ -74,7 +74,7 @@ export function homeStructuredData(input: HomeStructuredDataInput) {
         description: input.siteDescription,
         applicationCategory: "BusinessApplication",
         applicationSubCategory: "AI agent platform",
-        operatingSystem: "Web, macOS, Linux, iOS, Android",
+        operatingSystem: "Web, macOS, Windows, Linux, iOS, Android",
         isAccessibleForFree: true,
         codeRepository: GITHUB_URL,
         license: `${GITHUB_URL}/blob/main/LICENSE`,

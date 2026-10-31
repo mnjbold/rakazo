@@ -1,5 +1,11 @@
+/** Default for deployments and clients connected to older servers. */
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const ATTACHMENT_MAX_COUNT = 4;
+/** Hard ceiling for the configurable per-message limit. */
+export const ATTACHMENT_COUNT_CEILING = 100;
+/** Shared photo preparation policy for web and mobile composers. */
+export const ATTACHMENT_IMAGE_MAX_EDGE = 1_600;
+export const ATTACHMENT_IMAGE_QUALITY = 0.7;
 export const ARTIFACT_NAME_MAX_LENGTH = 255;
 export const ARTIFACT_DESCRIPTION_MAX_LENGTH = 280;
 /** Base64 expands payload by 4/3; cap before decode to reject oversize uploads cheaply. */
@@ -12,13 +18,25 @@ export const ATTACHMENT_IMAGE_MIME_TYPES = [
   "image/gif",
 ] as const;
 
+export const ATTACHMENT_AUDIO_MIME_TYPES = [
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/mp4",
+] as const;
+
 export const ATTACHMENT_FILE_MIME_TYPES = [
+  ...ATTACHMENT_AUDIO_MIME_TYPES,
+  "video/mp4",
   "application/pdf",
   "text/plain",
   "text/markdown",
   "text/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "text/html",
   "application/json",
+  "application/zip",
 ] as const;
 
 export const ATTACHMENT_ALLOWED_MIME_TYPES = [
@@ -32,6 +50,10 @@ export function isAttachmentImageMimeType(mimeType: string): boolean {
   return (ATTACHMENT_IMAGE_MIME_TYPES as readonly string[]).includes(mimeType);
 }
 
+export function isAttachmentAudioMimeType(mimeType: string): boolean {
+  return (ATTACHMENT_AUDIO_MIME_TYPES as readonly string[]).includes(mimeType);
+}
+
 export function isAllowedAttachmentMimeType(mimeType: string): mimeType is AttachmentMimeType {
   return (ATTACHMENT_ALLOWED_MIME_TYPES as readonly string[]).includes(mimeType);
 }
@@ -43,4 +65,18 @@ export function validateThreadsSendInput(input: {
   const text = input.text?.trim() ?? "";
   const artifactIds = input.artifactIds ?? [];
   return Boolean(text || artifactIds.length);
+}
+
+/** Effective per-file upload limit advertised in me/bootstrap. */
+export function attachmentMaxBytes(config?: { maxUploadSizeBytes?: number } | null): number {
+  return config?.maxUploadSizeBytes ?? ATTACHMENT_MAX_BYTES;
+}
+
+export function attachmentSizeLabel(maxBytes: number): string {
+  return `${maxBytes / (1024 * 1024)} MiB`;
+}
+
+/** Effective per-message limit, including the fallback for older servers. */
+export function attachmentMaxCount(config?: { maxAttachmentsPerMessage?: number } | null): number {
+  return config?.maxAttachmentsPerMessage ?? ATTACHMENT_MAX_COUNT;
 }

@@ -26,6 +26,7 @@ const TECHNICAL_MESSAGE = [
   /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/, // bare internal codes
   /\d+ bytes\b/,
   /unexpected token|is not a function|cannot read propert|undefined is not|null is not an object|json parse error/i,
+  /^input validation failed\b/i, // oRPC's generic schema-rejection banner names no field
 ];
 
 /** True when a thrown value means the server could not be reached at all. */
@@ -40,6 +41,46 @@ export function isNetworkFailure(error: unknown): boolean {
   return false;
 }
 
+/** True when the client itself gave up on a request: a timeout or a cancellation. */
+export function isAbandonedRequest(error: unknown): boolean {
+  let current = error;
+  for (let depth = 0; typeof current === "object" && current !== null && depth < 4; depth += 1) {
+    const { name } = current as { name?: unknown };
+    if (name === "TimeoutError" || name === "AbortError") return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+/**
+ * True when a request never got a response because of the connection (offline, DNS, a dropped
+ * connection) or because the client timed out or cancelled it: the user's network, not a bug.
+ */
+export function isConnectionFailure(error: unknown): boolean {
+  return isNetworkFailure(error) || isAbandonedRequest(error);
+}
+
+/** True for the gateway answers a proxy gives while the server is down or restarting. */
+export function isUnreachableStatus(status: number): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+/**
+ * True when a request may never have reached the server (no connection, a timeout, or a gateway
+ * error), so sending it again later is safe and right; false when the server answered.
+ */
+export function isServerUnreachable(error: unknown): boolean {
+  if (isNetworkFailure(error)) return true;
+  let current = error;
+  for (let depth = 0; current instanceof Error && depth < 4; depth += 1) {
+    if (current.name === "TimeoutError") return true;
+    const status = (current as { status?: unknown }).status;
+    if (typeof status === "number" && isUnreachableStatus(status)) return true;
+    current = current.cause;
+  }
+  return false;
+}
+
 export function isTechnicalErrorMessage(message: string): boolean {
   return TECHNICAL_MESSAGE.some((pattern) => pattern.test(message));
 }
@@ -49,7 +90,7 @@ export function isTechnicalErrorMessage(message: string): boolean {
  * through; transport failures and implementation detail become the caller's copy.
  */
 export function userErrorMessage(error: unknown, copy: UserErrorCopy): string {
-  if (isNetworkFailure(error)) return copy.offline;
+  if (isServerUnreachable(error)) return copy.offline;
   const message = (
     error instanceof Error ? error.message : typeof error === "string" ? error : ""
   ).trim();

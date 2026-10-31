@@ -11,6 +11,7 @@ import { NO_RESPONSE } from "./silent-reply.js";
 vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./computer-lifecycle.js")>()),
   acquireComputerExecutionLease: async () => null,
+  acquireDedicatedScreenLeaseFence: async () => null,
   provisionComputer: async () => ({ id: "computer-1", kind: "desktop" }),
 }));
 
@@ -56,8 +57,15 @@ async function runOnce({
       })),
       findMany: vi.fn(async () => []),
     },
+    spaceSettingOverride: { findUnique: vi.fn(async () => null) },
+    userModelPreference: { findFirst: vi.fn(async () => null) },
+    userModelRoleChoice: { findMany: vi.fn(async () => []) },
+    secret: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
+    vaultCredential: { findMany: vi.fn(async () => []) },
+    artifact: { findMany: vi.fn(async () => []) },
     attempt: {
       create: vi.fn(async () => ({ id: "attempt-1" })),
+      findMany: vi.fn(async () => []),
       update: vi.fn(),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },

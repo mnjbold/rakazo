@@ -1,11 +1,19 @@
 import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Routine } from "@rakazo/contracts";
-import type { CronFreq, CronPreset, WatchPreset, WatchPresetId } from "@rakazo/core";
+import type {
+  ModelCatalogEntry,
+  ModelCredential,
+  Routine,
+  RoutineWatch,
+  RoutineWatchInput,
+} from "@rakazo/contracts";
+import { ROUTINE_WATCH_DEFAULT_MINUTES, ROUTINE_WATCH_MIN_MINUTES } from "@rakazo/contracts";
+import type { CronFreq, CronLabels, CronPreset } from "@rakazo/core";
 import {
-  availableWatchPresets,
+  credentialForModel,
   cronFromPreset,
   defaultCronPreset,
+  ENGLISH_CRON_LABELS,
   formatCron,
   isOneShotRoutineCrons,
   presetFromCron,
@@ -20,10 +28,35 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Input,
+  NativeSelect,
+  NativeSelectOption,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Switch,
   Textarea,
 } from "@rakazo/ui-web";
-import { ChevronLeft, Clock, GitBranch, Globe, MessageSquare, Pause, Plus, X } from "lucide-react";
-import { useId } from "react";
+import {
+  ChevronLeft,
+  Clock,
+  Eye,
+  GitBranch,
+  Globe,
+  MessageSquare,
+  Pause,
+  Plus,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { cronLabels } from "../lib/cron";
+import {
+  connectedModelOptions,
+  modelOptionKey,
+  parseModelOptionKey,
+  thinkingLevelLabel,
+} from "../lib/model-catalog";
+import { rpc } from "../lib/rpc";
 import { RoutineRunHistory } from "./RoutineRunHistory";
 import { RoutineSchedule } from "./RoutineSchedule";
 
@@ -68,9 +101,92 @@ export type RoutineDraftState = {
   githubEnabled: boolean;
   messageProvider: string | null;
   active: boolean;
-  watch: boolean;
   runAtLocal: string;
+  /** Empty runs this routine on the bot's model. */
+  modelKey: string;
+  thinkingLevel: string;
+  /** Null unless the routine starts when something changes. */
+  watch: RoutineWatchDraft | null;
 };
+
+/** The change trigger as the editor holds it: free text until saved. */
+export type RoutineWatchDraft = {
+  kind: RoutineWatch["kind"];
+  /** One path per line. */
+  paths: string;
+  command: string;
+  tool: string;
+  /** JSON object of arguments for the tool. */
+  args: string;
+  /** Comma-separated field names; see RoutineWatch.track. */
+  track: string;
+  everyMinutes: number;
+  loud: boolean;
+};
+
+export function emptyWatchDraft(): RoutineWatchDraft {
+  return {
+    kind: "files",
+    paths: "",
+    command: "",
+    tool: "",
+    args: "{}",
+    track: "",
+    everyMinutes: ROUTINE_WATCH_DEFAULT_MINUTES,
+    loud: false,
+  };
+}
+
+function watchDraftFromRoutine(watch: RoutineWatch | null): RoutineWatchDraft | null {
+  if (!watch) return null;
+  return {
+    kind: watch.kind,
+    paths: (watch.paths ?? []).join("\n"),
+    command: watch.command ?? "",
+    tool: watch.tool ?? "",
+    args: JSON.stringify(watch.args ?? {}),
+    track: (watch.track ?? []).join(", "),
+    everyMinutes: watch.everyMinutes,
+    loud: watch.loud,
+  };
+}
+
+/** The draft as the api takes it, or the reason it cannot be saved. */
+export function watchFromDraft(
+  draft: RoutineWatchDraft,
+): { watch: RoutineWatchInput } | { error: string } {
+  const base = { kind: draft.kind, everyMinutes: draft.everyMinutes, loud: draft.loud };
+  const fields = draft.track
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+  const track = fields.length ? { track: fields } : {};
+  if (draft.kind === "files") {
+    const paths = draft.paths
+      .split("\n")
+      .map((path) => path.trim())
+      .filter(Boolean);
+    if (!paths.length) return { error: t`Add a file or folder to watch` };
+    return { watch: { ...base, paths } };
+  }
+  if (draft.kind === "command") {
+    if (!draft.command.trim()) return { error: t`Add a command to run` };
+    return { watch: { ...base, command: draft.command.trim(), ...track } };
+  }
+  if (!draft.tool.trim()) return { error: t`Pick a tool to check` };
+  let args: unknown;
+  try {
+    args = JSON.parse(draft.args.trim() || "{}");
+  } catch {
+    return { error: t`Tool arguments must be JSON` };
+  }
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    return { error: t`Tool arguments must be a JSON object` };
+  }
+  return {
+    watch: { ...base, tool: draft.tool.trim(), args: args as Record<string, unknown>, ...track },
+  };
+}
 
 export function emptyRoutineDraft(): RoutineDraftState {
   return {
@@ -81,8 +197,10 @@ export function emptyRoutineDraft(): RoutineDraftState {
     githubEnabled: false,
     messageProvider: null,
     active: true,
-    watch: false,
     runAtLocal: "",
+    modelKey: "",
+    thinkingLevel: "",
+    watch: null,
   };
 }
 
@@ -95,12 +213,20 @@ export function draftFromRoutine(routine: Routine): RoutineDraftState {
     githubEnabled: routine.githubEnabled,
     messageProvider: routine.messageProvider,
     active: routine.active,
-    watch: routine.watch,
     runAtLocal: routineNeedsOneShotArm(routine, routine.crons) ? defaultArmRunAtLocal() : "",
+    modelKey:
+      routine.modelProvider && routine.modelId
+        ? modelOptionKey(routine.modelProvider, routine.modelId)
+        : "",
+    thinkingLevel: routine.thinkingLevel ?? "",
+    watch: watchDraftFromRoutine(routine.watch),
   };
 }
 
-export function routineTriggerSummary(routine: Routine): string {
+export function routineTriggerSummary(
+  routine: Routine,
+  labels: CronLabels = ENGLISH_CRON_LABELS,
+): string {
   if (!routine.active) return t`Paused`;
   const parts: string[] = [];
   if (routine.webhookEnabled) parts.push(t`When a webhook fires`);
@@ -108,32 +234,53 @@ export function routineTriggerSummary(routine: Routine): string {
   if (routine.messageProvider === "slack") parts.push(t`Slack message`);
   else if (routine.messageProvider === "teams") parts.push(t`Teams message`);
   else if (routine.messageProvider) parts.push(t`Message event`);
-  for (const cron of routine.crons) parts.push(formatCron(cron));
-  return parts.length > 0 ? parts.join(" · ") : t`No trigger`;
+  for (const cron of routine.crons) parts.push(formatCron(cron, labels));
+  if (routine.watch) parts.push(t`When something changes`);
+  return parts.length > 0 ? parts.join(", ") : t`No trigger`;
 }
 
-export function RoutineListHeader({ onCreate }: { onCreate: () => void }) {
+export function RoutineList({
+  routines,
+  runningRoutineId,
+  onCreate,
+  onEdit,
+  onStop,
+}: {
+  routines: Routine[];
+  runningRoutineId?: string;
+  onCreate: () => void;
+  onEdit: (routine: Routine) => void;
+  onStop: () => void;
+}) {
   const { t } = useLingui();
   return (
-    <div className="mt-[30px] mb-3 flex items-center justify-between gap-3">
-      <div className="text-sm text-muted-foreground">
-        <Trans>Routines</Trans>
+    <div>
+      <div className="mb-2 flex justify-end">
+        <Button
+          variant="secondary"
+          size="icon-sm"
+          data-testid="routine-create-button"
+          aria-label={t`Create Routine`}
+          title={t`Create Routine`}
+          onClick={onCreate}
+        >
+          <Plus strokeWidth={1.9} />
+        </Button>
       </div>
-      <Button
-        variant="secondary"
-        size="icon-sm"
-        data-testid="routine-create-button"
-        aria-label={t`Create Routine`}
-        title={t`Create Routine`}
-        onClick={onCreate}
-      >
-        <Plus strokeWidth={1.9} />
-      </Button>
+      {routines.map((routine) => (
+        <RoutineListRow
+          key={routine.id}
+          routine={routine}
+          running={runningRoutineId === routine.id}
+          onOpen={() => onEdit(routine)}
+          onStop={onStop}
+        />
+      ))}
     </div>
   );
 }
 
-export function RoutineListRow({
+function RoutineListRow({
   routine,
   running,
   onOpen,
@@ -144,6 +291,8 @@ export function RoutineListRow({
   onOpen: () => void;
   onStop: () => void;
 }) {
+  const { i18n } = useLingui();
+  const scheduleLabels = cronLabels(i18n.locale);
   return (
     <div className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2.5 hover:bg-accent">
       <button
@@ -162,19 +311,27 @@ export function RoutineListRow({
           <span className="block truncate text-[14.5px] font-medium text-foreground" dir="auto">
             {routine.name}
           </span>
-          <span className="block truncate text-[12.5px] text-muted-foreground/80">
-            {routineTriggerSummary(routine)}
+          <span className="flex min-w-0 gap-2 text-[12.5px] text-muted-foreground/80">
+            <span className="truncate">{routineTriggerSummary(routine, scheduleLabels)}</span>
+            {routine.modelProvider && routine.modelId ? (
+              <span className="truncate">{routine.modelId}</span>
+            ) : null}
           </span>
         </span>
       </button>
       {running ? (
-        <Button
-          size="xs"
-          onClick={onStop}
-          className="shrink-0 rounded-full bg-warning/15 text-warning hover:bg-warning/25"
-        >
-          <Trans>Running · Stop</Trans>
-        </Button>
+        <>
+          <span className="shrink-0 text-[12.5px] text-warning">
+            <Trans>Running</Trans>
+          </span>
+          <Button
+            size="xs"
+            onClick={onStop}
+            className="shrink-0 bg-warning/15 text-warning hover:bg-warning/25"
+          >
+            <Trans>Stop</Trans>
+          </Button>
+        </>
       ) : null}
     </div>
   );
@@ -188,7 +345,6 @@ export function RoutineEditor({
   webhook,
   githubPath,
   messageProviders,
-  connectedProviders,
   saving,
   running,
   error,
@@ -206,7 +362,6 @@ export function RoutineEditor({
   webhook: { path: string; secret: string | null; configured: boolean };
   githubPath: string;
   messageProviders: string[];
-  connectedProviders: string[];
   saving: boolean;
   running: boolean;
   error: string | null;
@@ -219,13 +374,42 @@ export function RoutineEditor({
 }) {
   const { t } = useLingui();
   const fieldId = useId();
+  const [credentials, setCredentials] = useState<ModelCredential[]>([]);
+  const [catalog, setCatalog] = useState<ModelCatalogEntry[]>([]);
+  useEffect(() => {
+    void Promise.all([rpc.models.credentials(), rpc.models.list()])
+      .then(([nextCredentials, nextCatalog]) => {
+        setCredentials(nextCredentials);
+        setCatalog(nextCatalog);
+      })
+      .catch(() => undefined);
+  }, []);
+  const modelOptions = connectedModelOptions(credentials, catalog);
+  const selectedModel = draft.modelKey ? parseModelOptionKey(draft.modelKey) : null;
+  const selectedEntry = selectedModel
+    ? catalog.find(
+        (entry) => entry.provider === selectedModel.provider && entry.id === selectedModel.modelId,
+      )
+    : undefined;
+  const selectedCredential = credentialForModel(
+    credentials,
+    selectedModel?.provider,
+    selectedModel?.modelId,
+  );
+  const thinkingOptions = (
+    selectedCredential?.thinkingLevels ??
+    selectedEntry?.thinkingLevels ??
+    []
+  ).filter((level) => level !== "off");
+  const defaultThinkingLevel = selectedCredential?.thinkingLevel ?? "medium";
   const slackAvailable = messageProviders.includes("slack");
   const slackDisabledReasonId = `${fieldId}-slack-disabled-reason`;
   const hasTriggers =
     draft.schedules.length > 0 ||
     draft.webhookEnabled ||
     draft.githubEnabled ||
-    Boolean(draft.messageProvider);
+    Boolean(draft.messageProvider) ||
+    Boolean(draft.watch);
   const canTest = Boolean(editing) && !saving && !running;
   const needsOneShotArm =
     editing != null && routineNeedsOneShotArm(editing, draft.schedules.map(cronFromPreset));
@@ -255,17 +439,6 @@ export function RoutineEditor({
     onChange({ ...draft, messageProvider: provider });
   }
 
-  function applyWatchPreset(preset: WatchPreset) {
-    onChange({
-      ...draft,
-      name: watchPresetLabel(preset.id),
-      prompt: preset.prompt,
-      schedules: [presetFromCron(preset.cron)],
-      watch: true,
-      active: true,
-    });
-  }
-
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -293,24 +466,15 @@ export function RoutineEditor({
       </div>
 
       <div className="mb-5 flex items-center justify-between gap-3">
-        <label className="flex items-center gap-2.5 text-sm text-foreground/75">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={draft.active}
-            onClick={() => onChange({ ...draft, active: !draft.active })}
-            className={`relative h-[22px] w-[40px] rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-              draft.active ? "bg-primary" : "bg-input"
-            }`}
-          >
-            <span
-              className={`absolute top-[2px] left-0 h-[18px] w-[18px] rounded-full bg-background transition-transform ${
-                draft.active
-                  ? "translate-x-[20px] dark:bg-primary-foreground"
-                  : "translate-x-[2px] dark:bg-foreground"
-              }`}
-            />
-          </button>
+        <label
+          htmlFor={`${fieldId}-active`}
+          className="flex items-center gap-2.5 text-sm text-foreground/75"
+        >
+          <Switch
+            id={`${fieldId}-active`}
+            checked={draft.active}
+            onCheckedChange={(active) => onChange({ ...draft, active })}
+          />
           <Trans>Active</Trans>
         </label>
         <div className="flex items-center gap-2">
@@ -322,22 +486,6 @@ export function RoutineEditor({
           </Button>
         </div>
       </div>
-
-      {editing ? null : (
-        <div className="mb-5 flex flex-wrap gap-2">
-          {availableWatchPresets(connectedProviders).map((preset) => (
-            <Button
-              key={preset.id}
-              variant="secondary"
-              size="sm"
-              data-testid={`watch-preset-${preset.id}`}
-              onClick={() => applyWatchPreset(preset)}
-            >
-              {watchPresetLabel(preset.id)}
-            </Button>
-          ))}
-        </div>
-      )}
 
       <label htmlFor={`${fieldId}-name`} className="block text-sm text-muted-foreground">
         <Trans>Name</Trans>
@@ -366,6 +514,77 @@ export function RoutineEditor({
         <div className="flex items-baseline gap-2">
           <Trans>When to run</Trans>
           <span className="text-xs text-muted-foreground/70">{timezone}</span>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="relative ml-auto text-muted-foreground"
+                  aria-label={t`Advanced`}
+                  title={t`Advanced`}
+                />
+              }
+            >
+              <SlidersHorizontal />
+              {draft.modelKey ? (
+                <span
+                  aria-hidden
+                  className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                />
+              ) : null}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-4">
+              <label htmlFor={`${fieldId}-model`} className="block text-sm text-muted-foreground">
+                <Trans>Model</Trans>
+                <NativeSelect
+                  id={`${fieldId}-model`}
+                  className="mt-2 w-full"
+                  value={draft.modelKey}
+                  onChange={(event) =>
+                    onChange({ ...draft, modelKey: event.target.value, thinkingLevel: "" })
+                  }
+                >
+                  <NativeSelectOption value="">{t`Bot's model`}</NativeSelectOption>
+                  {draft.modelKey &&
+                  !modelOptions.some((option) => option.key === draft.modelKey) ? (
+                    <NativeSelectOption value={draft.modelKey}>
+                      {selectedModel?.modelId ?? draft.modelKey}
+                    </NativeSelectOption>
+                  ) : null}
+                  {modelOptions.map((option) => (
+                    <NativeSelectOption key={option.key} value={option.key}>
+                      {option.label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </label>
+
+              {thinkingOptions.length ? (
+                <label
+                  htmlFor={`${fieldId}-thinking`}
+                  className="mt-5 block text-sm text-muted-foreground"
+                >
+                  <Trans>Thinking</Trans>
+                  <NativeSelect
+                    id={`${fieldId}-thinking`}
+                    className="mt-2 w-full"
+                    value={draft.thinkingLevel}
+                    onChange={(event) => onChange({ ...draft, thinkingLevel: event.target.value })}
+                  >
+                    <NativeSelectOption value="">
+                      {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
+                    </NativeSelectOption>
+                    {thinkingOptions.map((level) => (
+                      <NativeSelectOption key={level} value={level}>
+                        {thinkingLevelLabel(level)}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </label>
+              ) : null}
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="mt-2 space-y-2">
@@ -421,6 +640,15 @@ export function RoutineEditor({
             />
           ) : null}
 
+          {draft.watch ? (
+            <WatchTriggerCard
+              watch={draft.watch}
+              state={editing?.watch ? editing.watchState : null}
+              onChange={(watch) => onChange({ ...draft, watch })}
+              onRemove={() => onChange({ ...draft, watch: null })}
+            />
+          ) : null}
+
           {draft.messageProvider ? (
             <MessageTriggerCard
               provider={draft.messageProvider}
@@ -452,7 +680,7 @@ export function RoutineEditor({
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top">
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger disabled={Boolean(draft.watch)}>
                 <Clock />
                 <Trans>On a schedule</Trans>
               </DropdownMenuSubTrigger>
@@ -498,6 +726,14 @@ export function RoutineEditor({
               </span>
             ))}
 
+            <DropdownMenuItem
+              disabled={Boolean(draft.watch) || draft.schedules.length > 0}
+              onClick={() => onChange({ ...draft, watch: emptyWatchDraft() })}
+            >
+              <Eye />
+              <Trans>When something changes</Trans>
+            </DropdownMenuItem>
+
             <DropdownMenuItem disabled={draft.githubEnabled} onClick={() => void addGithub()}>
               <GitBranch />
               <Trans>Git event</Trans>
@@ -512,7 +748,7 @@ export function RoutineEditor({
 
         {!hasTriggers ? (
           <p className="mt-2 text-xs text-muted-foreground/70">
-            <Trans>Add a schedule, webhook, GitHub, or message trigger to run this routine.</Trans>
+            <Trans>Add a trigger to run this routine.</Trans>
           </p>
         ) : null}
       </div>
@@ -529,6 +765,155 @@ export function RoutineEditor({
       ) : null}
 
       {editing ? <RoutineRunHistory key={editing.id} routineId={editing.id} /> : null}
+    </div>
+  );
+}
+
+function WatchTriggerCard({
+  watch,
+  state,
+  onChange,
+  onRemove,
+}: {
+  watch: RoutineWatchDraft;
+  state: Routine["watchState"];
+  onChange: (watch: RoutineWatchDraft) => void;
+  onRemove: () => void;
+}) {
+  const { t } = useLingui();
+  const id = useId();
+  const status = !state
+    ? null
+    : state.outcome === "failed"
+      ? t`Check failed: ${state.detail ?? ""}`
+      : state.outcome === "changed"
+        ? t`Last check ${new Date(state.checkedAt).toLocaleString()}: changed`
+        : t`Last check ${new Date(state.checkedAt).toLocaleString()}: no changes`;
+  return (
+    <div className="rounded-xl border border-border p-3" data-testid="routine-watch-card">
+      <div className="flex items-center gap-2.5 px-0.5">
+        <Eye size={16} strokeWidth={1.6} className="text-muted-foreground" aria-hidden />
+        <span className="flex-1 text-[14.5px] text-foreground">
+          <Trans>When something changes</Trans>
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={t`Remove change trigger`}
+          onClick={onRemove}
+          className="text-muted-foreground"
+        >
+          <X />
+        </Button>
+      </div>
+      <div className="mt-3 space-y-3">
+        <NativeSelect
+          size="sm"
+          aria-label={t`What to watch`}
+          value={watch.kind}
+          onChange={(event) =>
+            onChange({ ...watch, kind: event.target.value as RoutineWatchDraft["kind"] })
+          }
+        >
+          <NativeSelectOption value="files">{t`Files or folders on the computer`}</NativeSelectOption>
+          <NativeSelectOption value="command">{t`A command's output`}</NativeSelectOption>
+          <NativeSelectOption value="tool">{t`An integration tool`}</NativeSelectOption>
+        </NativeSelect>
+        {watch.kind === "files" ? (
+          <Textarea
+            aria-label={t`Files or folders, one per line`}
+            placeholder={"inbox/\nreports/latest.csv"}
+            value={watch.paths}
+            onChange={(e) => onChange({ ...watch, paths: e.target.value })}
+            rows={3}
+          />
+        ) : null}
+        {watch.kind === "command" ? (
+          <Input
+            aria-label={t`Command`}
+            placeholder="curl -s https://example.com/status"
+            value={watch.command}
+            onChange={(e) => onChange({ ...watch, command: e.target.value })}
+            className="font-mono text-[13px]"
+          />
+        ) : null}
+        {watch.kind === "tool" ? (
+          <>
+            <Input
+              aria-label={t`Tool name`}
+              placeholder="brain_changed"
+              value={watch.tool}
+              onChange={(e) => onChange({ ...watch, tool: e.target.value })}
+              className="font-mono text-[13px]"
+            />
+            <Textarea
+              aria-label={t`Tool arguments (JSON)`}
+              value={watch.args}
+              onChange={(e) => onChange({ ...watch, args: e.target.value })}
+              rows={2}
+              className="font-mono text-[13px]"
+            />
+          </>
+        ) : null}
+        {watch.kind !== "files" ? (
+          <Input
+            aria-label={t`Fields that mark a change`}
+            placeholder={t`Fields to compare, e.g. id, modifiedTime (optional)`}
+            value={watch.track}
+            onChange={(e) => onChange({ ...watch, track: e.target.value })}
+            className="font-mono text-[13px]"
+          />
+        ) : null}
+        <label
+          htmlFor={`${id}-every`}
+          className="flex items-center gap-2 text-[13.5px] text-muted-foreground"
+        >
+          <Trans>Check every</Trans>
+          <Input
+            id={`${id}-every`}
+            type="number"
+            min={ROUTINE_WATCH_MIN_MINUTES}
+            max={1440}
+            value={watch.everyMinutes || ""}
+            onChange={(e) =>
+              onChange({
+                ...watch,
+                everyMinutes: Number(e.target.value),
+              })
+            }
+            onBlur={() =>
+              onChange({
+                ...watch,
+                everyMinutes: Math.min(
+                  1440,
+                  Math.max(ROUTINE_WATCH_MIN_MINUTES, Math.round(watch.everyMinutes)),
+                ),
+              })
+            }
+            className="h-8 w-20"
+          />
+          <Trans>minutes</Trans>
+        </label>
+        <label
+          htmlFor={`${id}-loud`}
+          className="flex items-center gap-2 text-[13.5px] text-muted-foreground"
+        >
+          <Switch
+            id={`${id}-loud`}
+            checked={watch.loud}
+            onCheckedChange={(loud) => onChange({ ...watch, loud })}
+          />
+          <Trans>Post "No changes" in chat</Trans>
+        </label>
+        {status ? (
+          <p
+            data-testid="routine-watch-status"
+            className={`text-[12.5px] ${state?.outcome === "failed" ? "text-destructive" : "text-muted-foreground/80"}`}
+          >
+            {status}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -651,17 +1036,6 @@ function InboundTriggerCard({
       </div>
     </div>
   );
-}
-
-function watchPresetLabel(id: WatchPresetId): string {
-  switch (id) {
-    case "important-email":
-      return t`Important email`;
-    case "meeting-prep":
-      return t`Meeting prep`;
-    case "deadline-watch":
-      return t`Deadline watch`;
-  }
 }
 
 function schedulePresetLabel(freq: CronFreq): string {

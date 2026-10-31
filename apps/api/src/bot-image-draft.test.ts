@@ -24,7 +24,7 @@ function textOnlyRuntime(): AgentRuntime & { requests: AgentRunRequest[] } {
       id: "pi",
       contractVersion: "1",
       adapterVersion: "test",
-      capabilities: { streaming: true, compaction: false, tools: true },
+      capabilities: { streaming: true, compaction: false, tools: true, scripted: false },
     }),
     abort: async () => undefined,
     async *run(request) {

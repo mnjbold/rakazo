@@ -1,4 +1,4 @@
-import type { BotMood, GrokColorDef } from "@rakazo/core";
+import type { BotColorDef, BotMood } from "@rakazo/core";
 import { avatarIdentitySeed, JEWEL_VIEWBOX, jewelCut } from "@rakazo/core";
 import { useEffect, useMemo } from "react";
 import { Pressable } from "react-native";
@@ -33,7 +33,7 @@ export function JewelAvatar({
   mood,
   interactive = false,
 }: {
-  colorDef: GrokColorDef;
+  colorDef: BotColorDef;
   identity: string;
   size: number;
   mood: BotMood;

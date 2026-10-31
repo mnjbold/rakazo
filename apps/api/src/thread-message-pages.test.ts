@@ -1,9 +1,11 @@
 import type { PrismaClient } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import {
+  isBackgroundRun,
   isPeerRun,
   loadAllMessages,
   loadMessagePage,
+  shouldForwardBackgroundThreadEvent,
   shouldForwardPeerThreadEvent,
 } from "./thread-message-pages.js";
 
@@ -41,6 +43,222 @@ describe("thread message pages", () => {
         payload: {},
       }),
     ).toBe(false);
+  });
+
+  it.each(["thread.message.created", "thread.message.updated"])(
+    "forwards peer charts in %s while keeping background output hidden",
+    (type) => {
+      const chart = { kind: "chart", name: "Results", spec: {}, data: [] };
+      for (const blocks of [[chart], [{ kind: "text", text: "Results" }, chart]]) {
+        expect(shouldForwardPeerThreadEvent({ type, payload: { blocks } })).toBe(true);
+        expect(shouldForwardBackgroundThreadEvent({ type, payload: { blocks } })).toBe(false);
+      }
+      expect(
+        shouldForwardPeerThreadEvent({
+          type,
+          payload: { blocks: [{ kind: "steps", steps: [{ label: "Tool", count: 1 }] }] },
+        }),
+      ).toBe(false);
+      expect(
+        shouldForwardPeerThreadEvent({ type: "thread.progress", payload: { blocks: [chart] } }),
+      ).toBe(false);
+    },
+  );
+
+  it.each([undefined, { seq: 2 }])(
+    "keeps peer charts in normal history, including around pages (%s)",
+    async (around) => {
+      const chart = { kind: "chart", name: "Results", spec: {}, data: [] };
+      const rows = [
+        { id: "background-chart", runId: "run-background", blocks: [chart] },
+        { id: "peer-activity", runId: "run-peer", blocks: [{ kind: "steps", steps: [] }] },
+        {
+          id: "peer-mixed",
+          runId: "run-peer",
+          blocks: [{ kind: "text", text: "Results" }, chart],
+        },
+        { id: "peer-chart", runId: "run-peer", blocks: [chart] },
+      ].map((row, index) => ({
+        ...row,
+        threadId: "thread-1",
+        seq: 4 - index,
+        role: "bot",
+        botId: "bot-1",
+        replyToMessageId: null,
+        replyQuote: null,
+        createdAt: new Date("2026-08-16T00:00:00.000Z"),
+      }));
+      const prisma = {
+        message: {
+          findMany: vi.fn(async () => (around ? [...rows].reverse() : rows)),
+          count: vi.fn(async () => 0),
+        },
+        run: {
+          findMany: vi.fn(async () => [
+            { id: "run-peer", trigger: "bot_message" },
+            { id: "run-background", trigger: "tickets" },
+          ]),
+        },
+      } as unknown as PrismaClient;
+
+      const page = await loadMessagePage(prisma, "thread-1", undefined, 4, around);
+
+      expect(page.messages.map((message) => message.id)).toEqual(["peer-chart", "peer-mixed"]);
+      expect(page.messages.map((message) => message.blocks)).toEqual([
+        rows[3]?.blocks,
+        rows[2]?.blocks,
+      ]);
+    },
+  );
+
+  it.each(["thread.message.created", "thread.message.updated"])(
+    "forwards peer attachments but rejects activity for %s",
+    (type) => {
+      for (const kind of ["file", "image"]) {
+        expect(
+          shouldForwardPeerThreadEvent({
+            type,
+            payload: { blocks: [{ kind, artifactId: "artifact-1", name: "attachment" }] },
+          }),
+        ).toBe(true);
+      }
+      expect(
+        shouldForwardPeerThreadEvent({
+          type,
+          payload: { blocks: [{ kind: "steps", steps: [{ label: "Tool", count: 1 }] }] },
+        }),
+      ).toBe(false);
+    },
+  );
+
+  it("keeps peer file-only and image-only replies on normal pages but drops activity", async () => {
+    const rows = [
+      { id: "peer-activity", blocks: [{ kind: "steps", steps: [{ label: "Tool", count: 1 }] }] },
+      {
+        id: "peer-image",
+        blocks: [
+          { kind: "image", artifactId: "image-1", name: "photo.png", mimeType: "image/png" },
+        ],
+      },
+      {
+        id: "peer-file",
+        blocks: [
+          { kind: "file", artifactId: "file-1", name: "report.txt", mimeType: "text/plain" },
+        ],
+      },
+    ].map((row, index) => ({
+      ...row,
+      threadId: "thread-1",
+      seq: 3 - index,
+      role: "bot",
+      botId: "bot-1",
+      replyToMessageId: null,
+      runId: "run-peer",
+      createdAt: new Date("2026-08-16T00:00:00.000Z"),
+    }));
+    const prisma = {
+      message: { findMany: vi.fn(async () => rows) },
+      run: { findMany: vi.fn(async () => [{ id: "run-peer", trigger: "bot_message" }]) },
+    } as unknown as PrismaClient;
+
+    const page = await loadMessagePage(prisma, "thread-1", undefined, 3);
+
+    expect(page.messages.map((message) => message.id)).toEqual(["peer-file", "peer-image"]);
+    expect(page.messages.map((message) => message.blocks)).toEqual([
+      rows[2]?.blocks,
+      rows[1]?.blocks,
+    ]);
+  });
+
+  it("caches background-run classification for live events", async () => {
+    const findUnique = vi.fn(async () => ({ trigger: "tickets" }));
+    const prisma = { run: { findUnique } } as unknown as PrismaClient;
+    const cache = new Map<string, Promise<boolean>>();
+
+    await expect(isBackgroundRun(prisma, "run-ticket", cache)).resolves.toBe(true);
+    await expect(isBackgroundRun(prisma, "run-ticket", cache)).resolves.toBe(true);
+    expect(findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards only explicit user contact from a background run", () => {
+    expect(
+      shouldForwardBackgroundThreadEvent({
+        type: "thread.message.created",
+        payload: { blocks: [{ kind: "text", text: "Working" }] },
+      }),
+    ).toBe(false);
+    expect(
+      shouldForwardBackgroundThreadEvent({
+        type: "thread.message.created",
+        payload: { blocks: [{ kind: "ask", text: "Pick one" }] },
+      }),
+    ).toBe(true);
+    expect(
+      shouldForwardBackgroundThreadEvent({
+        type: "thread.message.created",
+        payload: { blocks: [{ kind: "computer", text: "Needs you" }] },
+      }),
+    ).toBe(true);
+    for (const type of ["thread.message.created", "thread.message.updated"]) {
+      expect(
+        shouldForwardBackgroundThreadEvent({
+          type,
+          payload: { blocks: [{ kind: "mcp_approval" }] },
+        }),
+      ).toBe(true);
+    }
+    expect(shouldForwardBackgroundThreadEvent({ type: "run.started", payload: {} })).toBe(false);
+    expect(shouldForwardBackgroundThreadEvent({ type: "run.waiting_input", payload: {} })).toBe(
+      true,
+    );
+    expect(
+      shouldForwardBackgroundThreadEvent({ type: "computer.takeover.requested", payload: {} }),
+    ).toBe(true);
+    expect(shouldForwardBackgroundThreadEvent({ type: "run.completed", payload: {} })).toBe(true);
+    expect(shouldForwardBackgroundThreadEvent({ type: "run.failed", payload: {} })).toBe(true);
+    expect(shouldForwardBackgroundThreadEvent({ type: "run.cancelled", payload: {} })).toBe(true);
+    expect(shouldForwardBackgroundThreadEvent({ type: "thread.progress", payload: {} })).toBe(
+      false,
+    );
+  });
+
+  it("hides ticket-run output from the transcript but keeps user-input cards", async () => {
+    const rows = [
+      {
+        id: "message-computer",
+        blocks: [{ kind: "computer", state: "Needs you", text: "Sign in" }],
+      },
+      { id: "message-approval", blocks: [{ kind: "mcp_approval" }] },
+      { id: "message-final", blocks: [{ kind: "text", text: "Closed the ticket." }] },
+      {
+        id: "message-steps",
+        blocks: [{ kind: "steps", steps: [{ label: "Ticket comment", count: 1 }] }],
+      },
+      { id: "message-user", blocks: [{ kind: "text", text: "Visible answer" }] },
+    ].map((row, index) => ({
+      ...row,
+      threadId: "thread-1",
+      seq: 4 - index,
+      role: "bot",
+      botId: "bot-1",
+      replyToMessageId: null,
+      runId: row.id === "message-user" ? "run-user" : "run-ticket",
+      clientNonce: null,
+      createdAt: new Date("2026-08-16T00:00:01.000Z"),
+    }));
+    const findMany = vi.fn(async () => rows);
+    const prisma = {
+      message: { findMany },
+      run: { findMany: vi.fn(async () => [{ id: "run-ticket", trigger: "tickets" }]) },
+    } as unknown as PrismaClient;
+
+    const page = await loadMessagePage(prisma, "thread-1", undefined, 6);
+
+    expect(page.messages.map((message) => message.id)).toEqual([
+      "message-user",
+      "message-approval",
+      "message-computer",
+    ]);
   });
 
   it("keeps peer receipt rows when filtering peer-run output from pages", async () => {

@@ -2,7 +2,7 @@ import { createContext, type ReactNode, useContext } from "react";
 
 export type AvatarStyle = "robot" | "organic" | "jewel";
 
-const AvatarStyleContext = createContext<AvatarStyle>("robot");
+const AvatarStyleContext = createContext<AvatarStyle>("jewel");
 
 export function AvatarStyleProvider({
   children,

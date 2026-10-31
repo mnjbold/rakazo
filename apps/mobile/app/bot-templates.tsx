@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { BotAvatar } from "../components/bot-avatar";
-import { type MobileBot, rpc } from "../lib/api";
+import { rpc } from "../lib/api";
 import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
@@ -17,7 +17,7 @@ export default function BotTemplates() {
   const pending = useRef(false);
 
   useEffect(() => {
-    void rpc<BotTemplate[]>("botTemplates/list")
+    void rpc("botTemplates/list")
       .then(setTemplates)
       .catch((err: unknown) => {
         setTemplates([]);
@@ -30,7 +30,7 @@ export default function BotTemplates() {
     pending.current = true;
     setError(null);
     try {
-      const bot = await rpc<MobileBot>("botTemplates/use", {
+      const bot = await rpc("botTemplates/use", {
         templateId: template.id,
         computerMode: "team",
       });

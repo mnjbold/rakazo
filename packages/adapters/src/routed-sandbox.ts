@@ -10,7 +10,7 @@ import type {
   ScreenRequest,
 } from "@rakazo/adapter-kit";
 
-const ROUTABLE = new Set(["docker", "box"]);
+const ROUTABLE = new Set(["docker", "boxd"]);
 
 /**
  * Routes each persisted computer to its selected provider. Docker is always the default.

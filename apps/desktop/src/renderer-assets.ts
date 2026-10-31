@@ -1,4 +1,8 @@
 import path from "node:path";
+import {
+  CSP_REPORTING_ENDPOINTS,
+  contentSecurityPolicyFor,
+} from "@rakazo/contracts/content-security-policy";
 
 const PASSTHROUGH_PATHS = ["/api", "/rpc", "/novnc"];
 
@@ -51,6 +55,24 @@ export function immutableRendererAsset(file: string) {
   return path.basename(path.dirname(file)) === "assets";
 }
 
+/** The headers the web server would send, including its CSP, since this replaces that server. */
+export function bundledRendererHeaders(file: string, requestUrl: string): Headers {
+  const headers = new Headers({
+    "cache-control": immutableRendererAsset(file)
+      ? "public, max-age=31536000, immutable"
+      : "no-cache",
+    "content-type": contentType(file),
+    "x-content-type-options": "nosniff",
+  });
+  const policy = contentSecurityPolicyFor(new URL(requestUrl).pathname);
+  if (policy) {
+    headers.set("content-security-policy", policy);
+    // Reports go to /api on this origin, which is forwarded to the API like every other call.
+    headers.set("reporting-endpoints", CSP_REPORTING_ENDPOINTS);
+  }
+  return headers;
+}
+
 export function isRendererAssetMiss(error: unknown) {
   const code =
     typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
@@ -63,9 +85,17 @@ export function forwardedRendererRequestInit(request: Request, webOrigin: string
     credentials: "include",
   };
   if (new URL(request.url).origin !== webOrigin) return init;
+  // OAuth popups and sandboxed previews share this session, so only app pages get the app origin.
+  if (!fromAppPage(request, webOrigin)) return init;
   const headers = new Headers(request.headers);
   headers.set("origin", webOrigin);
   return { ...init, headers };
+}
+
+function fromAppPage(request: Request, webOrigin: string) {
+  const origin = request.headers.get("origin");
+  if (origin !== null) return origin === webOrigin;
+  return URL.parse(request.referrer)?.origin === webOrigin;
 }
 
 function matchesPrefix(pathname: string, prefix: string) {

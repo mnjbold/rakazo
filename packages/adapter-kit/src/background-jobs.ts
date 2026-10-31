@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type {
   BackgroundJob,
+  BackgroundJobExecution,
   BackgroundJobHandlers,
   BackgroundJobName,
   BackgroundJobPayloads,
@@ -12,6 +13,7 @@ const payloadSchemas = {
     routineId: z.string().min(1),
     scheduledFor: z.string().datetime({ offset: true }),
   }),
+  "routine.retry": z.object({ runId: z.string().min(1) }),
   "computer.update": z.object({ updateId: z.string().min(1) }),
   "computer.sleep": z.object({ computerId: z.string().min(1) }),
   "computer.control-expire": z.object({
@@ -19,10 +21,21 @@ const payloadSchemas = {
     leaseId: z.string().min(1),
   }),
   "skill.teaching-expire": z.object({ skillId: z.string().min(1) }),
+  "call.expire": z.object({ threadId: z.string().min(1), callId: z.string().min(1) }),
   "history.compact": z.object({ threadId: z.string().min(1) }),
   "chat.session.summarize": z.object({ sessionId: z.string().min(1) }),
   "messaging.deliver": z.object({ runId: z.string().min(1).optional() }),
+  "messaging.credential-cleanup": z.object({
+    installationId: z.string().min(1),
+    ref: z.string().min(1),
+  }),
   "cloud_agent.poll": z.object({ agentId: z.string().min(1) }),
+  "purchase.poll": z.object({ purchaseId: z.string().min(1) }),
+  "push.receipt": z.object({
+    userId: z.string().min(1),
+    ticketId: z.string().min(1),
+    tokenDigest: z.string().min(1),
+  }),
   "reply.judge": z.object({ runId: z.string().min(1) }),
 } satisfies { [Name in BackgroundJobName]: z.ZodType<BackgroundJobPayloads[Name]> };
 
@@ -37,10 +50,15 @@ export async function dispatchBackgroundJob(
   handlers: BackgroundJobHandlers,
   name: string,
   payload: unknown,
+  execution?: BackgroundJobExecution,
 ): Promise<void> {
   const job = parseBackgroundJob(name, payload);
-  const handler = handlers[job.name] as (payload: typeof job.payload) => Promise<void>;
-  await handler(job.payload);
+  const handler = handlers[job.name] as (
+    payload: typeof job.payload,
+    execution?: BackgroundJobExecution,
+  ) => Promise<void>;
+  if (execution) await handler(job.payload, execution);
+  else await handler(job.payload);
 }
 
 export function runJobKey(runId: string): string {
@@ -82,6 +100,16 @@ export function routineWakeupJob(routineId: string, scheduledFor: Date): Backgro
   };
 }
 
+/** Keyed to the failed run, so a repeated enqueue keeps a single retry. */
+export function routineRetryJob(runId: string, availableAt: Date): BackgroundJob {
+  return {
+    name: "routine.retry",
+    payload: { runId },
+    availableAt,
+    replaceKey: `routine.retry:${runId}`,
+  };
+}
+
 export function computerSleepJob(computerId: string, availableAt: Date): BackgroundJob {
   return {
     name: "computer.sleep",
@@ -110,6 +138,15 @@ export function skillTeachingExpireJob(skillId: string, availableAt: Date): Back
     payload: { skillId },
     availableAt,
     replaceKey: skillTeachingExpireJobKey(skillId),
+  };
+}
+
+export function callExpireJob(threadId: string, callId: string, availableAt: Date): BackgroundJob {
+  return {
+    name: "call.expire",
+    payload: { threadId, callId },
+    availableAt,
+    replaceKey: `call.expire:${callId}`,
   };
 }
 
@@ -143,6 +180,14 @@ export function historyCompactJob(threadId: string): BackgroundJob {
   };
 }
 
+/** A few tries ride out an Expo outage well inside the day it keeps receipts. */
+export function pushReceiptJob(
+  payload: BackgroundJobPayloads["push.receipt"],
+  availableAt: Date,
+): BackgroundJob {
+  return { name: "push.receipt", payload, availableAt, maxAttempts: 8 };
+}
+
 export function chatSessionSummarizeJob(sessionId: string): BackgroundJob {
   return {
     name: "chat.session.summarize",
@@ -174,6 +219,15 @@ export function cloudAgentPollJob(
     name: "cloud_agent.poll",
     payload,
     replaceKey: cloudAgentPollJobKey(payload.agentId),
+    ...(availableAt ? { availableAt } : {}),
+  };
+}
+
+export function purchasePollJob(purchaseId: string, availableAt?: Date): BackgroundJob {
+  return {
+    name: "purchase.poll",
+    payload: { purchaseId },
+    replaceKey: `purchase.poll:${purchaseId}`,
     ...(availableAt ? { availableAt } : {}),
   };
 }

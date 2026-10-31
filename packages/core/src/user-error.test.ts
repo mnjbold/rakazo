@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   authErrorMessage,
   credentialIssue,
+  isAbandonedRequest,
+  isConnectionFailure,
   isNetworkFailure,
+  isServerUnreachable,
   isTechnicalErrorMessage,
   userErrorMessage,
 } from "./user-error.js";
@@ -13,6 +16,28 @@ const authCopy = {
   email: "Enter a valid email",
   password: "Enter a password",
 };
+
+describe("isServerUnreachable", () => {
+  it("counts no connection, timeouts and gateway errors, through causes", () => {
+    expect(isServerUnreachable(new TypeError("Network request failed"))).toBe(true);
+    const timeout = Object.assign(new Error("Request timed out"), { name: "TimeoutError" });
+    expect(isServerUnreachable(timeout)).toBe(true);
+    for (const status of [502, 503, 504]) {
+      expect(isServerUnreachable(Object.assign(new Error("Bad gateway"), { status }))).toBe(true);
+    }
+    expect(isServerUnreachable(new Error("Could not reach the server", { cause: timeout }))).toBe(
+      true,
+    );
+  });
+
+  it("leaves answers from the server alone", () => {
+    for (const status of [400, 401, 403, 404, 409, 422, 500]) {
+      expect(isServerUnreachable(Object.assign(new Error("No"), { status }))).toBe(false);
+    }
+    expect(isServerUnreachable(new Error("Request canceled"))).toBe(false);
+    expect(isServerUnreachable(null)).toBe(false);
+  });
+});
 
 describe("isNetworkFailure", () => {
   it("recognizes every platform's unreachable-server wording", () => {
@@ -78,11 +103,15 @@ describe("isTechnicalErrorMessage", () => {
 describe("userErrorMessage", () => {
   it("says the server is unreachable for transport failures", () => {
     expect(userErrorMessage(new TypeError("Failed to fetch"), copy)).toBe(copy.offline);
+    expect(userErrorMessage(Object.assign(new Error("Bad Gateway"), { status: 502 }), copy)).toBe(
+      copy.offline,
+    );
   });
 
   it("passes human messages through and replaces technical ones", () => {
     expect(userErrorMessage(new Error("Bot not found"), copy)).toBe("Bot not found");
     expect(userErrorMessage(new Error("rpc bots/list failed"), copy)).toBe(copy.fallback);
+    expect(userErrorMessage(new Error("Input validation failed"), copy)).toBe(copy.fallback);
     expect(userErrorMessage(new Error("  "), copy)).toBe(copy.fallback);
     expect(userErrorMessage({ message: "Bot not found" }, copy)).toBe(copy.fallback);
     expect(userErrorMessage("Bot not found", copy)).toBe("Bot not found");
@@ -135,5 +164,39 @@ describe("authErrorMessage", () => {
     ).toBe("Invalid email or password");
     expect(authErrorMessage({ message: '{"detail":"x"}' }, authCopy)).toBe(authCopy.fallback);
     expect(authErrorMessage(undefined, authCopy)).toBe(authCopy.fallback);
+  });
+});
+
+describe("isConnectionFailure", () => {
+  it("counts lost connections, DNS failures, client timeouts and cancellations", () => {
+    for (const message of [
+      "Failed to fetch",
+      "NetworkError when attempting to fetch resource.",
+      "Load failed",
+      "fetch failed: UnexpectedException: The network connection was lost. (at ExpoModulesCore/Promise.swift:56)",
+      "fetch failed: UnexpectedException: The Internet connection appears to be offline. (at ExpoModulesCore/Promise.swift:56)",
+      "fetch failed: UnexpectedException: cancelled (at ExpoModulesCore/Promise.swift:56)",
+      'fetch failed: java.net.UnknownHostException: Unable to resolve host "app.example.com": No address associated with hostname',
+    ]) {
+      expect(isConnectionFailure(new Error(message))).toBe(true);
+    }
+    const timeout = Object.assign(new Error("signal timed out"), { name: "TimeoutError" });
+    expect(isConnectionFailure(timeout)).toBe(true);
+    expect(isAbandonedRequest(new Error("Request failed", { cause: timeout }))).toBe(true);
+    expect(isAbandonedRequest({ name: "AbortError", message: "The user aborted a request." })).toBe(
+      true,
+    );
+  });
+
+  it("leaves code errors and server answers alone", () => {
+    expect(isConnectionFailure(new TypeError("Cannot read properties of undefined"))).toBe(false);
+    expect(
+      isConnectionFailure(new TypeError("Failed to execute 'fetch' on 'Window': Invalid name")),
+    ).toBe(false);
+    expect(isConnectionFailure(Object.assign(new Error("Unavailable"), { status: 503 }))).toBe(
+      false,
+    );
+    expect(isAbandonedRequest(new Error("boom"))).toBe(false);
+    expect(isAbandonedRequest(null)).toBe(false);
   });
 });
