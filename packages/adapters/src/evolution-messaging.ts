@@ -314,7 +314,7 @@ export function createEvolutionPlatform(config: EvolutionConfig): MessagingPlatf
   const adapter = new EvolutionAdapter(config);
   return {
     provider: EVOLUTION_PROVIDER,
-    capabilities: { direct: true, groups: false, typing: false },
+    capabilities: { direct: true, groups: false, receipt: null },
     adapter,
     directThreadId: (address) => adapter.encodeThreadId({ number: address.replace(/\D/g, "") }),
     line: {

@@ -1,7 +1,8 @@
-import type { AvatarStyle } from "@rakazo/contracts";
 import * as SecureStore from "expo-secure-store";
-import { clearAvatarStyle, saveAvatarStyle } from "./avatar-style";
+import { invalidateArtifactCacheSession } from "./artifact-cache-session";
 import { stopLiveNotifications } from "./live-notifications";
+import { clearNetworkCache } from "./network-cache";
+import { clearFailedSends } from "./thread-feedback";
 
 const SESSION_KEY = "rakazo.session_token";
 const INTEGRATIONS_SCOPE_KEY = "rakazo.integrations-scope";
@@ -15,15 +16,36 @@ export type VerifiedIntegrationsScope = {
 let scopeInvalidated = false;
 let scopeWrites: Promise<void> = Promise.resolve();
 
-function enqueueScopeWrite(task: () => Promise<void>): Promise<void> {
+function enqueueScopeWrite<T>(task: () => Promise<T>): Promise<T> {
   const next = scopeWrites.then(task, task);
-  scopeWrites = next.catch(() => undefined);
+  scopeWrites = next.then(
+    () => undefined,
+    () => undefined,
+  );
   return next;
 }
 
-function invalidateIntegrationsScope(): Promise<void> {
+const sessionDiskCaches = new Set<() => void>();
+
+/** Registers a disk cache that every session change (sign-in, sign-out, server switch) deletes. */
+export function registerSessionDiskCache(clear: () => void): void {
+  sessionDiskCaches.add(clear);
+}
+
+function invalidateSessionCaches(): Promise<void> {
   scopeInvalidated = true;
+  clearFailedSends();
+  clearNetworkCache();
+  for (const clear of sessionDiskCaches) {
+    try {
+      clear();
+    } catch {
+      // A failed disk wipe must not block the session change or the other wipes.
+    }
+  }
+  const clearingArtifacts = invalidateArtifactCacheSession();
   return enqueueScopeWrite(async () => {
+    await clearingArtifacts;
     try {
       await SecureStore.deleteItemAsync(INTEGRATIONS_SCOPE_KEY);
     } catch {
@@ -99,6 +121,28 @@ let sessionFallback: string | undefined;
 /** Bumped by every session change, so a late response can tell it no longer owns the session. */
 let sessionGeneration = 0;
 
+let readySessionGeneration = 0;
+export function currentReadySessionGeneration() {
+  return readySessionGeneration;
+}
+const sessionListeners = new Set<() => void>();
+export function subscribeSessionGeneration(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+function publishSessionGeneration(ready = true) {
+  if (ready) readySessionGeneration = sessionGeneration;
+  for (const listener of sessionListeners) {
+    try {
+      listener();
+    } catch {
+      /* Observers cannot block an authentication change. */
+    }
+  }
+}
+
 export function currentSessionGeneration() {
   return sessionGeneration;
 }
@@ -109,67 +153,77 @@ export async function loadSessionToken() {
 }
 
 export async function saveSessionToken(token: string) {
-  sessionGeneration += 1;
-  const clearingScope = invalidateIntegrationsScope();
-  await SecureStore.setItemAsync(SESSION_KEY, token);
+  const generation = ++sessionGeneration;
+  publishSessionGeneration(false);
+  sessionInvalidated = true;
+  sessionFallback = undefined;
+  const clearingScope = invalidateSessionCaches();
+  await enqueueScopeWrite(() => SecureStore.setItemAsync(SESSION_KEY, token));
   await clearingScope;
+  if (generation !== sessionGeneration) return;
   sessionInvalidated = false;
   sessionFallback = undefined;
+  if (generation === sessionGeneration) publishSessionGeneration();
 }
 
 /** Clears the session. Returns false only when SecureStore could neither delete nor overwrite. */
 export async function clearSessionToken(): Promise<boolean> {
-  sessionGeneration += 1;
-  const clearingScope = invalidateIntegrationsScope();
+  const generation = ++sessionGeneration;
+  publishSessionGeneration(false);
+  sessionInvalidated = true;
+  sessionFallback = undefined;
+  const clearingScope = invalidateSessionCaches();
+  const clearingToken = clearStoredSessionToken(generation);
   await stopLiveNotifications(true).catch(() => undefined);
-  const tokenCleared = await clearStoredSessionToken();
+  const tokenCleared = await clearingToken;
   await clearingScope;
-  // Best-effort: a stuck style must not block sign-out or restore a wiped token.
-  await clearAvatarStyle();
+  if (generation === sessionGeneration) publishSessionGeneration();
   return tokenCleared;
 }
 
-/** Saves a style response only when it still belongs to the current session. */
-export function saveAvatarStyleIfCurrent(generation: number, style: AvatarStyle): Promise<boolean> {
-  if (generation !== sessionGeneration) return Promise.resolve(false);
-  return saveAvatarStyle(style).then(() => generation === sessionGeneration);
-}
-
-async function clearStoredSessionToken(): Promise<boolean> {
-  try {
-    await SecureStore.deleteItemAsync(SESSION_KEY);
-    sessionInvalidated = false;
-    sessionFallback = undefined;
-    return true;
-  } catch {
+async function clearStoredSessionToken(generation: number): Promise<boolean> {
+  return enqueueScopeWrite(async () => {
+    let cleared = false;
     try {
-      await SecureStore.setItemAsync(SESSION_KEY, "");
-      sessionInvalidated = false;
-      sessionFallback = undefined;
-      return true;
+      await SecureStore.deleteItemAsync(SESSION_KEY);
+      cleared = true;
     } catch {
-      sessionInvalidated = true;
-      sessionFallback = undefined;
-      return false;
+      try {
+        await SecureStore.setItemAsync(SESSION_KEY, "");
+        cleared = true;
+      } catch {
+        // A failed wipe keeps the bearer invalid in memory.
+      }
     }
-  }
+    if (generation === sessionGeneration) {
+      sessionInvalidated = !cleared;
+      sessionFallback = undefined;
+    }
+    return cleared;
+  });
 }
 
 /** Restores the current-server session in memory even when persistence is unavailable. */
 export async function restoreSessionToken(token: string) {
-  sessionGeneration += 1;
-  const clearingScope = invalidateIntegrationsScope();
+  const generation = ++sessionGeneration;
+  publishSessionGeneration(false);
+  const clearingScope = invalidateSessionCaches();
   if (!token) {
     await clearingScope;
+    if (generation !== sessionGeneration) return;
     sessionInvalidated = false;
     sessionFallback = undefined;
+    if (generation === sessionGeneration) publishSessionGeneration();
     return;
   }
   try {
     await saveSessionToken(token);
   } catch {
-    sessionInvalidated = false;
-    sessionFallback = token;
+    if (sessionGeneration === generation + 1) {
+      sessionInvalidated = false;
+      sessionFallback = token;
+      publishSessionGeneration();
+    }
   }
 }
 
@@ -190,6 +244,7 @@ export async function replaceSessionTokenIfCurrent(
     if (sessionGeneration === generation + 1) {
       sessionInvalidated = false;
       sessionFallback = token;
+      publishSessionGeneration();
     }
     throw error;
   }
@@ -200,19 +255,28 @@ export async function replaceSessionTokenIfCurrent(
 export async function snapshotSessionToken(): Promise<{ ok: true; value: string } | { ok: false }> {
   if (sessionFallback !== undefined) return { ok: true, value: sessionFallback };
   if (sessionInvalidated) return { ok: true, value: "" };
+  const generation = sessionGeneration;
   try {
-    return { ok: true, value: (await SecureStore.getItemAsync(SESSION_KEY)) ?? "" };
+    const value = (await SecureStore.getItemAsync(SESSION_KEY)) ?? "";
+    return {
+      ok: true,
+      value: generation === sessionGeneration && !sessionInvalidated ? value : "",
+    };
   } catch {
     return { ok: false };
   }
 }
 
+/**
+ * The server only accepts a signed bearer. `set-auth-token` and the session cookie are signed on
+ * every server version; the body token is signed only by servers that refuse unsigned bearers.
+ */
 export function tokenFromAuthResponse(res: Response, body: unknown) {
-  const fromJson = jsonToken(body);
-  if (fromJson) return fromJson;
   const cookies = res.headers.get("set-cookie") ?? "";
-  const encoded = cookies.match(/(?:^|,\s*)(?:__Secure-)?better-auth\.session_token=([^;,]*)/)?.[1];
-  if (!encoded) return "";
+  const encoded =
+    res.headers.get("set-auth-token") ||
+    cookies.match(/(?:^|,\s*)(?:__Secure-)?better-auth\.session_token=([^;,]*)/)?.[1];
+  if (!encoded) return jsonToken(body);
   try {
     return decodeURIComponent(encoded);
   } catch {

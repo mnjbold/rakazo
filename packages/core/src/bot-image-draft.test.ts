@@ -1,6 +1,6 @@
-import { BOT_NAME_MAX_LENGTH, BOT_TITLE_MAX_LENGTH, BotImageDraftSchema } from "@rakazo/contracts";
+import { BOT_NAME_MAX_LENGTH, BotImageDraftSchema } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_GROK_BOT_COLOR } from "./bot-avatar-colors.js";
+import { DEFAULT_BOT_AVATAR_COLOR } from "./bot-avatar-colors.js";
 import { botImageDraftAvatar, parseBotImageDraft, sniffImageMimeType } from "./bot-image-draft.js";
 
 describe("parseBotImageDraft", () => {
@@ -23,7 +23,6 @@ describe("parseBotImageDraft", () => {
     );
     expect(draft).toEqual({
       name: "Recruiter",
-      title: "Screens candidates",
       instructions: "You screen applicants.",
       color: "#10B981::shape_7",
       routines: [{ name: "Inbox", prompt: "Check new applications.", cron: "0 9 * * 1-5" }],
@@ -42,7 +41,6 @@ describe("parseBotImageDraft", () => {
       }),
     );
     expect(draft?.name).toHaveLength(BOT_NAME_MAX_LENGTH);
-    expect(draft?.title).toHaveLength(BOT_TITLE_MAX_LENGTH);
     expect(draft?.instructions).toBe("");
     expect(draft?.routines).toHaveLength(3);
     expect(draft?.routines[0]?.prompt).toHaveLength(1000);
@@ -60,8 +58,8 @@ describe("parseBotImageDraft", () => {
 describe("botImageDraftAvatar", () => {
   it("accepts palette hex, falls back for unknown colors and shapes", () => {
     expect(botImageDraftAvatar("#3b82f6", "wedge")).toBe("#3B82F6::shape_1");
-    expect(botImageDraftAvatar("chartreuse", "star")).toBe(`${DEFAULT_GROK_BOT_COLOR}::shape_0`);
-    expect(botImageDraftAvatar(undefined, 3)).toBe(`${DEFAULT_GROK_BOT_COLOR}::shape_0`);
+    expect(botImageDraftAvatar("chartreuse", "star")).toBe(`${DEFAULT_BOT_AVATAR_COLOR}::shape_0`);
+    expect(botImageDraftAvatar(undefined, 3)).toBe(`${DEFAULT_BOT_AVATAR_COLOR}::shape_0`);
   });
 });
 

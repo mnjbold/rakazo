@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import type { JobPublisher, SecretStore } from "@rakazo/adapter-kit";
 import { runContinueJob, SecretStoreUnavailableError } from "@rakazo/adapter-kit";
+import { inboundRoutineModelPin } from "@rakazo/adapters";
+import type { MessageBlock } from "@rakazo/contracts";
+import { escapePromptData, inboundRoutineBlock, messageBlockForArtifact } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 
@@ -13,11 +16,16 @@ export type WebhookEvents = {
     threadId: string;
     botId: string;
     userId: string;
-    blocks: Array<{ kind: "text"; text: string }>;
+    blocks: MessageBlock[];
     prompt: string;
     trigger: "webhook";
     clientNonce?: string;
     allowParallelRun?: boolean;
+    modelPin?: {
+      modelProvider: string;
+      modelId: string;
+      thinkingLevel: string | null;
+    };
   }): Promise<{ messageId: string; runId: string | null; seq: number }>;
 };
 
@@ -43,10 +51,6 @@ export type InboundTarget = {
   bot: Pick<WebhookTarget["bot"], "id" | "spaceId" | "userId">;
   threadId: string;
 };
-
-function escapePromptData(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
 
 /** Fence inbound delivery JSON as untrusted data so agents do not treat it as instructions. */
 export function formatUntrustedDeliveryPayload(label: string, payload: unknown): string {
@@ -180,7 +184,6 @@ function loadWebhookSecret(
   return entry.plaintext;
 }
 
-/** Load the bot webhook secret target, or null when the bot/secret is missing or invalid. */
 export async function loadWebhookTarget(
   deps: Pick<WebhookDeps, "prisma" | "secrets">,
   cache: WebhookSecretCache,
@@ -247,7 +250,6 @@ export function messagingWakeIdempotencyKey(provider: string, handle: string): s
   return `${provider}:${handle}`;
 }
 
-/** Client nonce for idempotent inbound deliveries (webhook / github / messaging). */
 export function inboundDeliveryClientNonce(
   source: "webhook" | "github" | "messaging",
   botId: string,
@@ -261,7 +263,14 @@ export async function deliverWebhookEvent(
   target: InboundTarget,
   input: {
     prompt: string;
-    routines: Array<{ name: string; prompt: string }>;
+    artifacts?: Array<{ id: string; name: string; mimeType: string; size: number }>;
+    routines: Array<{
+      name: string;
+      prompt: string;
+      modelProvider: string | null;
+      modelId: string | null;
+      thinkingLevel: string | null;
+    }>;
     source: "webhook" | "github" | "messaging";
     idempotencyKey?: string;
     /** Messaging wakes share the live chat thread; keep a separate webhook run. */
@@ -271,9 +280,7 @@ export async function deliverWebhookEvent(
   const promptText =
     input.routines.length > 0
       ? [
-          ...input.routines.map(
-            (routine) => `Run routine "${routine.name}":\n${routine.prompt.trim()}`,
-          ),
+          ...input.routines.map(inboundRoutineBlock),
           "",
           input.source === "github"
             ? "Inbound GitHub event metadata:"
@@ -287,17 +294,30 @@ export async function deliverWebhookEvent(
   const clientNonce = input.idempotencyKey
     ? inboundDeliveryClientNonce(input.source, target.bot.id, input.idempotencyKey)
     : undefined;
+  const pin = inboundRoutineModelPin(input.routines);
 
   const sent = await deps.events.sendUserMessage({
     spaceId: target.bot.spaceId,
     threadId: target.threadId,
     botId: target.bot.id,
     userId: target.bot.userId,
-    blocks: [{ kind: "text", text: promptText }],
+    blocks: [
+      { kind: "text", text: promptText },
+      ...(input.artifacts ?? []).map(messageBlockForArtifact),
+    ],
     prompt: promptText,
     trigger: "webhook",
     clientNonce,
     ...(input.allowParallelRun ? { allowParallelRun: true } : {}),
+    ...(pin.modelProvider && pin.modelId
+      ? {
+          modelPin: {
+            modelProvider: pin.modelProvider,
+            modelId: pin.modelId,
+            thinkingLevel: pin.thinkingLevel ?? null,
+          },
+        }
+      : {}),
   });
 
   if (sent.runId) {

@@ -25,6 +25,11 @@ let port = 0;
 
 beforeAll(async () => {
   server = createServer(async (request: IncomingMessage, response: ServerResponse) => {
+    // Local tools can probe any listening loopback port; only testFetch requests count.
+    if (!request.headers["x-test-host"]) {
+      response.writeHead(404).end();
+      return;
+    }
     const key = `${request.headers["x-test-host"]}${request.url}`;
     hits.push(key);
     const route = routes.get(key);
@@ -168,7 +173,10 @@ describe("favicon origins", () => {
     ["https://x.com/", "https://x.com"],
     ["HTTP://Example.TEST", "http://example.test"],
     ["https://example.test:443/", "https://example.test"],
-  ])("accepts the bare origin %s", (input, origin) => {
+    ["https://www.example.com", "https://example.com"],
+    ["https://c2VjcmV0.leak.example.co.uk", "https://example.co.uk"],
+    ["http://203.0.113.7", "http://203.0.113.7"],
+  ])("accepts the bare origin %s, asking only its registrable domain", (input, origin) => {
     expect(faviconOrigin(input)).toBe(origin);
   });
 
@@ -822,6 +830,6 @@ describe("favicon SSRF guard", () => {
 
     expect(seen.cookie).toBeUndefined();
     expect(seen.authorization).toBeUndefined();
-    expect(seen["user-agent"]).toMatch(/^JEWL\//);
+    expect(seen["user-agent"]).toMatch(/^Rakazo\//);
   });
 });

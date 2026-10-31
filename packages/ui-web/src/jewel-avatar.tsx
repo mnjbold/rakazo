@@ -1,4 +1,4 @@
-import type { BotMood, GrokColorDef, JewelCut } from "@rakazo/core";
+import type { BotAttention, BotColorDef, BotMood, JewelCut } from "@rakazo/core";
 import { avatarIdentitySeed, JEWEL_VIEWBOX, jewelCut } from "@rakazo/core";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,7 +40,7 @@ function observeOffscreen(element: HTMLElement): () => void {
 }
 
 export interface JewelAvatarProps {
-  colorDef: GrokColorDef;
+  colorDef: BotColorDef;
   identity: string;
   size: number;
   mood: BotMood;
@@ -49,6 +49,7 @@ export interface JewelAvatarProps {
   computerOpen?: boolean;
   /** Pointer reactions (hover gaze, tap squish, long-press wobble). Client-only delight. */
   interactive?: boolean;
+  attention: BotAttention | null;
   className?: string;
 }
 
@@ -234,7 +235,7 @@ function JewelBody({
   size,
 }: {
   cut: JewelCut;
-  colorDef: GrokColorDef;
+  colorDef: BotColorDef;
   mood: BotMood;
   size: number;
 }) {

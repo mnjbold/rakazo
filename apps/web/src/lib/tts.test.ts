@@ -1,5 +1,6 @@
+import { MAX_VOICE_AUDIO_BYTES, VOICE_RESPONSE_TIMEOUT_MS } from "@rakazo/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MAX_VOICE_AUDIO_BYTES, Speaker, VOICE_RESPONSE_TIMEOUT_MS } from "./tts.js";
+import { Speaker } from "./tts.js";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -32,27 +33,26 @@ describe("Speaker", () => {
     ).mockImplementation(() => new Promise(() => undefined));
     const pending = speaker.speak("Hello there.", { messageId: "m1" });
     speaker.stop();
-    await pending;
+    await expect(pending).resolves.toBeUndefined();
     expect(speaker.state.status).toBe("idle");
   });
 
-  it("reports everything spoken so far while each utterance plays", async () => {
+  it("does not report a failure for a request a newer one replaced", async () => {
     const speaker = new Speaker();
-    const internals = speaker as unknown as {
-      prepare: () => Promise<string[]>;
-      render: () => Promise<Blob>;
-      play: () => Promise<boolean>;
-    };
-    vi.spyOn(internals, "prepare").mockResolvedValue(["One.", "Two.", "Three."]);
-    vi.spyOn(internals, "render").mockResolvedValue(new Blob(["audio"]));
-    vi.spyOn(internals, "play").mockResolvedValue(true);
-    const heard: (string | undefined)[] = [];
-    speaker.subscribe((state) => {
-      if (state.status === "speaking") heard.push(state.heard);
-    });
-    await speaker.speak("One. Two. Three.", { messageId: "m1" });
-    expect(heard).toEqual(["One.", "One. Two.", "One. Two. Three."]);
-    expect(speaker.state.heard).toBeUndefined();
+    let fail: (error: Error) => void = () => undefined;
+    vi.spyOn(speaker as unknown as { prepare: () => Promise<string[]> }, "prepare")
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }),
+      )
+      .mockResolvedValueOnce([]);
+    const first = speaker.speak("First.", { messageId: "m1" });
+    await speaker.speak("Second.", { messageId: "m2" });
+    fail(new Error("Your voice provider is out of credit."));
+    await expect(first).resolves.toBeUndefined();
+    expect(speaker.state.error).toBeUndefined();
   });
 
   it("resolves with an error snapshot instead of rejecting", async () => {
@@ -61,69 +61,14 @@ describe("Speaker", () => {
       speaker as unknown as { prepare: () => Promise<string[]> },
       "prepare",
     ).mockRejectedValue(new Error("ElevenLabs rejected that key."));
-    await expect(speaker.speak("Hi there.")).resolves.toBeUndefined();
+    await expect(speaker.speak("Hi there.")).resolves.toBe("ElevenLabs rejected that key.");
     expect(speaker.state.error).toBe("ElevenLabs rejected that key.");
   });
 
-  it("queues streamed utterances and fetches only the next one while one plays", async () => {
-    const speaker = new Speaker();
-    const internals = speaker as unknown as {
-      render: (text: string) => Promise<Blob>;
-      play: () => Promise<boolean>;
-    };
-    const rendered: string[] = [];
-    vi.spyOn(internals, "render").mockImplementation(async (text) => {
-      rendered.push(text);
-      return new Blob([text]);
-    });
-    const plays: Array<(finished: boolean) => void> = [];
-    vi.spyOn(internals, "play").mockImplementation(
-      () => new Promise<boolean>((resolve) => plays.push(resolve)),
-    );
-    const heard: (string | undefined)[] = [];
-    speaker.subscribe((state) => {
-      if (state.status === "speaking") heard.push(state.heard);
-    });
-    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-    speaker.enqueue(["One."], { messageId: "run:r1" });
-    await settle();
-    expect(rendered).toEqual(["One."]);
-    expect(plays).toHaveLength(1);
-
-    // Sentences that arrive mid-playback join the queue; only the next one is fetched early.
-    speaker.enqueue(["Two.", "Three."], { messageId: "run:r1" });
-    expect(rendered).toEqual(["One.", "Two."]);
-    plays[0]?.(true);
-    await settle();
-    expect(rendered).toEqual(["One.", "Two.", "Three."]);
-    expect(plays).toHaveLength(2);
-    plays[1]?.(true);
-    await settle();
-    plays[2]?.(true);
-    await settle();
-    expect(speaker.state.status).toBe("idle");
-
-    // A later batch of the same reply keeps what was already heard.
-    speaker.enqueue(["Four."], { messageId: "run:r1" });
-    await settle();
-    expect(heard.at(-1)).toBe("One. Two. Three. Four.");
-
-    // Another message replaces the queue and starts its own heard.
-    speaker.enqueue(["Other."], { messageId: "m2" });
-    await settle();
-    expect(speaker.state).toMatchObject({ messageId: "m2", heard: "Other." });
-    speaker.stop();
-    expect(heard).toEqual([
-      "One.",
-      "One. Two.",
-      "One. Two. Three.",
-      "One. Two. Three. Four.",
-      "Other.",
-    ]);
-  });
-
-  it("keeps speak requests in the space where playback started", async () => {
+  it.each([
+    { spaceId: undefined, expectedSpaceId: "space-support" },
+    { spaceId: "space-edited", expectedSpaceId: "space-edited" },
+  ])("keeps both speech requests in $expectedSpaceId", async ({ spaceId, expectedSpaceId }) => {
     const changeSelectedSpace = stubSelectedSpace("space-support");
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
       ok: true,
@@ -164,16 +109,16 @@ describe("Speaker", () => {
         changeSelectedSpace("space-other");
         return ["Hello."];
       });
-    await speaker.speak("Hello.", { messageId: "m1" });
+    await speaker.speak("Hello.", { messageId: "m1", spaceId });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/voice/speak",
       expect.objectContaining({ credentials: "include" }),
     );
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
-    expect(headers.get("x-rakazo-space-id")).toBe("space-support");
+    expect(headers.get("x-rakazo-space-id")).toBe(expectedSpaceId);
     expect(headers.get("content-type")).toBe("application/json");
-    expect(prepare.mock.calls[0]?.[3]).toBe("space-support");
+    expect(prepare.mock.calls[0]?.[3]).toBe(expectedSpaceId);
   });
 
   it("rejects oversized audio without waiting for response cancellation", async () => {
@@ -193,10 +138,34 @@ describe("Speaker", () => {
       "prepare",
     ).mockResolvedValue(["Hello."]);
 
-    await expect(speaker.speak("Hello.")).resolves.toBeUndefined();
+    await expect(speaker.speak("Hello.")).resolves.toBe("Voice response is too large.");
 
     expect(speaker.state.error).toBe("Voice response is too large.");
     expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["VOICE_OUT_OF_CREDIT", 402, "Your voice provider is out of credit."],
+    ["VOICE_KEY_REJECTED", 403, "Your voice provider key was rejected."],
+  ])("shows its own copy for %s", async (code, status, copy) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: "Insufficient API credit at fish.audio", code }), {
+            status,
+          }),
+      ),
+    );
+    const speaker = new Speaker();
+    vi.spyOn(
+      speaker as unknown as { prepare: () => Promise<string[]> },
+      "prepare",
+    ).mockResolvedValue(["Hello."]);
+
+    await expect(speaker.speak("Hello.")).resolves.toBe(copy);
+
+    expect(speaker.state.error).toBe(copy);
   });
 
   it("times out while a voice response body is stalled", async () => {

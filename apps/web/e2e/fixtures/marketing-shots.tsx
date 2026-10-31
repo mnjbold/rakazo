@@ -1,13 +1,17 @@
 import { I18nProvider } from "@lingui/react";
-import type { Bot } from "@rakazo/contracts";
+import type { Bot, Me, ModelCatalogEntry } from "@rakazo/contracts";
 import { defaultCronPreset } from "@rakazo/core";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AskCard } from "../../src/components/AskCard";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
+import { queryClient } from "../../src/lib/query";
 import type { RoutineDraftState } from "../../src/pages/RoutineEditor";
 import { RoutineEditor } from "../../src/pages/RoutineEditor";
-import { BotSettings, CreateBotForm } from "../../src/pages/shell/bot-panel";
+import { SettingsOverlay } from "../../src/pages/SettingsOverlay";
+import { BotSettings } from "../../src/pages/shell/bot-panel";
+import { CreateBotDialog } from "../../src/pages/shell/create-bot-dialog";
 import "../../src/styles.css";
 
 const demoRpc: Record<string, unknown> = {
@@ -95,41 +99,37 @@ function inboxBot(): Bot {
 function CreateShot() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const name = document.querySelector<HTMLInputElement>('input[placeholder="Name this bot"]');
-    const title = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Describe what this bot does"]',
-    );
-    const description = document.querySelector<HTMLTextAreaElement>("textarea");
-    fill(name, "Inbox");
-    fill(title, "Sorts the demo inbox");
-    fill(description, "Files routine mail for ada@example.test and leaves the rest for review.");
-    setReady(true);
+    let frame = 0;
+    // The dialog renders in a portal, so wait for it before filling it in.
+    const fillWhenOpen = () => {
+      const name = document.querySelector<HTMLInputElement>('input[placeholder="Name your Bot"]');
+      if (!name) {
+        frame = requestAnimationFrame(fillWhenOpen);
+        return;
+      }
+      fill(name, "Inbox");
+      document.querySelector<HTMLButtonElement>('button[aria-label="Shape 1"]')?.click();
+      document.querySelector<HTMLButtonElement>('button[aria-label="Color #8B5CF6"]')?.click();
+      setReady(true);
+    };
+    fillWhenOpen();
+    return () => cancelAnimationFrame(frame);
   }, []);
   return (
-    <main
-      data-ready={ready ? "true" : "false"}
-      className="mx-auto max-w-[640px] bg-background p-8 text-foreground"
-    >
-      <CreateBotForm onCreate={async () => undefined} onCancel={() => undefined} />
+    <main data-ready={ready ? "true" : "false"} className="min-h-screen bg-background">
+      <CreateBotDialog onCreate={async () => undefined} onCancel={() => undefined} />
     </main>
   );
 }
 
-function fill(element: HTMLInputElement | HTMLTextAreaElement | null, value: string) {
-  if (!element) return;
-  const prototype =
-    element instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype;
-  Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(element, value);
+function fill(element: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function ModelShot() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const details = document.querySelector("details");
-    if (details) details.open = true;
     const timer = window.setTimeout(() => setReady(true), 400);
     return () => window.clearTimeout(timer);
   }, []);
@@ -209,7 +209,113 @@ function ApprovalShot() {
   );
 }
 
+const subscriptionMe: Me = {
+  ticketBoardEnabled: false,
+  navLinks: [],
+  phoneCallsEnabled: false,
+  userId: "user-demo",
+  email: "ada@example.test",
+  name: "Ada",
+  spaceId: "space-demo",
+  isDeploymentOwner: true,
+  needsModel: false,
+  defaultProvider: "anthropic",
+  defaultModel: "claude-sonnet-5-5",
+  hostCredentialProvider: null,
+  hostCredentialSource: null,
+  computerHost: "docker",
+  canChooseHostComputer: true,
+  sandboxProvider: "docker",
+  mcpStdioEnabled: false,
+  avatarStyle: "organic",
+  billingEnabled: false,
+};
+
+const subscriptionCatalog: ModelCatalogEntry[] = [
+  {
+    provider: "anthropic",
+    providerName: "Anthropic",
+    id: "claude-sonnet-5-5",
+    label: "Claude Sonnet 5.5",
+    billing: "",
+    auth: "both",
+    oauthLabel: "Sign in with Claude",
+    authHint: "Claude Pro/Max / key",
+    subscription: true,
+    signIn: "auth-url",
+    reasoning: true,
+    thinkingLevels: ["low", "medium", "high", "xhigh", "max"],
+  },
+  {
+    provider: "openai-codex",
+    providerName: "OpenAI Codex",
+    id: "gpt-6.1-sol",
+    label: "GPT-6.1 Sol",
+    billing:
+      "Sign in with ChatGPT Plus or Pro. Uses your OpenAI subscription. Rakazo does not pay.",
+    auth: "oauth",
+    oauthLabel: "Sign in with ChatGPT",
+    authHint: "ChatGPT Plus/Pro",
+    subscription: true,
+    signIn: "device-code",
+    reasoning: true,
+    thinkingLevels: ["low", "medium", "high", "xhigh", "max"],
+  },
+  {
+    provider: "xai",
+    providerName: "xAI",
+    id: "grok-4.6",
+    label: "grok-4.6",
+    billing: "Sign in with SuperGrok or X Premium, or paste an xAI API key. Rakazo does not pay.",
+    auth: "both",
+    oauthLabel: "Sign in with SuperGrok or X Premium",
+    authHint: "SuperGrok / key",
+    subscription: true,
+    signIn: "device-code",
+    reasoning: true,
+    thinkingLevels: ["low", "medium", "high", "xhigh"],
+  },
+];
+
+function SubscriptionShot() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const text = document.body.textContent ?? "";
+      if (text.includes("Sign in with Claude") && text.includes("Claude Sonnet 5.5")) {
+        setReady(true);
+        window.clearInterval(timer);
+      }
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <main
+      data-ready={ready ? "true" : "false"}
+      className="min-h-screen bg-background text-foreground"
+    >
+      <SettingsOverlay
+        email="ada@example.test"
+        name="Ada"
+        section="models"
+        onSectionChange={() => undefined}
+        memoryConfig={null}
+        onMemoryConfigChange={() => undefined}
+        onUsageOpen={() => undefined}
+        onClose={() => undefined}
+      />
+    </main>
+  );
+}
+
 const view = new URLSearchParams(location.search).get("view") ?? "create";
+
+if (view === "subscription") {
+  demoRpc.me = subscriptionMe;
+  demoRpc["models/list"] = subscriptionCatalog;
+  demoRpc["models/credentials"] = [];
+  demoRpc["models/backups"] = [];
+}
 
 void bootstrapI18n("en").then(() => {
   const shot =
@@ -219,10 +325,14 @@ void bootstrapI18n("en").then(() => {
       <RoutineShot />
     ) : view === "approval" ? (
       <ApprovalShot />
+    ) : view === "subscription" ? (
+      <SubscriptionShot />
     ) : (
       <CreateShot />
     );
   createRoot(document.getElementById("root")!).render(
-    <I18nProvider i18n={i18n}>{shot}</I18nProvider>,
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider i18n={i18n}>{shot}</I18nProvider>
+    </QueryClientProvider>,
   );
 });

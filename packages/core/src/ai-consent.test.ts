@@ -1,7 +1,12 @@
 import type { AiConsentStatus } from "@rakazo/contracts";
 import { AI_DISCLOSURE_VERSION } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { AiConsentBlocked, aiDataUsesForProcedure, ensureAiDataConsent } from "./ai-consent.js";
+import {
+  AiConsentBlocked,
+  aiConsentTarget,
+  aiDataUsesForProcedure,
+  ensureAiDataConsent,
+} from "./ai-consent.js";
 
 const status: AiConsentStatus = {
   scope: "account-space",
@@ -37,6 +42,18 @@ describe("foreground AI consent", () => {
       allow: vi.fn(),
     });
     await expect(check).rejects.toBeInstanceOf(AiConsentBlocked);
+  });
+  it("keeps the preflight failure as the cause so an unreachable server stays recognizable", async () => {
+    const offline = new TypeError("Network request failed");
+    const check = ensureAiDataConsent({
+      uses: ["model"],
+      status: async () => {
+        throw offline;
+      },
+      prompt: vi.fn(),
+      allow: vi.fn(),
+    });
+    await expect(check).rejects.toMatchObject({ cause: offline });
   });
   it("does not grant anything when declined", async () => {
     const allow = vi.fn();
@@ -93,6 +110,13 @@ describe("foreground AI consent", () => {
     expect(
       aiDataUsesForProcedure("routines/update", { routineId: "routine", active: true }),
     ).toEqual(["model", "memory"]);
+    expect(aiConsentTarget({ routineId: "routine-1" })).toEqual({ routineId: "routine-1" });
+    expect(aiConsentTarget({ botId: "bot", text: "hello" })).toEqual({ botId: "bot" });
+    // A voice request for the account's copy is asked about the account's provider.
+    expect(aiConsentTarget({ text: "hello", scope: "account" })).toEqual({
+      settingsScope: "account",
+    });
+    expect(aiConsentTarget({ botId: "bot", scope: "elsewhere" })).toEqual({ botId: "bot" });
   });
   it("coalesces concurrent prompts and grants for one account-space recipient", async () => {
     let decide!: (allowed: boolean) => void;

@@ -8,6 +8,9 @@ export function MessageHoverMetadata({
   side: "start" | "end";
   pinned?: boolean;
   children: ReactNode;
+  /** Present when this reply can be read aloud. */
+  onSpeak?: () => void;
+  speaking?: boolean;
 }) {
   // Hover-capable pointers reveal the rail on hover; touch reveals it for the
   // message the transcript marks open (long-press or tap on the bubble).

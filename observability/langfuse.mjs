@@ -12,10 +12,13 @@
 // Server-side only: never ship LLM_API_KEY / LANGFUSE_SECRET_KEY to a browser bundle.
 
 const REPO = "rakazo";
-const env = (k, d) => (globalThis.process?.env?.[k] ?? globalThis.Deno?.env?.get?.(k) ?? d);
+const env = (k, d) => globalThis.process?.env?.[k] ?? globalThis.Deno?.env?.get?.(k) ?? d;
 const hex = () => crypto.randomUUID().replaceAll("-", "");
 
-export async function chat(messages, { model, name = "chat", sessionId, userId, tags = [], traceId = hex(), ...extra } = {}) {
+export async function chat(
+  messages,
+  { model, name = "chat", sessionId, userId, tags = [], traceId = hex(), ...extra } = {},
+) {
   const res = await fetch(`${env("LLM_BASE_URL").replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${env("LLM_API_KEY")}` },
@@ -30,11 +33,16 @@ export async function chat(messages, { model, name = "chat", sessionId, userId, 
         session_id: sessionId,
         trace_user_id: userId,
         trace_release: env("LANGFUSE_RELEASE", "dev"),
-        tags: [`repo:${REPO}`, `env:${env("LANGFUSE_TRACING_ENVIRONMENT", "development")}`, ...tags],
+        tags: [
+          `repo:${REPO}`,
+          `env:${env("LANGFUSE_TRACING_ENVIRONMENT", "development")}`,
+          ...tags,
+        ],
       },
     }),
   });
-  if (!res.ok) throw new Error(`LLM gateway HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok)
+    throw new Error(`LLM gateway HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const body = await res.json();
   const text = (body.choices?.[0]?.message?.content ?? "").split("</think>").pop().trim();
   return { text, traceId, usage: body.usage, raw: body };
@@ -47,6 +55,7 @@ export async function score(traceId, name, value, comment) {
     headers: { "Content-Type": "application/json", Authorization: `Basic ${auth}` },
     body: JSON.stringify({ traceId, name, value, comment, dataType: "NUMERIC" }),
   });
-  if (!res.ok) throw new Error(`Langfuse score HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok)
+    throw new Error(`Langfuse score HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json();
 }

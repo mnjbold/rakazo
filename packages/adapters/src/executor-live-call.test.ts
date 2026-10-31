@@ -11,6 +11,7 @@ import { NO_RESPONSE } from "./silent-reply.js";
 vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./computer-lifecycle.js")>()),
   acquireComputerExecutionLease: async () => null,
+  acquireDedicatedScreenLeaseFence: async () => null,
   provisionComputer: async () => ({ id: "computer-1", kind: "desktop" }),
 }));
 
@@ -56,8 +57,15 @@ async function runOnce({
       })),
       findMany: vi.fn(async () => []),
     },
+    spaceSettingOverride: { findUnique: vi.fn(async () => null) },
+    userModelPreference: { findFirst: vi.fn(async () => null) },
+    userModelRoleChoice: { findMany: vi.fn(async () => []) },
+    secret: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
+    vaultCredential: { findMany: vi.fn(async () => []) },
+    artifact: { findMany: vi.fn(async () => []) },
     attempt: {
       create: vi.fn(async () => ({ id: "attempt-1" })),
+      findMany: vi.fn(async () => []),
       update: vi.fn(),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
@@ -74,10 +82,11 @@ async function runOnce({
     connection: { findMany: vi.fn(async () => []) },
     spaceModelPreference: { findFirst: vi.fn(async () => null) },
     userModelCredential: { findFirst: vi.fn(async () => null) },
+    chatGroup: { findMany: vi.fn(async () => []) },
     deploymentSettings: {
       findUnique: vi.fn(async () => ({
-        defaultModelProvider: "scripted",
-        defaultModelId: "scripted",
+        defaultModelProvider: "openrouter",
+        defaultModelId: "deepseek/deepseek-v4-flash-0731",
       })),
     },
     taughtSkill: { findMany: vi.fn(async () => []) },
@@ -97,9 +106,18 @@ async function runOnce({
   });
   const executor = createRunExecutor({
     prisma,
+    deploymentModelKey: "fake-deployment-key",
     runtime: { describe: () => ({ capabilities: { scripted: false } }), run: runtimeRun },
     connector: { discoverTools: async () => [], resolveCall: async () => undefined },
-    sandbox: { describe: () => ({ capabilities: { graphical: false } }) },
+    sandbox: {
+      describe: () => ({ capabilities: { graphical: false } }),
+      writeFile: vi.fn(async () => undefined),
+      async *exportWorkspace() {
+        yield* [];
+      },
+    },
+    home: { commit: vi.fn(async () => "fixture-revision") },
+    artifacts: { get: vi.fn() },
     memory: { read: async () => ({ documents: [] }) },
     memoryProviders: { resolve: async () => null },
     events: { append: vi.fn(async () => undefined), finalizeRun },
@@ -148,7 +166,8 @@ describe("live call runs", () => {
     const spoken = await runOnce({ live: true, reply: `${NO_RESPONSE}, but the meeting moved.` });
     expect(spoken.finalizeRun).toHaveBeenCalledWith(
       expect.objectContaining({
-        blocks: [{ kind: "text", text: `${NO_RESPONSE}, but the meeting moved.` }],
+        // Upstream strips sentinel tokens at the edges of a reply and keeps the prose.
+        blocks: [{ kind: "text", text: ", but the meeting moved." }],
       }),
     );
   });

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { activeBotId, completeOnboarding, rpc, signup } from "./helpers";
+import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
 
-test("a ?m= deep link jumps while the thread is streaming", async ({ page }) => {
+test("a ?m= deep link jumps while the thread is streaming", async ({ page }, testInfo) => {
   const stamp = Date.now();
   await signup(page, `jump-${stamp}@rakazo.test`, "password12", "Jump Tester");
   await completeOnboarding(page);
@@ -53,7 +53,6 @@ test("a ?m= deep link jumps while the thread is streaming", async ({ page }) => 
     const rowsBefore = await rows.count();
     await expect.poll(() => rows.count(), { timeout: 20_000 }).toBeGreaterThan(rowsBefore);
 
-    // The flood has pushed the target out of the live window.
     await expect(targetRow).not.toBeInViewport({ timeout: 20_000 });
     const sentAtPush = sent;
 
@@ -80,9 +79,15 @@ test("a ?m= deep link jumps while the thread is streaming", async ({ page }) => 
     expect(aroundResponse.ok()).toBe(true);
     await expect.poll(() => sent, { timeout: 10_000 }).toBeGreaterThan(sentAtPush);
     await expect(targetRow).toBeInViewport({ timeout: 20_000 });
-
     // The one-shot param is stripped so a refresh does not re-jump.
     await expect(page).not.toHaveURL(/[?&]m=/, { timeout: 20_000 });
+
+    // All regression assertions above run under continuous sends. Stop only the
+    // unbounded producer before taking the artifact, so screenshot rendering
+    // does not compete with an ever-growing transcript. The run stops in finally.
+    flooding = false;
+    await flood;
+    await captureScreenshot(page, testInfo, "message-jump-during-stream");
   } finally {
     flooding = false;
     await flood;

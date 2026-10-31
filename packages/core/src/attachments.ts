@@ -1,10 +1,11 @@
+import type { AttachmentMimeType, MessageBlock } from "@rakazo/contracts";
 import {
-  ATTACHMENT_MAX_BASE64_LENGTH,
+  ATTACHMENT_COUNT_CEILING,
   ATTACHMENT_MAX_BYTES,
-  type AttachmentMimeType,
+  ATTACHMENT_MAX_COUNT,
+  attachmentSizeLabel,
   isAllowedAttachmentMimeType,
   isAttachmentImageMimeType,
-  type MessageBlock,
 } from "@rakazo/contracts";
 
 export class AttachmentValidationError extends Error {
@@ -15,15 +16,10 @@ export class AttachmentValidationError extends Error {
 }
 
 /**
- * Validates base64 without a grouped-repetition regex over the whole string.
- * `/^(?:[A-Za-z0-9+/]{4})*(...)?$/` stack-overflows V8's regex engine on
- * inputs in the megabytes-of-characters range — reproduced directly: a 5 MiB
- * string throws `RangeError: Maximum call stack size exceeded` on `.test()`.
- * At the current 10 MiB attachment limit, base64 expansion (4/3) puts any
- * attachment over ~3.75 MiB squarely in that range, so this crashes on a
- * routine, non-malicious upload. A flat, ungrouped `[chars]*` quantifier does
- * not have this problem; padding is checked separately since it can only
- * ever be the trailing 0-2 characters.
+ * Validates base64 without a grouped-repetition regex over the whole string:
+ * `/^(?:[A-Za-z0-9+/]{4})*(...)?$/` overflows V8's regex stack on multi-megabyte
+ * inputs, which ordinary attachments reach. A flat `[chars]*` quantifier does not;
+ * padding is checked separately since it can only be the trailing 0-2 characters.
  */
 function isWellFormedBase64(value: string): boolean {
   const paddingMatch = /={1,2}$/.exec(value);
@@ -33,11 +29,51 @@ function isWellFormedBase64(value: string): boolean {
   return /^[A-Za-z0-9+/]*$/.test(body);
 }
 
-export function decodeAttachmentBase64(contentBase64: string): Uint8Array {
+export function attachmentCountFromEnv(source: { MAX_ATTACHMENTS_PER_MESSAGE?: string }): number {
+  const value = source.MAX_ATTACHMENTS_PER_MESSAGE?.trim();
+  if (!value) return ATTACHMENT_MAX_COUNT;
+  const count = Number(value);
+  if (
+    !/^\d+$/.test(value) ||
+    !Number.isInteger(count) ||
+    count < 1 ||
+    count > ATTACHMENT_COUNT_CEILING
+  ) {
+    throw new Error(
+      `MAX_ATTACHMENTS_PER_MESSAGE must be an integer from 1 to ${ATTACHMENT_COUNT_CEILING}`,
+    );
+  }
+  return count;
+}
+
+export function uploadSizeFromEnv(source: { MAX_UPLOAD_SIZE_MB?: string }): number {
+  const value = source.MAX_UPLOAD_SIZE_MB?.trim();
+  if (!value) return ATTACHMENT_MAX_BYTES;
+  const mb = Number(value);
+  // Leave room for base64 expansion and the JSON envelope in the HTTP body guard.
+  if (
+    !/^\d+$/.test(value) ||
+    !Number.isSafeInteger(mb) ||
+    mb <= 0 ||
+    mb > Math.floor(Number.MAX_SAFE_INTEGER / (2 * 1024 * 1024))
+  ) {
+    throw new Error(
+      "MAX_UPLOAD_SIZE_MB must be a positive integer number of MiB within the safe byte range",
+    );
+  }
+  return mb * 1024 * 1024;
+}
+
+export function decodeAttachmentBase64(
+  contentBase64: string,
+  maxBytes = ATTACHMENT_MAX_BYTES,
+): Uint8Array {
   const normalized = contentBase64.trim();
   if (!normalized) throw new AttachmentValidationError("Attachment content is empty");
-  if (normalized.length > ATTACHMENT_MAX_BASE64_LENGTH) {
-    throw new AttachmentValidationError("Attachment exceeds the 10 MiB limit");
+  if (normalized.length > Math.ceil(maxBytes / 3) * 4) {
+    throw new AttachmentValidationError(
+      `Attachment exceeds the ${attachmentSizeLabel(maxBytes)} limit`,
+    );
   }
   if (normalized.length % 4 !== 0 || !isWellFormedBase64(normalized)) {
     throw new AttachmentValidationError("Attachment content is not valid base64");
@@ -49,8 +85,10 @@ export function decodeAttachmentBase64(contentBase64: string): Uint8Array {
     throw new AttachmentValidationError("Attachment content is not valid base64");
   }
   if (bytes.byteLength === 0) throw new AttachmentValidationError("Attachment content is empty");
-  if (bytes.byteLength > ATTACHMENT_MAX_BYTES) {
-    throw new AttachmentValidationError("Attachment exceeds the 10 MiB limit");
+  if (bytes.byteLength > maxBytes) {
+    throw new AttachmentValidationError(
+      `Attachment exceeds the ${attachmentSizeLabel(maxBytes)} limit`,
+    );
   }
   return new Uint8Array(bytes);
 }
@@ -118,6 +156,22 @@ export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
       if (block.kind === "handoff") {
         return `[handoff ${block.fromBotId} -> ${block.toBotId}] ${block.text}`;
       }
+      // Without the answer a later turn sees the question as still open and asks it again.
+      if (block.kind === "ask") {
+        if (block.status !== "answered" || !block.answer) return block.text;
+        const choice = block.actions?.find((action) => action.id === block.answer);
+        return `${block.text}\nAnswer: ${choice?.label ?? block.answer}`;
+      }
+      // The bot needs the outcome of its own call: a missed call is its cue to follow up.
+      if (block.kind === "call_request") {
+        const outcome = {
+          ringing: "still ringing",
+          answered: "the user answered",
+          declined: "the user declined it",
+          missed: "the user did not answer",
+        }[block.status];
+        return `[you called the user about: ${block.reason}; ${outcome}]${block.status === "answered" ? `\n${block.opening}` : ""}`;
+      }
       // Cards the bot showed must stay in its history, or later turns disown the lines around them.
       if (block.kind === "choice") {
         const picked = block.options.find((option) => option.id === block.answerId)?.label;
@@ -135,6 +189,11 @@ export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
 }
 
 const EXTENSION_MIME_TYPES: Record<string, AttachmentMimeType> = {
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".mp4": "video/mp4",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
@@ -145,12 +204,20 @@ const EXTENSION_MIME_TYPES: Record<string, AttachmentMimeType> = {
   ".md": "text/markdown",
   ".markdown": "text/markdown",
   ".csv": "text/csv",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".html": "text/html",
   ".htm": "text/html",
   ".json": "application/json",
+  ".zip": "application/zip",
 };
 
 const MIME_TYPE_EXTENSIONS: Record<AttachmentMimeType, string> = {
+  "audio/mpeg": ".mp3",
+  "audio/wav": ".wav",
+  "audio/ogg": ".ogg",
+  "audio/mp4": ".m4a",
+  "video/mp4": ".mp4",
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
@@ -159,14 +226,34 @@ const MIME_TYPE_EXTENSIONS: Record<AttachmentMimeType, string> = {
   "text/plain": ".txt",
   "text/markdown": ".md",
   "text/csv": ".csv",
+  "application/vnd.ms-excel": ".xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
   "text/html": ".html",
   "application/json": ".json",
+  "application/zip": ".zip",
 };
 
 export function inferAttachmentMimeType(
   name: string,
   reportedType?: string,
 ): AttachmentMimeType | null {
+  if (
+    reportedType === "application/x-zip-compressed" ||
+    reportedType === "application/x-zip" ||
+    reportedType === "multipart/x-zip"
+  ) {
+    return "application/zip";
+  }
+  const audioAliases: Record<string, AttachmentMimeType> = {
+    "audio/mp3": "audio/mpeg",
+    "audio/x-wav": "audio/wav",
+    "audio/wave": "audio/wav",
+    "audio/vnd.wave": "audio/wav",
+    "audio/x-m4a": "audio/mp4",
+  };
+  if (reportedType && Object.hasOwn(audioAliases, reportedType)) return audioAliases[reportedType]!;
+  // audio/aac may describe an M4A's codec, not its container. Infer from .m4a;
+  // do not advertise standalone AAC streams as MP4 containers.
   const dot = name.lastIndexOf(".");
   const extensionType = dot < 0 ? undefined : EXTENSION_MIME_TYPES[name.slice(dot).toLowerCase()];
   // Some browsers and native document pickers report Markdown as text/plain.
@@ -200,7 +287,7 @@ export function attachmentsForBot<T extends { botId: string }>(
 export function userTurnMessageForRun<
   T extends { id?: string; role: string; runId?: string | null; blocks: MessageBlock[] },
 >(trigger: string, runId: string, messages: T[], sourceMessageId?: string | null): T | undefined {
-  if (trigger !== "user") return undefined;
+  if (trigger !== "user" && trigger !== "messaging" && trigger !== "reaction") return undefined;
   return messages.find(
     (message) =>
       message.role === "user" &&
