@@ -532,6 +532,8 @@ export const NL_MESSAGES: Record<string, string> = {
   "Then paste the code here.": "Plak daarna de code hier.",
   "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider.":
     "Deze abonnementsaanmelding is nog niet beschikbaar in Rakazo. Gebruik een implementatiegegeven of kies een andere aanbieder.",
+  "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider.":
+    "Deze abonnementsaanmelding is nog niet beschikbaar in JEWL. Gebruik een implementatiegegeven of kies een andere aanbieder.",
   "Use a found model": "Een gevonden model gebruiken",
   "Waiting for sign-in…": "Wachten op aanmelding…",
   "exact-model-id": "exact-model-id",
@@ -1214,6 +1216,16 @@ export const NL_MESSAGES: Record<string, string> = {
   "1 free month earned": "1 gratis maand verdiend",
   "{count} free months earned": "{count} gratis maanden verdiend",
   "Submit a plugin": "Plugin indienen",
+  // JEWL fork strings
+  JEWL: "JEWL",
+  "Paste the OpenAI-compatible address from your server. JEWL adds /v1 if needed.":
+    "Plak het OpenAI-compatibele adres van je server. JEWL voegt zo nodig /v1 toe.",
+  "Sign in to JEWL": "Aanmelden bij JEWL",
+  "Sign up for JEWL": "Registreer je voor JEWL",
+  "That URL did not look like a JEWL server": "Die URL leek geen JEWL-server",
+  Templates: "Sjablonen",
+  "No templates": "Geen sjablonen",
+  "Use template {name}": "Sjabloon {name} gebruiken",
 };
 
 export const PEER_MESSAGE_FORMS: Partial<Record<Intl.LDMLPluralRule, string>> = {

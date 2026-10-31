@@ -131,6 +131,14 @@ x-app-environment: &app-environment
   META_API_KEY:
   MINIMAX_API_KEY:
   MINIMAX_CN_API_KEY:
+  # JEWL fork (api + worker): Evolution WhatsApp, Google OAuth, Kokoro/voicestudio.
+  EVOLUTION_API_URL:
+  EVOLUTION_API_KEY:
+  EVOLUTION_INSTANCE:
+  GOOGLE_CLIENT_ID:
+  GOOGLE_CLIENT_SECRET:
+  RAKAZO_KOKORO_BASE_URL:
+  RAKAZO_VOICESTUDIO_BASE_URL:
   MISTRAL_API_KEY:
   MOONSHOT_API_KEY:
   NVIDIA_API_KEY:
@@ -412,6 +420,15 @@ services:
       RAKAZO_NAV_LINKS:
       RAKAZO_ADMIN_EMAILS:
       VOICE_SUMMARY_MIN_CHARS:
+      # JEWL fork: Dokploy owner controls, Evolution WhatsApp lines, Google OAuth, voice and Telnyx phone.
+      DOKPLOY_URL:
+      DOKPLOY_API_KEY:
+      RAKAZO_VOICESTUDIO_API_KEY:
+      TELNYX_API_KEY:
+      TELNYX_PUBLIC_KEY:
+      TELNYX_PHONE_BOT_ID:
+      TELNYX_ALLOWED_CALLERS:
+      TELNYX_CALL_PIN:
     healthcheck:
       test:
         - CMD

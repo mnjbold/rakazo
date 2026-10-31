@@ -429,7 +429,9 @@ export function createRuntimeContextPolicy(
       (message) =>
         (message as Message & OriginalMetadata).rakazoHistory &&
         !(message as Message & OriginalMetadata).rakazoMessageId &&
-        (text(message).startsWith("Rakazo-owned compacted context through message sequence ") ||
+        // JEWL fork: history-compaction writes a JEWL-owned prefix; keep the Rakazo one too.
+        (text(message).startsWith("JEWL-owned compacted context through message sequence ") ||
+          text(message).startsWith("Rakazo-owned compacted context through message sequence ") ||
           text(message).startsWith(
             "Memory recalled from earlier conversations that fell outside the visible history.",
           )),

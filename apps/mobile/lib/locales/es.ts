@@ -510,6 +510,8 @@ export const ES_MESSAGES: Record<string, string> = {
   "Then paste the code here.": "Luego pega el código aquí.",
   "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider.":
     "Este inicio de sesión por suscripción aún no está disponible en Rakazo. Usa una credencial de despliegue o elige otro proveedor.",
+  "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider.":
+    "Este inicio de sesión por suscripción aún no está disponible en JEWL. Usa una credencial de despliegue o elige otro proveedor.",
   "Use a found model": "Usar un modelo encontrado",
   "exact-model-id": "id-exacto-del-modelo",
   "http://127.0.0.1:8000/v1": "http://127.0.0.1:8000/v1",
@@ -1163,6 +1165,16 @@ export const ES_MESSAGES: Record<string, string> = {
   "Use email code": "Usar código por correo",
   "Use password": "Usar contraseña",
   "{count} messages with {peer}": "{count} mensajes con {peer}",
+  // JEWL fork strings
+  JEWL: "JEWL",
+  "Paste the OpenAI-compatible address from your server. JEWL adds /v1 if needed.":
+    "Pega la dirección compatible con OpenAI de tu servidor. JEWL agrega /v1 si es necesario.",
+  "Sign in to JEWL": "Inicia sesión en JEWL",
+  "Sign up for JEWL": "Regístrate en JEWL",
+  "That URL did not look like a JEWL server": "Esa URL no parece ser de un servidor de JEWL",
+  Templates: "Plantillas",
+  "No templates": "No hay plantillas",
+  "Use template {name}": "Usar la plantilla {name}",
 };
 
 export const PEER_MESSAGE_FORMS: Partial<Record<Intl.LDMLPluralRule, string>> = {

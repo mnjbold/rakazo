@@ -553,6 +553,7 @@ describe("sidebar bot attention", () => {
     const repos = createRepos({
       bot: { findMany },
       run: { findFirst },
+      $queryRaw: vi.fn(async () => []),
     } as unknown as PrismaClient);
 
     const bots = await repos.listSpaceBotsForSpaces(actor, ["ws-2"]);

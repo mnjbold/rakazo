@@ -1,5 +1,11 @@
 import { FLEET_WRITE_TOOL_NAMES } from "@rakazo/contracts";
 import { runReadsThreadHistory, toolRequiresExplicitApproval } from "@rakazo/core";
+import {
+  COMMUNICATION_GUIDANCE,
+  offeredGuidance,
+  PRODUCT_GUIDE,
+  WORKING_GUIDANCE,
+} from "./agent-guidance.js";
 import { MODEL_CANNOT_SEE_MESSAGE } from "./model-vision.js";
 import { replyGuidanceForOfferedTools } from "./run-replies.js";
 import type { UserComputerState } from "./run-tools-user-computer.js";
@@ -323,6 +329,10 @@ export function userTurnInstructions(parts: {
 }): (string | undefined)[] {
   return [
     parts.botInstructions,
+    // JEWL fork: reply style, working habits and the product guide.
+    offeredGuidance(COMMUNICATION_GUIDANCE, parts.disabledBuiltinTools),
+    offeredGuidance(WORKING_GUIDANCE, parts.disabledBuiltinTools),
+    offeredGuidance(PRODUCT_GUIDE, parts.disabledBuiltinTools),
     parts.historyRetrievalEnabled &&
     builtinOffered(parts.disabledBuiltinTools, "search_history") &&
     builtinOffered(parts.disabledBuiltinTools, "read_history")

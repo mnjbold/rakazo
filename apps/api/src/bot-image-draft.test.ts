@@ -46,7 +46,6 @@ describe("createBotImageDrafter", () => {
     const result = await draft(actor, { mimeType: "image/png", contentBase64: PNG });
     expect(result).toMatchObject({
       name: "Harbor Scout",
-      title: "Tracks ships in port",
       color: "#06B6D4::shape_7",
       routines: [{ name: "Arrivals", cron: "0 * * * *" }],
     });

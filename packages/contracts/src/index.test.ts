@@ -334,9 +334,9 @@ describe("contracts", () => {
     ).toBe(false);
   });
 
-  it.each([1, 2, 10, 11])("enforces group member bounds for %i bots", (count) => {
+  it.each([1, 2, 50, 51])("enforces group member bounds for %i bots", (count) => {
     const botIds = Array.from({ length: count }, (_, index) => `bot-${index}`);
-    const accepted = count >= 2 && count <= 10;
+    const accepted = count >= 2 && count <= 50;
     expect(CreateGroupInput.safeParse({ name: "Draft team", botIds }).success).toBe(accepted);
     expect(UpdateGroupInput.safeParse({ groupId: "group-1", botIds }).success).toBe(accepted);
   });
@@ -430,29 +430,6 @@ describe("contracts", () => {
         messageProvider: "slack",
       }),
     ).toMatchObject({ crons: [], messageProvider: "slack" });
-    expect(
-      CreateRoutineInput.parse({
-        botId: "bot-1",
-        name: "Daily",
-        prompt: "Summarize",
-        crons: ["0 9 * * *"],
-      }).watch,
-    ).toBe(false);
-    expect(
-      CreateRoutineInput.parse({
-        botId: "bot-1",
-        name: "Inbox watch",
-        prompt: "Check Gmail. If there is nothing, stay silent.",
-        crons: ["*/30 * * * *"],
-        watch: true,
-      }).watch,
-    ).toBe(true);
-    expect(
-      (appContract.routines.update["~orpc"].inputSchema as z.ZodType).safeParse({
-        routineId: "routine-1",
-        watch: true,
-      }).success,
-    ).toBe(true);
     expect(
       CreateRoutineInput.safeParse({
         botId: "bot-1",

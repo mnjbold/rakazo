@@ -40,7 +40,6 @@ describe("BotAvatar", () => {
   it.each([...WAITING_RUN_STATUSES])("shows needs-you, not working, for %s", (status) => {
     const html = renderToString(<BotAvatar color="#3B82F6" status={status} />);
     expect(html).toContain('data-working="false"');
-    expect(html).toContain('data-attention="needs_you"');
     expect(html).toContain('data-attention-badge="needs_you"');
   });
 

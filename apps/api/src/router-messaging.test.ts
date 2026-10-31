@@ -978,7 +978,22 @@ describe("messaging.lines", () => {
     const harness = messagingDeps();
     const surface = new ChatSdkMessagingSurface([createEmulatedEvolutionPlatform(emulator)]);
     Object.assign(harness.deps.messaging!, { providers: ["evolution"], surface });
-    return { ...harness, emulator, owner: { ...harness.actor, isDeploymentOwner: true } };
+    // Upstream gates deployment controls on RAKAZO_ADMIN_EMAILS instead of a deployment-owner flag.
+    const owner = { ...harness.actor, userId: "owner-admin" };
+    Object.assign(harness.deps, {
+      env: { ...harness.deps.env, adminEmails: ["owner@rakazo.test"] },
+      prisma: Object.assign(harness.deps.prisma, {
+        user: {
+          ...(harness.deps.prisma as { user?: object }).user,
+          findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
+            where.id === owner.userId
+              ? { email: "owner@rakazo.test", emailVerified: true }
+              : { email: "member@rakazo.test", emailVerified: true },
+          ),
+        },
+      }),
+    });
+    return { ...harness, emulator, owner };
   }
 
   it("hides lines from, and refuses pairing for, anyone but the deployment owner", async () => {

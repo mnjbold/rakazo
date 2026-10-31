@@ -1028,7 +1028,11 @@ describe("server MiniMax voice fallback", () => {
   it("uses a real MiniMax voice id, not the speech model name", async () => {
     vi.stubEnv("TELNYX_API_KEY", "");
     const deps = {
-      prisma: { spaceVoicePreference: { findFirst: vi.fn().mockResolvedValue(null) } },
+      prisma: {
+        spaceVoicePreference: { findFirst: vi.fn().mockResolvedValue(null) },
+        userVoicePreference: { findFirst: vi.fn().mockResolvedValue(null) },
+        spaceSettingOverride: { findUnique: vi.fn().mockResolvedValue(null) },
+      },
       secrets: {},
       env: { minimaxApiKey: "test-minimax-key" },
     } as unknown as VoiceDeps;

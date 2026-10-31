@@ -217,7 +217,7 @@ describe("prepareFleetRequest create_group", () => {
     });
   });
 
-  it.each([1, 11])("refuses %i members with a readable size error", async (count) => {
+  it.each([1, 51])("refuses %i members with a readable size error", async (count) => {
     const bots = Array.from({ length: count }, (_, index) => ({
       id: `bot-${index}`,
       name: `Bot ${index}`,
@@ -227,7 +227,7 @@ describe("prepareFleetRequest create_group", () => {
       name: "Crew",
       bot_ids: bots.map((bot) => bot.id),
     });
-    expect(prepared).toEqual({ ok: false, error: "A group needs 2 to 10 bots." });
+    expect(prepared).toEqual({ ok: false, error: "A group needs 2 to 50 bots." });
   });
 
   it("asks for the id when a name is unknown or ambiguous", async () => {
@@ -314,14 +314,14 @@ describe("prepareFleetRequest update_group", () => {
     ).toEqual({ ok: false, error: 'No group named "Nope". Call list_fleet and pass group_id.' });
   });
 
-  it("keeps a group between 2 and 10 members", async () => {
+  it("keeps a group between 2 and 50 members", async () => {
     const { deps } = fakeFleet(fleet);
     expect(
       await prepareFleetRequest(deps, run, "update_group", {
         group_id: "group-dup-1",
         remove_bot_ids: ["bot-writer"],
       }),
-    ).toEqual({ ok: false, error: "A group needs 2 to 10 bots." });
+    ).toEqual({ ok: false, error: "A group needs 2 to 50 bots." });
   });
 });
 

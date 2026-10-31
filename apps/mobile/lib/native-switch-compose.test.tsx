@@ -107,7 +107,7 @@ describe("guarded Android Compose switch", () => {
   );
 
   it.each([
-    ["light", "#34C759", "#7676801F", "#F2F2F1", "#6C6C70"],
+    ["light", "#34C759", "#7676801F", "#F2F2F1", "#047857"], // JEWL emerald ring
     ["dark", "#30D158", "#7676803D", "#EBEBF599", "transparent"],
   ] as const)(
     "uses green and neutral colors in %s with a compact host",

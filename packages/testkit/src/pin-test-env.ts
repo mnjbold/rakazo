@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { afterAll } from "vitest";
 
+// JEWL fork: mobile defaults to the jewel avatar; upstream tests exercise the organic body.
+process.env.EXPO_PUBLIC_JEWL_AVATAR_STYLE ??= "organic";
+
 const dom = (
   globalThis as typeof globalThis & {
     jsdom?: { window: { localStorage: unknown } };

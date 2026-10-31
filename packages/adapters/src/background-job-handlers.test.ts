@@ -239,6 +239,7 @@ it("retries retired messaging credentials without deleting a currently reference
   const handlers = createBackgroundJobHandlers({
     prisma: { messagingInstallation: { findUnique } },
     secretStore: { delete: remove },
+    executor: {},
   } as unknown as Parameters<typeof createBackgroundJobHandlers>[0]);
   await handlers["messaging.credential-cleanup"]({
     installationId: "install-a",

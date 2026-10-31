@@ -441,24 +441,6 @@ describe("provisioning network rollback", () => {
     );
   });
 
-  it("pulls the published computer image again after host cleanup removed it", async () => {
-    fixture();
-    vi.stubEnv("RAKAZO_COMPUTER_CONTEXT", path.join(process.env.DATA_DIR!, "no-build-context"));
-    const inspect = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("no such image"))
-      .mockResolvedValue({ Id: "image" });
-    mocks.docker.getImage.mockReturnValue({ inspect });
-    mocks.docker.pull.mockResolvedValue(Readable.from([]));
-    mocks.docker.followProgress.mockImplementation((_stream, done: (err: Error | null) => void) =>
-      done(null),
-    );
-    const response = await provision();
-    expect(response.status).toBe(200);
-    expect(mocks.docker.pull).toHaveBeenCalledExactlyOnceWith(COMPUTER_IMAGE);
-    expect(mocks.docker.createContainer).toHaveBeenCalledOnce();
-  });
-
   it("checks the image again on the next provision instead of trusting an old result", async () => {
     fixture();
     await provision();

@@ -521,6 +521,8 @@ export const JA_MESSAGES: Record<string, string> = {
   "Then paste the code here.": "その後、ここにコードを貼り付けてください。",
   "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider.":
     "このサブスクリプションでのログインはRakazoではまだ利用できません。デプロイの認証情報を使うか、別のプロバイダーを選択してください。",
+  "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider.":
+    "このサブスクリプションでのログインはJEWLではまだ利用できません。デプロイの認証情報を使うか、別のプロバイダーを選択してください。",
   "Use a found model": "見つかったモデルを使用",
   "Waiting for sign-in…": "ログインを待っています…",
   "exact-model-id": "exact-model-id",
@@ -1245,6 +1247,16 @@ export const JA_MESSAGES: Record<string, string> = {
   "1 free month earned": "1か月分の無料期間を獲得",
   "{count} free months earned": "{count}か月分の無料期間を獲得",
   "Submit a plugin": "プラグインを申請",
+  // JEWL fork strings
+  JEWL: "JEWL",
+  "Paste the OpenAI-compatible address from your server. JEWL adds /v1 if needed.":
+    "サーバーのOpenAI互換アドレスを貼り付けてください。必要に応じてJEWLが/v1を追加します。",
+  "Sign in to JEWL": "JEWLにログイン",
+  "Sign up for JEWL": "JEWLに新規登録",
+  "That URL did not look like a JEWL server": "そのURLはJEWLサーバーではないようです",
+  Templates: "テンプレート",
+  "No templates": "テンプレートはありません",
+  "Use template {name}": "テンプレート {name} を使う",
 };
 
 export const PEER_MESSAGE_FORMS = { other: "{peer}とのメッセージ{count}件" };

@@ -172,7 +172,7 @@ describe("passwordResetEmail", () => {
 describe("signInCodeEmail", () => {
   it("puts the code in plain text and HTML without links", async () => {
     const message = await signInCodeEmail("ada@example.test", "042517");
-    expect(message).toMatchObject({ to: "ada@example.test", subject: "Your Rakazo sign-in code" });
+    expect(message).toMatchObject({ to: "ada@example.test", subject: "Your JEWL sign-in code" });
     expect(message.text).toContain("042517");
     expect(message.html).toContain("042517");
     expect(message.text).not.toMatch(/https?:/);

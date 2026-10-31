@@ -233,6 +233,7 @@ export function createRepos(
         preview: previewFromBlocks(bot.thread.messages[0]?.blocks),
         status: activeRun?.status ?? "idle",
         runErrorId: rosterRunErrorId(bot.thread.runs[0], activeRun),
+        attention: attention.get(bot.id) ?? null,
         updatedAt: rosterUpdatedAt(bot.thread.messages[0], bot.updatedAt).toISOString(),
       };
     });
@@ -490,18 +491,21 @@ export function createRepos(
             if (messages.length === 0) break;
           }
           const activeRun = primaryActiveRun(bot.runs);
-          return mapBot(
-            bot,
-            preview,
-            activeRun?.status ?? "idle",
-            rosterRunErrorId(bot.thread?.runs[0], activeRun),
-            updatedAt,
-            ringingCall(
-              bot.thread && callsByThread.has(bot.thread.id)
-                ? [callsByThread.get(bot.thread.id)!]
-                : [],
+          return {
+            ...mapBot(
+              bot,
+              preview,
+              activeRun?.status ?? "idle",
+              rosterRunErrorId(bot.thread?.runs[0], activeRun),
+              updatedAt,
+              ringingCall(
+                bot.thread && callsByThread.has(bot.thread.id)
+                  ? [callsByThread.get(bot.thread.id)!]
+                  : [],
+              ),
             ),
-          );
+            attention: attention.get(bot.id) ?? null,
+          };
         }),
       );
     },

@@ -755,6 +755,8 @@ export const ZH_TW_MESSAGES: Record<string, string> = {
     "這將刪除所有訊息並停止目前工作。機器人、電腦、記憶和例行任務會保留。",
   "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider.":
     "Rakazo 暫不支援此訂閱登入。請使用部署憑證或選擇其他供應商。",
+  "This subscription sign-in is not available in JEWL yet. Use a deployment credential or choose another provider.":
+    "JEWL 暫不支援此訂閱登入。請使用部署憑證或選擇其他供應商。",
   Tools: "工具",
   Uninstall: "解除安裝",
   "Verify and add": "驗證並新增",
@@ -1228,6 +1230,16 @@ export const ZH_TW_MESSAGES: Record<string, string> = {
   "1 free month earned": "已獲得 1 個月免費",
   "{count} free months earned": "已獲得 {count} 個月免費",
   "Submit a plugin": "提交外掛程式",
+  // JEWL fork strings
+  JEWL: "JEWL",
+  "Paste the OpenAI-compatible address from your server. JEWL adds /v1 if needed.":
+    "貼上你伺服器的 OpenAI 相容地址。如有需要，JEWL 會自動補上 /v1。",
+  "Sign in to JEWL": "登入 JEWL",
+  "Sign up for JEWL": "註冊 JEWL",
+  "That URL did not look like a JEWL server": "該地址看起來不是 JEWL 伺服器",
+  Templates: "範本",
+  "No templates": "沒有範本",
+  "Use template {name}": "使用範本 {name}",
 };
 
 export const PEER_MESSAGE_FORMS = { other: "與{peer}的 {count} 則訊息" };

@@ -76,8 +76,9 @@ describe("appearance preference", () => {
   it("keeps working-state blue in its own semantic token across themes", () => {
     expect(darkTokens.statusWorking).toBeTruthy();
     expect(lightTokens.statusWorking).toBeTruthy();
-    expect(darkTokens.statusWorking).toBe(darkTokens.link);
-    expect(lightTokens.statusWorking).toBe(lightTokens.link);
+    // JEWL: links use the emerald brand colour, while working state stays blue.
+    expect(darkTokens.statusWorking).not.toBe(darkTokens.link);
+    expect(lightTokens.statusWorking).not.toBe(lightTokens.link);
     expect(darkTokens.statusWorking).not.toBe(darkTokens.primary);
     expect(lightTokens.statusWorking).not.toBe(lightTokens.primary);
   });
@@ -243,8 +244,8 @@ describe("web palette", () => {
     popoverForeground: "#FFFFFF",
     glassFill: "#2C2C2E",
     glassStroke: "#FCFCFC26",
-    primary: "#FFFFFF",
-    primaryForeground: "#000000",
+    primary: "#34D399",
+    primaryForeground: "#04120C",
     secondary: "#7676803D",
     secondaryForeground: "#FFFFFF",
     chatUser: "#5C5C5C",
@@ -259,13 +260,14 @@ describe("web palette", () => {
     destructiveForeground: "#FFFFFF",
     border: "#FCFCFC14",
     input: "#54545899",
-    ring: "#3B82F6",
+    ring: "#34D399",
     sidebar: "#1E1E1E",
     sidebarForeground: "#FFFFFF",
     sidebarBorder: "#FCFCFC14",
     sidebarAccent: "#2B2B2E",
     sidebarAccentForeground: "#FFFFFF",
-    link: "#459FFE",
+    link: "#34D399",
+    brand: "#34D399",
     faviconPlate: "#FFFFFF",
     success: "#3FA266",
     warning: "#DB941E",
@@ -286,7 +288,7 @@ describe("web palette", () => {
     popoverForeground: "#000000",
     glassFill: "#FFFFFF",
     glassStroke: "#14141416",
-    primary: "#000000",
+    primary: "#047857",
     primaryForeground: "#FFFFFF",
     secondary: "#7676801F",
     secondaryForeground: "#000000",
@@ -302,13 +304,14 @@ describe("web palette", () => {
     destructiveForeground: "#FFFFFF",
     border: "#14141414",
     input: "#3C3C434A",
-    ring: "#6C6C70",
+    ring: "#047857",
     sidebar: "#F7F7F7",
     sidebarForeground: "#000000",
     sidebarBorder: "#14141414",
     sidebarAccent: "#FFFFFF",
     sidebarAccentForeground: "#000000",
-    link: "#0C64C1",
+    link: "#047857",
+    brand: "#047857",
     faviconPlate: "#FFFFFF",
     success: "#007041",
     warning: "#885A07",
@@ -350,8 +353,8 @@ describe("web palette", () => {
   });
 
   it.each([
-    ["dark", webDarkTokens, { primaryHover: "#DBDBDB", primaryDisabled: "#F5F5F521" }],
-    ["light", webLightTokens, { primaryHover: "#363636", primaryDisabled: "#1C1C1C26" }],
+    ["dark", webDarkTokens, { primaryHover: "#6EE7B7", primaryDisabled: "#34D39921" }],
+    ["light", webLightTokens, { primaryHover: "#065F46", primaryDisabled: "#04785726" }],
   ] as const)("gives the %s primary fill web-only hover and disabled states", (_, web, states) => {
     expect(web).toMatchObject(states);
     const css = renderTokensCss();

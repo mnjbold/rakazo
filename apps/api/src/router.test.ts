@@ -314,7 +314,11 @@ describe("account preferences", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(update).toHaveBeenCalledWith({ where: { id: "user-1" }, data: {} });
+    // JEWL keeps a jewel/organic choice; the retired robot style is stored as organic.
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { avatarStyle: "organic" },
+    });
     await expect(response.json()).resolves.toEqual({
       json: expect.objectContaining({ avatarStyle: "organic" }),
     });

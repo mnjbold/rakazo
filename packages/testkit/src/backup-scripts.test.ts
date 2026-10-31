@@ -1213,7 +1213,7 @@ describe("off-site copies", { timeout: 20_000 }, () => {
       ...settings,
     });
     expect(result.status).toBe(1);
-    expect(result.stdout).toContain("Verified Rakazo backup");
+    expect(result.stdout).toContain("Verified JEWL backup");
     expect(result.stderr).toContain(`Off-site copy failed: ${message}`);
     expect(existsSync(path.join(snapshotOf(result), "SHA256SUMS"))).toBe(true);
     if (message.includes("require")) expect(rcloneCalls(f)).toEqual([]);

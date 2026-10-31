@@ -98,9 +98,11 @@ export function jumpTargetId(transcript: FoldedTranscript<unknown>, messageId: s
  * relay's marker is dropped when its "Messaged X" receipt is loaded, so the chat shows one chip.
  */
 export function foldPeerReplies<T extends PresentableMessage>(
-  messages: readonly T[],
+  allMessages: readonly T[],
   options: UserVisibleMessagesOptions = {},
 ): FoldedTranscript<T> {
+  // JEWL: a live-call reply that chose silence never reaches the transcript.
+  const messages = allMessages.filter((message) => !isSilentOnly(message.blocks));
   const includePeerReceipts = options.includePeerReceipts === true;
   const markerByRunId = new Map<string, string>();
   // Runs not woken by new work from another bot: their replies are for the user.

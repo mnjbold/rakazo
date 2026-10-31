@@ -56,7 +56,7 @@ function createWatchWorld({ watch, inboxEmpty }: { watch: boolean; inboxEmpty?: 
           return { count: 1 };
         }),
       },
-      routine: { findUnique: vi.fn(async () => ({ watch })) },
+      routine: { findUnique: vi.fn(async () => ({ watch })), count: vi.fn(async () => 0) },
       bot: {
         findUniqueOrThrow: vi.fn(async () => ({
           id: run.botId,
@@ -104,10 +104,11 @@ function createWatchWorld({ watch, inboxEmpty }: { watch: boolean; inboxEmpty?: 
       connection: { findMany: vi.fn(async () => []) },
       spaceModelPreference: { findFirst: vi.fn(async () => null) },
       userModelCredential: { findFirst: vi.fn(async () => null) },
+      chatGroup: { findMany: vi.fn(async () => []) },
       deploymentSettings: {
         findUnique: vi.fn(async () => ({
-          defaultModelProvider: "scripted",
-          defaultModelId: "scripted",
+          defaultModelProvider: "openrouter",
+          defaultModelId: "deepseek/deepseek-v4-flash-0731",
         })),
       },
       taughtSkill: { findMany: vi.fn(async () => []) },
@@ -120,7 +121,7 @@ function createWatchWorld({ watch, inboxEmpty }: { watch: boolean; inboxEmpty?: 
       externalEffect: { findMany: vi.fn(async () => []) },
     };
     const finalizeRun = vi.fn(async (input: { runId: string; blocks: MessageBlock[] }) => {
-      if (input.blocks.length > 0) posted.push({ runId: input.runId, blocks: input.blocks });
+      if (input.blocks?.length) posted.push({ runId: input.runId, blocks: input.blocks });
       return { continuationRunId: null };
     });
     const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
@@ -129,9 +130,18 @@ function createWatchWorld({ watch, inboxEmpty }: { watch: boolean; inboxEmpty?: 
     });
     const executor = createRunExecutor({
       prisma,
+      deploymentModelKey: "fake-deployment-key",
       runtime: { describe: () => ({ capabilities: { scripted: false } }), run: runtimeRun },
       connector: { discoverTools: async () => [], resolveCall: async () => undefined },
-      sandbox: { describe: () => ({ capabilities: { graphical: false } }) },
+      sandbox: {
+        describe: () => ({ capabilities: { graphical: false } }),
+        writeFile: vi.fn(async () => undefined),
+        async *exportWorkspace() {
+          yield* [];
+        },
+      },
+      home: { commit: vi.fn(async () => "fixture-revision") },
+      artifacts: { get: vi.fn() },
       memory: { read: async () => ({ documents: [] }) },
       memoryProviders: { resolve: async () => null },
       events: { append: vi.fn(async () => undefined), finalizeRun },
@@ -156,20 +166,10 @@ describe("watch routines", () => {
     );
     expect(world.posted).toHaveLength(0);
     expect(world.notify).not.toHaveBeenCalled();
-    expect(world.requests[0]?.prompt).toContain("Only report or ask");
   });
 
-  it("post a new item once and stay silent on the next run", async () => {
-    const world = createWatchWorld({ watch: true });
-    await world.runOnce("run-1");
-    await world.runOnce("run-2");
-    expect(world.posted).toEqual([
-      { runId: "run-1", blocks: [expect.objectContaining({ kind: "text", text: ALERT })] },
-    ]);
-    expect(world.notify).toHaveBeenCalledOnce();
-    expect(world.requests[1]?.prompt).toContain(`- ${ALERT}`);
-  });
-
+  // The fork's boolean watch prompt and reported-item dedupe were replaced by upstream's
+  // change-triggered watch routines (see MERGE-NOTES.md); upstream tests cover those.
   it("leave ordinary routines without watch context", async () => {
     const world = createWatchWorld({ watch: false });
     await world.runOnce("run-1");

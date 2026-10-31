@@ -1,4 +1,5 @@
 export const DE_MESSAGES: Record<string, string> = {
+  Rakazo: "Rakazo",
   "How other bots see it": "So sehen andere Bots ihn",
   "Share to": "Teilen mit",
   "{count} files": "{count} Dateien",

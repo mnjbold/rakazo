@@ -22,98 +22,35 @@ draft-from-image) are kept on top.
 - `account-import.ts`, `artifacts.ts`: fork select additions (role/runId/botId) kept.
 - testkit authorization list extended with 22 JEWL fork procedures.
 
-## Verification
-- `pnpm turbo check` (typecheck): PASS, all packages.
-- `pnpm lint` (biome): 0 errors (31 warnings, 21 infos, mostly upstream `useTemplate`).
-- `vitest run`: 19662 passed / 81 failed / 671 skipped; 35 files failing (1145 passing). No baseline run on old main.
-  Failing groups (follow-up):
-  - Brand/avatar assertions expecting upstream logo vs jewel avatar (ui-web avatars, appearance, logo-avatar-render, create-bot-dialog, mobile avatar).
-  - Fork executor tests (executor-live-call, executor-watch, reply-quality) need model setup for upstream's run-start flow.
-  - executor / runtime-context instruction text (fork vs upstream wording).
-  - router-messaging lines (pairing now admin-gated), backup-scripts, compose-env, desktop setup, voice, misc.
+## Verification (updated 2026-10-31, after test-fix pass)
+- Baseline old fork `main`: vitest 7666 passed / 0 failed.
+- Merge commit `d8a71bc9` as first pushed: 19662 passed / **81 failed** / 671 skipped (35 files).
+- After the fix commit: **19741 passed / 0 failed** / 671 skipped (1180 files passing).
+- `pnpm turbo check`: PASS. `pnpm lint` (biome): 0 errors.
 
-## Failing test files
-- apps/api/src/bot-image-draft.test.ts > createBotImageDrafter > returns a validated draft and sends the image to the model once
-- apps/api/src/router-messaging.test.ts > messaging.lines > lets the owner pair by QR, see the connected number, and unlink
-- apps/api/src/router-messaging.test.ts > messaging.lines > reports an unreachable gateway as a 502 without leaking the upstream error
-- apps/api/src/router.test.ts > account preferences > accepts an avatar style from an older app without storing it
-- apps/api/src/voice.test.ts > server MiniMax voice fallback > uses a real MiniMax voice id, not the speech model name
-- apps/desktop/src/setup.test.ts > setup > keeps a newer check busy when a stale check settles after it starts
-- apps/desktop/src/setup.test.ts > setup > normalizes the address and reports success for the current check
-- apps/desktop/src/setup.test.ts > setup > re-attaches to the running stack after returning to This computer
-- apps/desktop/src/setup.test.ts > setup > renders a current start and follows it until it saves the ready stack
-- apps/mobile/lib/avatar-life.test.tsx > activity mark > shows each working member of a group in turn, every 2 s
-- apps/mobile/lib/avatar-life.test.tsx > avatar motion on mobile > plays an organic avatar's working clips in the inbox while its bot works
-- apps/mobile/lib/bot-avatar-render.test.tsx > BotAvatar > draws a plain-colour bot with the organic body for its identity
-- apps/mobile/lib/bot-avatar-render.test.tsx > BotAvatar > draws the muted badge with the dark theme tokens for #3EC5A8
-- apps/mobile/lib/bot-avatar-render.test.tsx > BotAvatar > draws the muted badge with the light theme tokens for #3EC5A8
-- apps/mobile/lib/i18n.test.ts > mobile i18n > translates every mobile chrome t() id in every non-English catalog
-- apps/mobile/lib/model-settings.test.tsx > keeps setup help and API key collapsible for generic compatible servers
-- apps/mobile/lib/native-switch-compose.test.tsx > guarded Android Compose switch > uses green and neutral colors in light with a compact host
-- apps/web/src/components/ai/CollaborationMarker.test.tsx > collaboration transcript markers > animates the active bot glyph from its run status
-- apps/web/src/components/ai/CollaborationMarker.test.tsx > collaboration transcript markers > shows a centred peer event with its avatar and full label
-- apps/web/src/lib/logo-avatar-render.test.tsx > keeps static SVG artwork mounted through rapid live activity changes
-- apps/web/src/lib/logo-avatar-render.test.tsx > projects production feed events into the live avatar and subscribes only live Rakazo consumers
-- apps/web/src/lib/logo-avatar-render.test.tsx > renders generic work elsewhere when the open chat is idle, preserving live detail
-- apps/web/src/lib/logo-avatar-render.test.tsx > retains the live pose through overlapping feed hydration, hidden updates and reconnect
-- apps/web/src/pages/VoiceSettingsOverlay.test.tsx > connects a keyless provider without asking for a key
-- apps/web/src/pages/VoiceSettingsOverlay.test.tsx > connects a self-hosted speech server by URL without a key
-- apps/web/src/pages/shell/avatar-studio-popover.test.tsx > selectable bot icon sets > keeps a legacy appearance on open, saves a Rakazo switch, and restores the saved set on reload
-- apps/web/src/pages/shell/create-bot-dialog.test.tsx > CreateBotDialog > defaults new bots to the Original set with the family the preview draws
-- apps/web/src/pages/shell/create-bot-dialog.test.tsx > CreateBotDialog > sends the Rakazo preview id without an organic family
-- apps/web/src/pages/shell/create-bot-dialog.test.tsx > CreateBotDialog > sends the organic family the preview draws
-- apps/web/src/pages/shell/create-bot-dialog.test.tsx > retains the preview identity and colour through rerenders, set toggles and a retry
-- infra/sandboxes/supervisor/src/computer-loopback.test.ts > provisioning network rollback > pulls the published computer image again after host cleanup removed it
-- infra/updater/src/compose-env.test.ts > api and worker environment allowlists > docker-compose.images.yml passes each process exactly the settings it reads
-- infra/updater/src/compose-env.test.ts > api and worker environment allowlists > docker-compose.prod.yml + docker-compose.prod.docker.yml passes each process exactly the settings it reads
-- infra/updater/src/compose-env.test.ts > api and worker environment allowlists > docker-compose.prod.yml passes each process exactly the settings it reads
-- infra/updater/src/compose-env.test.ts > api and worker environment allowlists > docker-compose.yml passes each process exactly the settings it reads
-- packages/adapters/src/background-job-handlers.test.ts > retries retired messaging credentials without deleting a currently referenced credential
-- packages/adapters/src/executor-live-call.test.ts > live call runs > adds the live-call instruction only for live runs
-- packages/adapters/src/executor-live-call.test.ts > live call runs > does not persist a silent reply as a chat bubble
-- packages/adapters/src/executor-live-call.test.ts > live call runs > shares the exact silent token with routines and keeps any reply with extra words
-- packages/adapters/src/executor-live-call.test.ts > live call runs > tells the model what was heard only for an interrupted live run
-- packages/adapters/src/executor-watch.test.ts > watch routines > finish silently with no message or push when nothing is new
-- packages/adapters/src/executor-watch.test.ts > watch routines > leave ordinary routines without watch context
-- packages/adapters/src/executor-watch.test.ts > watch routines > post a new item once and stay silent on the next run
-- packages/adapters/src/executor.test.ts > userTurnInstructions > ends with the untrusted-content block when no optional context exists
-- packages/adapters/src/executor.test.ts > userTurnInstructions > inserts task catalog guidance after the computer line
-- packages/adapters/src/executor.test.ts > userTurnInstructions > places stable guidance before volatile context when every optional context is present
-- packages/adapters/src/favicon.test.ts > favicon SSRF guard > sends no cookies or credentials and a fixed user agent
-- packages/adapters/src/pi-models.test.ts > Pi model catalog > preserves provider names and sign-in options from before pi 1.3
-- packages/adapters/src/reply-quality.test.ts > reply.judge enqueue > enqueues after a people-facing reply only
-- packages/adapters/src/reply-quality.test.ts > self-improvement loop > puts lessons from poorly scored replies into the next run's instructions
-- packages/adapters/src/runtime-context.test.ts > runtime context policy > places a rolling summary after Pi's leading system message
-- packages/adapters/src/runtime-context.test.ts > runtime context policy > preserves an existing rolling summary when it fits
-- packages/auth/src/index.test.ts > passwordResetEmail > keeps the reset URL in text and escapes user-controlled HTML
-- packages/contracts/src/group-members.test.ts > group member limits > accepts a whole-team group well past the old six-bot cap
-- packages/contracts/src/index.test.ts > contracts > accepts a GitHub-only routine trigger
-- packages/core/src/message-visibility.test.ts > user-visible messages > hides a live-call reply that chose silence, streamed or final
-- packages/db/src/repos.test.ts > createRepos.listSpaceBotsForSpaces > loads and maps only the compact cross-space sidebar fields
-- packages/db/src/repos.test.ts > sidebar bot attention > marks waiting bots as needing you and unread failed bots as errors
-- packages/testkit/src/backup-scripts.test.ts > off-site copies > keeps the verified local snapshot but fails the run: {"FAIL_RCLONE":"check"}
-- packages/testkit/src/backup-scripts.test.ts > off-site copies > keeps the verified local snapshot but fails the run: {"FAIL_RCLONE":"copy"}
-- packages/testkit/src/backup-scripts.test.ts > off-site copies > keeps the verified local snapshot but fails the run: {"RAKAZO_BACKUP_AGE_RECIPIENTS":""}
-- packages/testkit/src/backup-scripts.test.ts > production backup deployment and archive behavior > refuses to run while another backup holds the lock
-- packages/ui-tokens/src/appearance.test.ts > appearance preference > keeps working-state blue in its own semantic token across themes
-- packages/ui-tokens/src/appearance.test.ts > web palette > gives the dark primary fill web-only hover and disabled states
-- packages/ui-tokens/src/appearance.test.ts > web palette > gives the light primary fill web-only hover and disabled states
-- packages/ui-tokens/src/appearance.test.ts > web palette > leaves the mobile palettes unchanged
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > draws every plain-colour bot with the organic body
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > fills the organic body with the resolved palette hex when the custom color is invalid
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > keeps working attribute false when idle
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > marks active run status leased as working
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > marks active run status queued as working
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > marks active run status running as working
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > previews an organic body when no studio shape is given
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > restores a plain color that renders the organic body instead of a pinned shape
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > shows needs-you, not working, for waiting_input
-- packages/ui-web/src/bot-avatar.test.tsx > BotAvatar > shows needs-you, not working, for waiting_takeover
-- packages/ui-web/src/group-avatar.test.tsx > GroupAvatar > renders 2 overlapping bot avatars for 2 members
-- packages/ui-web/src/group-avatar.test.tsx > GroupAvatar > renders 3 mini bot avatars for 3 members
-- packages/ui-web/src/group-avatar.test.tsx > GroupAvatar > renders a working member inside a group avatar
-- packages/ui-web/src/group-avatar.test.tsx > GroupAvatar > renders single BotAvatar when 1 member
-- packages/ui-web/src/logo-avatar.test.tsx > logo-derived avatar prototype > uses the shared identity colour during SSR when no saved choice is supplied
+### Real merge bugs fixed in code
+- `packages/core/src/message-visibility.ts`: silent-only peer replies are filtered out in `foldPeerReplies` again.
+- `infra/compose/docker-compose{,.images,.prod}.yml`: fork env vars were missing from the upstream allowlists. Restored: EVOLUTION_*, GOOGLE_CLIENT_*, RAKAZO_KOKORO/VOICESTUDIO_*, DOKPLOY_URL/API_KEY, TELNYX_*.
+- `packages/db/src/repos.ts`: bot `attention` was dropped from `listBots` / `listSpaceBotsForSpaces`. Restored.
+- `packages/adapters/src/run-instructions.ts`: fork guidance (communication, working, product guide) was dropped from user-turn instructions. Re-added.
+- `packages/adapters/src/runtime-context.ts`: the "JEWL-owned compacted context" summary prefix is accepted again.
+- `packages/ui-web/src/avatar-style.tsx`: the context default is back to `organic`. The web Shell still supplies `jewel` through `AvatarStyleProvider`.
+- `apps/mobile/components/bot-avatar.tsx`: jewel stays the default. `EXPO_PUBLIC_JEWL_AVATAR_STYLE=organic` switches it to organic, and the test setup uses that switch.
+- Mobile i18n: the model-connection string now says JEWL. Missing JEWL/template strings were added to zh-TW, nl, es and ja, and the "Rakazo" avatar-set label was added to de, ru and zh.
+- `apps/web/src/pages/VoiceSettingsOverlay.tsx`: always sends `apiKey` again, as upstream does. The server defaults it to "", so behaviour is the same.
+- Branding: email copy, desktop setup and the backup script say JEWL.
+
+### Test expectations changed (deliberate behaviour)
+- GROUP_MEMBER_MAX = 50 (fork value): contracts, fleet-tools and mobile new-group tests.
+- JEWL emerald palette: ui-tokens appearance tests and the mobile switch ring colour.
+- Upstream JSON routine `watch` replaces the fork boolean watch: the obsolete watch assertions were removed from executor-watch.
+- The fork test "re-pull computer image after cleanup" was removed. It contradicts upstream's computer-image design, which upstream tests cover.
+- Fork executor tests now set up a deployment model for upstream's run-start flow.
+- Upstream-only web tools keep the `Rakazo/0.1` user agent (favicon test updated).
+
+### Cutover prerequisites (prod)
+- Postgres 16 → 18 (`infra/compose/upgrade-postgres.sh`). New env: `POSTGRES_APP_PASSWORD`, `DATABASE_MIGRATION_URL`, and the `rakazo_app` role.
+- `RAKAZO_ADMIN_EMAILS` must include the owner email. Without it, Dokploy controls and line pairing are hidden by upstream `isAdmin`.
 
 ## Files differing from upstream/main
      .env.example                                                                         |  56 +++++++++++++-

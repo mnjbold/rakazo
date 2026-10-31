@@ -40,8 +40,9 @@ import { mobileLogoAvatarActivity } from "../lib/logo-avatar-activity";
 import { useMobileTokens } from "../lib/native";
 
 // JEWL fork: mobile bots wear the jewel unless they have an image or shipped shape.
-// Upstream removed mobile avatar-style switching, so this is a build-time choice.
-const MOBILE_AVATAR_STYLE: string = "jewel";
+// Upstream removed mobile avatar-style switching, so this is a build-time choice
+// (EXPO_PUBLIC_JEWL_AVATAR_STYLE=organic restores upstream's organic body; tests use it).
+const MOBILE_AVATAR_STYLE: string = process.env.EXPO_PUBLIC_JEWL_AVATAR_STYLE || "jewel";
 
 import { JewelAvatar } from "./jewel-avatar";
 import { LogoAvatar } from "./logo-avatar";

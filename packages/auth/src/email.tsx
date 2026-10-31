@@ -101,14 +101,14 @@ export const linkStyle = { color: lightTokens.primary, textDecoration: "underlin
 export function verificationEmail(email: string, url: string): Promise<TransactionalEmail> {
   return message(
     email,
-    "Verify your Rakazo email",
+    "Verify your JEWL email",
     <>
       <Text>
         <Link href={url} style={linkStyle}>
           Verify email
         </Link>
       </Text>
-      <Text>Then return to Rakazo to sign in.</Text>
+      <Text>Then return to JEWL to sign in.</Text>
       <Text>This link expires in one hour. If you did not register, ignore this email.</Text>
     </>,
   );
@@ -117,9 +117,9 @@ export function verificationEmail(email: string, url: string): Promise<Transacti
 export function signInCodeEmail(email: string, code: string): Promise<TransactionalEmail> {
   return message(
     email,
-    "Your Rakazo sign-in code",
+    "Your JEWL sign-in code",
     <>
-      <Text>Enter this code to sign in to Rakazo:</Text>
+      <Text>Enter this code to sign in to JEWL:</Text>
       <Text>
         <strong>{code}</strong>
       </Text>
@@ -134,10 +134,10 @@ export function passwordResetEmail(
 ): Promise<TransactionalEmail> {
   return message(
     user.email,
-    "Reset your Rakazo password",
+    "Reset your JEWL password",
     <>
       <Text>Hi {displayName(user.name, "there")},</Text>
-      <Text>Reset your Rakazo password:</Text>
+      <Text>Reset your JEWL password:</Text>
       <Text>
         <Link href={resetUrl} style={linkStyle}>
           Reset password
@@ -153,9 +153,9 @@ export function passwordResetEmail(
 export function accountDeletionEmail(email: string, code: string): Promise<TransactionalEmail> {
   return message(
     email,
-    "Confirm Rakazo account deletion",
+    "Confirm JEWL account deletion",
     <>
-      <Text>Enter this code in Rakazo to delete your account:</Text>
+      <Text>Enter this code in JEWL to delete your account:</Text>
       <Text>{code}</Text>
       <Text>
         This code expires in ten minutes. If you did not request deletion, ignore this email.
@@ -167,9 +167,9 @@ export function accountDeletionEmail(email: string, code: string): Promise<Trans
 export function identityCodeEmail(email: string, code: string): Promise<TransactionalEmail> {
   return message(
     email,
-    "Your Rakazo confirmation code",
+    "Your JEWL confirmation code",
     <>
-      <Text>Enter this code in Rakazo to confirm it's you:</Text>
+      <Text>Enter this code in JEWL to confirm it's you:</Text>
       <Text>
         <strong>{code}</strong>
       </Text>

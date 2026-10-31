@@ -238,7 +238,7 @@ export function VoiceSettingsOverlay({
       await rpc.voice.connect({
         scope,
         provider: selected.id,
-        ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+        apiKey: apiKey.trim(),
         // The server drops this voice when the address or speech model really changed.
         voiceId: voiceId || undefined,
         ...(selected.id === "fish-audio" ? { speechModel: speechModel.trim() } : {}),
