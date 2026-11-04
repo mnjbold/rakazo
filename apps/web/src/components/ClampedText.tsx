@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 const COLLAPSED_PX = 300;
 

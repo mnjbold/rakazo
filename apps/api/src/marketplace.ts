@@ -7,7 +7,8 @@ import type {
   ShareMarketplaceItemInput,
 } from "@rakazo/contracts";
 import { MarketplacePluginConfigSchema } from "@rakazo/contracts";
-import { IsolationError, type Prisma, type PrismaClient } from "@rakazo/db";
+import type { Prisma, PrismaClient } from "@rakazo/db";
+import { IsolationError } from "@rakazo/db";
 
 // ponytail: newest 200 only; add cursor paging when a deployment outgrows it.
 const LIST_LIMIT = 200;

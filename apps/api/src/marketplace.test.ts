@@ -1,5 +1,6 @@
 import type { Actor } from "@rakazo/contracts";
-import { IsolationError, type PrismaClient } from "@rakazo/db";
+import type { PrismaClient } from "@rakazo/db";
+import { IsolationError } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import { createMarketplaceService } from "./marketplace.js";
 

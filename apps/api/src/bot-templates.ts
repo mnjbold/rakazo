@@ -6,7 +6,8 @@ import type {
   CreateBotTemplateInput,
   UseBotTemplateInput,
 } from "@rakazo/contracts";
-import { IsolationError, type PrismaClient } from "@rakazo/db";
+import type { PrismaClient } from "@rakazo/db";
+import { IsolationError } from "@rakazo/db";
 
 // The only bot fields a template may carry. Selecting them explicitly keeps
 // secrets, connections, memory, history, and computers out of every snapshot.

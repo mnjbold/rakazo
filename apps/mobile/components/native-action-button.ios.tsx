@@ -1,6 +1,7 @@
 import { Button, Host, Label, ProgressView, Text } from "@expo/ui/swift-ui";
 import {
   accessibilityAddTraits,
+  accessibilityHidden,
   accessibilityLabel as accessibilityName,
   accessibilityRemoveTraits,
   buttonStyle,
@@ -10,9 +11,11 @@ import {
   foregroundStyle,
   frame,
   labelStyle,
+  padding,
   progressViewStyle,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
+import { StyleSheet, View } from "react-native";
 import { useMobileTokens, useResolvedAppearance } from "../lib/native";
 import type { ActionProminence, NativeActionButtonProps } from "../lib/native-controls";
 import { actionFills, actionProminence, iosAtLeast } from "../lib/native-controls";
@@ -21,10 +24,13 @@ import { actionFills, actionProminence, iosAtLeast } from "../lib/native-control
 export function NativeActionButton({
   label,
   accessibilityLabel,
+  accessibilityActions,
+  onAccessibilityAction,
   onPress,
   disabled = false,
   busy = false,
   prominence = "primary",
+  variant,
   fill,
   style,
   size = "default",
@@ -38,14 +44,45 @@ export function NativeActionButton({
   const small = size === "compact";
   const effectiveProminence = actionProminence(prominence, selected);
   const role = prominence === "destructive" ? "destructive" : "default";
+  // The prominent styles draw a white label, which disappears on the light dark-mode primary.
+  const filled = !inactive && effectiveProminence === "primary";
+  const ownLabel = stretches || filled || variant !== undefined;
+  const measuredWidth = StyleSheet.flatten(style)?.width;
+  const labelModifiers = variant
+    ? [
+        font({ textStyle: "callout", weight: "medium" }),
+        foregroundStyle(prominence === "destructive" ? tokens.destructive : tokens.link),
+        padding({ horizontal: 0, vertical: 8 }),
+        ...(stretches
+          ? [
+              frame(
+                typeof measuredWidth === "number"
+                  ? { width: measuredWidth }
+                  : { maxWidth: Infinity },
+              ),
+            ]
+          : []),
+        // The destructive text action (Disconnect) keeps a 44pt target.
+        ...(prominence === "destructive" ? [frame({ minHeight: 44 })] : []),
+      ]
+    : [
+        ...(stretches ? [frame({ maxWidth: Infinity, ...(small ? { minHeight: 16 } : {}) })] : []),
+        ...(filled ? [foregroundStyle(tokens.primaryForeground)] : []),
+      ];
+  // Destructive buttons use the prominent style, which fills with the tint under a white
+  // label; the text-red `destructive` is too pale for that in dark mode.
   const color =
     effectiveProminence === "destructive"
-      ? tokens.destructive
+      ? variant
+        ? tokens.destructive
+        : tokens.destructiveFill
       : effectiveProminence === "primary"
         ? tokens.primary
         : undefined;
-  return (
+  const button = (
     <Host
+      // Expo UI reads matchContents only on mount. Wrapping changes which axis Yoga owns.
+      key={stretches ? "fill" : "intrinsic"}
       colorScheme={scheme}
       ignoreSafeArea="container"
       matchContents={stretches ? { vertical: true } : true}
@@ -57,12 +94,13 @@ export function NativeActionButton({
       ]}
     >
       <Button
-        label={busy || stretches ? undefined : (label ?? accessibilityLabel)}
+        label={busy || ownLabel ? undefined : (label ?? accessibilityLabel)}
         systemImage={icon?.ios as never}
         onPress={inactive ? undefined : onPress}
         role={role}
         modifiers={[
-          buttonStyle(swiftStyle(effectiveProminence)),
+          ...(accessibilityActions?.length ? [accessibilityHidden(true)] : []),
+          buttonStyle(variant ? "plain" : swiftStyle(effectiveProminence)),
           controlSize(
             small ? "small" : stretches ? "large" : prominence === "quiet" ? "small" : "regular",
           ),
@@ -75,12 +113,12 @@ export function NativeActionButton({
                   ? accessibilityAddTraits(["isSelected"])
                   : accessibilityRemoveTraits(["isSelected"]),
               ]),
-          ...(prominence === "quiet"
+          ...(!variant && prominence === "quiet"
             ? [font({ size: 15 }), foregroundStyle(tokens.mutedForeground)]
             : []),
           disable(inactive),
           ...(color ? [tint(color)] : []),
-          ...(busy || (accessibilityLabel && accessibilityLabel !== label)
+          ...(variant || busy || (accessibilityLabel && accessibilityLabel !== label)
             ? [accessibilityName(accessibilityLabel ?? label ?? "")]
             : []),
         ]}
@@ -92,31 +130,34 @@ export function NativeActionButton({
               ...(stretches ? [frame({ maxWidth: Infinity })] : []),
             ]}
           />
-        ) : stretches && icon ? (
+        ) : ownLabel && icon ? (
           <Label
             title={label ?? accessibilityLabel}
             systemImage={icon.ios as never}
-            modifiers={[
-              frame({ maxWidth: Infinity, ...(small ? { minHeight: 16 } : {}) }),
-              ...(!inactive && effectiveProminence === "primary"
-                ? [foregroundStyle(tokens.primaryForeground)]
-                : []),
-            ]}
+            modifiers={labelModifiers}
           />
-        ) : stretches ? (
-          <Text
-            modifiers={[
-              frame({ maxWidth: Infinity, ...(small ? { minHeight: 16 } : {}) }),
-              ...(!inactive && effectiveProminence === "primary"
-                ? [foregroundStyle(tokens.primaryForeground)]
-                : []),
-            ]}
-          >
-            {label}
-          </Text>
+        ) : ownLabel ? (
+          <Text modifiers={labelModifiers}>{label}</Text>
         ) : undefined}
       </Button>
     </Host>
+  );
+  // Expo UI does not expose SwiftUI custom accessibility actions. Give the native
+  // control one React Native accessibility element with the same activation and menu.
+  return accessibilityActions?.length ? (
+    <View
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: inactive, ...(selected === undefined ? {} : { selected }) }}
+      accessibilityActions={accessibilityActions}
+      onAccessibilityAction={onAccessibilityAction}
+      onAccessibilityTap={inactive ? undefined : onPress}
+    >
+      {button}
+    </View>
+  ) : (
+    button
   );
 }
 

@@ -1,5 +1,6 @@
 import type { Actor, Bot } from "@rakazo/contracts";
-import { IsolationError, type PrismaClient } from "@rakazo/db";
+import type { PrismaClient } from "@rakazo/db";
+import { IsolationError } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import { createBotTemplatesService } from "./bot-templates.js";
 

@@ -5,10 +5,7 @@
   "langfuse_project": "rakazo",
   "langfuse_host": "https://langfuse.getbijou.xyz",
   "llm_gateway": "https://llm.getbijou.xyz/v1",
-  "infisical": [
-    "infra/prod/services/langfuse-rakazo",
-    "infra/prod/services/litellm-rakazo"
-  ],
+  "infisical": ["infra/prod/services/langfuse-rakazo", "infra/prod/services/litellm-rakazo"],
   "smoke_test": "python observability/langfuse_smoke.py",
   "branch": "chore/langfuse-observability",
   "return_branch": "main",

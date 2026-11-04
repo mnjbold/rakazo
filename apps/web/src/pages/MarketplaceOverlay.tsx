@@ -15,7 +15,8 @@ import {
   TabsTrigger,
 } from "@rakazo/ui-web";
 import { Trash2, X } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { rpc } from "../lib/rpc";
 
 type Row = {

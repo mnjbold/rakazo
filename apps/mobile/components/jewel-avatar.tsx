@@ -1,5 +1,5 @@
-import type { BotMood, GrokColorDef } from "@rakazo/core";
-import { avatarIdentitySeed, JEWEL_VIEWBOX, jewelCut } from "@rakazo/core";
+import type { BotColorDef, BotMood } from "@rakazo/core";
+import { avatarIdentitySeed, botEyeInk, JEWEL_VIEWBOX, jewelCut } from "@rakazo/core";
 import { useEffect, useMemo } from "react";
 import { Pressable } from "react-native";
 import Animated, {
@@ -33,7 +33,7 @@ export function JewelAvatar({
   mood,
   interactive = false,
 }: {
-  colorDef: GrokColorDef;
+  colorDef: BotColorDef;
   identity: string;
   size: number;
   mood: BotMood;
@@ -89,7 +89,7 @@ export function JewelAvatar({
   const { leftX, rightX, y, width, height } = cut.eyes;
   const eyeStroke = {
     fill: "none",
-    stroke: colorDef.eyeColor,
+    stroke: botEyeInk(colorDef.hex, { background: "#0A0A0A", foreground: "#FFFFFF" }),
     strokeWidth: width * 0.5,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
@@ -119,7 +119,10 @@ export function JewelAvatar({
         ))}
       </G>
     ) : (
-      <G fill={colorDef.eyeColor} opacity={mood === "error" ? 0.7 : 1}>
+      <G
+        fill={botEyeInk(colorDef.hex, { background: "#0A0A0A", foreground: "#FFFFFF" })}
+        opacity={mood === "error" ? 0.7 : 1}
+      >
         {[leftX, rightX].map((x) => {
           const h =
             mood === "error" ? height * 0.55 : mood === "needs_you" ? height * 1.12 : height;
@@ -141,7 +144,12 @@ export function JewelAvatar({
   const body = (
     <Animated.View style={[{ width: size, height: size }, gemStyle]}>
       <Svg width={size} height={size} viewBox={JEWEL_VIEWBOX}>
-        <Polygon points={cut.outline} fill={colorDef.hex} stroke={colorDef.dark} strokeWidth={2} />
+        <Polygon
+          points={cut.outline}
+          fill={colorDef.hex}
+          stroke={colorDef.previousHex ?? colorDef.hex}
+          strokeWidth={2}
+        />
         {cut.facets.map((facet) => (
           <Polygon
             key={facet.points}
@@ -178,9 +186,9 @@ export function JewelAvatar({
           inset: 0,
           borderRadius: size / 2,
           borderWidth: 2,
-          borderColor: colorDef.light,
-          borderTopColor: mood === "working" ? "transparent" : colorDef.light,
-          borderLeftColor: mood === "working" ? "transparent" : colorDef.light,
+          borderColor: colorDef.hex,
+          borderTopColor: mood === "working" ? "transparent" : colorDef.hex,
+          borderLeftColor: mood === "working" ? "transparent" : colorDef.hex,
         },
         ringStyle,
       ]}

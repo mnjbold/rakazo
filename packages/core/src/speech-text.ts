@@ -114,11 +114,16 @@ const BOUNDARY =
 /**
  * Split speakable text into utterances a synthesizer can start on.
  * Short fragments are glued onto their neighbour so the voice keeps context.
+ * maxChars bounds UTF-16 code units, matching the synthesis API's limit.
  */
 export function toUtterances(input: string, { minChars = 12, maxChars = 320 } = {}): string[] {
+  if (!Number.isInteger(maxChars) || maxChars < 2) {
+    throw new RangeError("maxChars must be an integer of at least 2");
+  }
   return glueShort(
-    roughSentences(speakable(input)).flatMap((piece) => fitLength(piece, maxChars)),
+    roughSentences(speakable(input)).map((piece) => fitLength(piece, maxChars)),
     minChars,
+    maxChars,
   );
 }
 
@@ -136,14 +141,26 @@ function fitLength(piece: string, maxChars: number): string[] {
   return piece.length <= maxChars ? [piece] : splitLong(piece, maxChars);
 }
 
-function glueShort(parts: readonly string[], minChars = 12): string[] {
+/** Glue short fragments onto their neighbour; only the first part of a split sentence glues. */
+function glueShort(
+  groups: readonly (readonly string[])[],
+  minChars = 12,
+  maxChars = Number.POSITIVE_INFINITY,
+): string[] {
   const out: string[] = [];
-  for (const part of parts) {
-    const prev = out[out.length - 1];
-    if (prev && (prev.length < minChars || part.length < minChars)) {
-      out[out.length - 1] = `${prev} ${part}`;
-    } else {
-      out.push(part);
+  for (const parts of groups) {
+    for (const [index, part] of parts.entries()) {
+      const prev = out[out.length - 1];
+      if (
+        index === 0 &&
+        prev &&
+        (prev.length < minChars || part.length < minChars) &&
+        prev.length + 1 + part.length <= maxChars
+      ) {
+        out[out.length - 1] = `${prev} ${part}`;
+      } else {
+        out.push(part);
+      }
     }
   }
   return out;
@@ -190,7 +207,7 @@ export class SpeechTurn {
       }
       fresh.push(sentence);
     }
-    return glueShort(fresh);
+    return glueShort(fresh.map((sentence) => [sentence]));
   }
 
   /**
@@ -207,6 +224,10 @@ export class SpeechTurn {
 
 function splitLong(text: string, maxChars: number): string[] {
   const out: string[] = [];
+  const segmenter =
+    typeof Intl.Segmenter === "function"
+      ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+      : undefined;
   let rest = text;
   while (rest.length > maxChars) {
     const window = rest.slice(0, maxChars);
@@ -215,8 +236,24 @@ function splitLong(text: string, maxChars: number): string[] {
       window.lastIndexOf("; "),
       window.lastIndexOf(" — "),
     );
-    const cut = at > maxChars / 2 ? at + 1 : window.lastIndexOf(" ");
-    if (cut <= 0) break;
+    let cut = at > maxChars / 2 ? at + 1 : window.lastIndexOf(" ");
+    if (cut <= 0) {
+      cut = 0;
+      if (segmenter) {
+        for (const { index, segment } of segmenter.segment(rest)) {
+          const end = index + segment.length;
+          if (end > maxChars) break;
+          cut = end;
+        }
+      }
+      // A single grapheme may exceed the budget; older native runtimes may
+      // also lack Segmenter. Still make progress without splitting a surrogate pair.
+      if (cut === 0) {
+        cut = maxChars;
+        const last = rest.charCodeAt(cut - 1);
+        if (last >= 0xd800 && last <= 0xdbff) cut -= 1;
+      }
+    }
     out.push(rest.slice(0, cut).trim());
     rest = rest.slice(cut).trim();
   }
@@ -248,6 +285,13 @@ export function narrateTool(toolName: string): string | null {
     [/^run_subagent$/, "starting a subagent"],
     [/^spawn_bot$/, "creating a bot"],
     [/^create_space$/, "creating a space"],
+    [/^list_fleet$/, "checking your bots"],
+    [/^create_group$/, "creating a group"],
+    [/^update_group$/, "updating a group"],
+    [/^organize_bot$/, "organizing the sidebar"],
+    [/^set_child_instructions$/, "rewriting a bot's instructions"],
+    [/^set_child_bot_model$/, "setting a bot's model"],
+    [/^create_child_routine$/, "scheduling a routine"],
     [/^(archive_bot|delete_bot)$/, "archiving a bot"],
     [/^remember$/, "writing a memory"],
     [/^save_shared_memory$/, "saving shared memory"],
@@ -284,15 +328,20 @@ export function speechFromBlocks(blocks: MessageBlock[]): string {
     .join("\n");
 }
 
-const YES = /^(yes|yeah|yep|yup|ok|okay|sure|do it|go ahead|approve|confirmed|affirmative)\b/i;
-const NO = /^(no|nope|nah|cancel|stop|don't|do not|reject|deny|negative)\b/i;
+// Without its accent "si" is Spanish for "if", so only "sí" says yes. `\b` only knows
+// ASCII letters, so a word ends wherever no letter or digit follows.
+const YES =
+  /^¡?(yes|yeah|yep|yup|ok|okay|sure|do it|go ahead|approve|confirmed|affirmative|sí|vale|okey|de acuerdo|adelante|hazlo|confirmo|aprobado)(?![\p{L}\p{N}])/iu;
+const NO =
+  /^¡?(no|nope|nah|cancel|stop|don't|do not|reject|deny|negative|cancela|cancelar|cancélalo|rechaza|rechazado|mejor no|detente)(?![\p{L}\p{N}])/iu;
 
 /** Consent must never be inferred from a sentence that merely contained "sure". */
 export function spokenDecision(transcript: string): "yes" | "no" | null {
   const text = transcript.trim();
-  if (!text) return null;
-  if (YES.test(text) && text.split(/\s+/).length <= 6) return "yes";
-  if (NO.test(text) && text.split(/\s+/).length <= 6) return "no";
+  // A question ("¿Sí? ¿Cuáles?") is not an answer.
+  if (!text || /[?¿]/.test(text) || text.split(/\s+/).length > 6) return null;
+  if (YES.test(text)) return "yes";
+  if (NO.test(text)) return "no";
   return null;
 }
 

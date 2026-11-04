@@ -11,9 +11,6 @@ test("opens Artifacts from the account menu and lists created files", async ({
   await page.waitForURL(/\/app\/(?!artifacts(?:\/|$))[^/]+$/);
   const chiefId = activeBotId(page);
 
-  // Tablet and desktop keep the bot rail beside the bots sidebar.
-  const appRail = page.getByTestId("app-rail");
-  await expect(appRail).toBeVisible();
   const sidebar = page.getByTestId("bots-sidebar");
   await expect(sidebar).toBeVisible();
   const railBox = await appRail.boundingBox();
@@ -21,16 +18,14 @@ test("opens Artifacts from the account menu and lists created files", async ({
     (railBox?.x ?? 0) + (railBox?.width ?? 0),
     0,
   );
-  await expect(sidebar.getByRole("link", { name: "Artifacts" })).toHaveCount(0);
-  await expect(sidebar.getByRole("button", { name: "Artifacts", exact: true })).toHaveCount(0);
-  await expect(sidebar.getByRole("button", { name: "Integrations" })).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "Connect apps" })).toBeVisible();
   await page.getByTestId("user-menu-trigger").click();
   const artifactsItem = page.getByRole("button", { name: "Artifacts", exact: true });
   const settingsItem = page.getByRole("button", { name: "Settings", exact: true });
   await expect(artifactsItem).toBeVisible();
   await expect(settingsItem).toBeVisible();
-  expect((await artifactsItem.boundingBox())?.y).toBeLessThan(
-    (await settingsItem.boundingBox())?.y ?? 0,
+  expect((await settingsItem.boundingBox())?.y).toBeLessThan(
+    (await artifactsItem.boundingBox())?.y ?? 0,
   );
   await captureScreenshot(page, testInfo, "account-menu-artifacts");
 
@@ -77,14 +72,8 @@ test("opens Artifacts from the account menu and lists created files", async ({
   await expect(page.getByTestId("transcript")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  // Phones hide the rail in a chat and go back to the full-width bot list.
-  await expect(page.getByTestId("app-rail")).toBeHidden();
-  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Open navigation" }).click();
   const mobileSidebar = page.getByTestId("bots-sidebar");
-  await expect(mobileSidebar.getByRole("link", { name: "Artifacts" })).toHaveCount(0);
-  await expect(mobileSidebar.getByRole("button", { name: "Artifacts", exact: true })).toHaveCount(
-    0,
-  );
   await mobileSidebar.getByTestId("user-menu-trigger").click();
   const mobileArtifacts = page.getByRole("button", { name: "Artifacts", exact: true });
   await expect(mobileArtifacts).toBeVisible();

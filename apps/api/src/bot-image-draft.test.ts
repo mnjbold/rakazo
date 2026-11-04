@@ -24,7 +24,7 @@ function textOnlyRuntime(): AgentRuntime & { requests: AgentRunRequest[] } {
       id: "pi",
       contractVersion: "1",
       adapterVersion: "test",
-      capabilities: { streaming: true, compaction: false, tools: true },
+      capabilities: { streaming: true, compaction: false, tools: true, scripted: false },
     }),
     abort: async () => undefined,
     async *run(request) {
@@ -46,8 +46,7 @@ describe("createBotImageDrafter", () => {
     const result = await draft(actor, { mimeType: "image/png", contentBase64: PNG });
     expect(result).toMatchObject({
       name: "Harbor Scout",
-      title: "Tracks ships in port",
-      color: "#06B6D4::shape_7",
+      color: "#1CC3B0::shape_7",
       routines: [{ name: "Arrivals", cron: "0 * * * *" }],
     });
     expect(run.mock.calls[0]?.[0].currentTurnImages?.[0]?.mimeType).toBe("image/png");

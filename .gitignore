@@ -51,3 +51,7 @@ W3J_*.md
 
 # local secrets (langfuse onboarding)
 .env.pre-langfuse.bak
+
+# Downloaded embedded computer screen SDK files
+apps/web/public/computer-screen/*.js
+apps/web/public/computer-screen/sdk/

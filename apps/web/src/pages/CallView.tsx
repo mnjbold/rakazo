@@ -14,7 +14,8 @@ import {
 } from "@rakazo/core";
 import { BotAvatar, Button } from "@rakazo/ui-web";
 import { Mic, MicOff, Settings, X } from "lucide-react";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { startBargeInMonitor } from "../lib/barge-in";
 import { dictation } from "../lib/dictation";
 import type { LiveSession } from "../lib/live-session.js";
@@ -71,6 +72,11 @@ export function CallView({
   const heardRef = useRef("");
   const spokenMessage = useRef<string | null>(null);
   // The bot reply the person last talked over, sent with their next turn and then cleared.
+  const replyQueue = useRef<{ messageId?: string; pending: string[]; draining: boolean }>({
+    pending: [],
+    draining: false,
+  });
+  const spokenSoFar = useRef<{ messageId?: string; utterances: string[] }>({ utterances: [] });
   const interruption = useRef<LiveInterruption | null>(null);
   // What the current run has queued for speech, so a streamed reply is never spoken twice.
   const speechTurn = useRef<{ runId: string | null; turn: SpeechTurn }>({
@@ -116,7 +122,7 @@ export function CallView({
     }
     closing.current = true;
     dictation.stop("cancel");
-    speaker.stop();
+    stopSpeaking();
     onClose();
   }
 
@@ -132,6 +138,11 @@ export function CallView({
     } else if (phaseRef.current !== "speaking") void listen();
   }
 
+  function stopSpeaking() {
+    replyQueue.current = { messageId: undefined, pending: [], draining: false };
+    speaker.stop();
+  }
+
   function interrupt() {
     if (liveSessionRef.current) {
       liveSessionRef.current.interrupt();
@@ -139,14 +150,21 @@ export function CallView({
     }
     if (phaseRef.current === "speaking") {
       const { messageId } = speaker.state;
-      const spoken = speaker.state.heard?.trim().slice(0, LIVE_INTERRUPTION_HEARD_MAX_LENGTH);
+      const spoken =
+        spokenSoFar.current.messageId === messageId
+          ? spokenSoFar.current.utterances
+              .join(" ")
+              .trim()
+              .slice(0, LIVE_INTERRUPTION_HEARD_MAX_LENGTH)
+          : undefined;
+      replyQueue.current = { messageId: undefined, pending: [], draining: false };
       if (messageId && spoken && !messageId.startsWith("narrate:")) {
         interruption.current = { messageId, heard: spoken };
       }
       // Nothing of the reply talked over plays later, including sentences still streaming in.
       const runId = messageId?.startsWith("run:") ? messageId.slice(4) : null;
       if (runId) turnFor(runId).interrupt(streamedText(streamMessage(snapshotRef.current, runId)));
-      speaker.stop();
+      stopSpeaking();
     } else dictation.stop("cancel");
     void listen();
   }
@@ -165,7 +183,7 @@ export function CallView({
       return;
     }
     setCallPhase("listening");
-    speaker.stop();
+    stopSpeaking();
     try {
       await dictation.listen({
         mode: "endpoint",
@@ -224,7 +242,30 @@ export function CallView({
   function sayQueued(utterances: string[], messageId: string) {
     if (!utterances.length) return;
     replyStarts(messageId);
-    speaker.enqueue(utterances, { botId, messageId });
+    // Upstream's speaker plays one text at a time; this keeps a reply's streamed sentences in
+    // one ordered queue and remembers what was spoken so a barge-in can say what was heard.
+    const queue = replyQueue.current;
+    if (queue.messageId !== messageId) {
+      replyQueue.current = { messageId, pending: [...utterances], draining: false };
+      spokenSoFar.current = { messageId, utterances: [] };
+    } else queue.pending.push(...utterances);
+    void drainReplyQueue(messageId);
+  }
+
+  async function drainReplyQueue(messageId: string) {
+    const queue = replyQueue.current;
+    if (queue.draining || queue.messageId !== messageId) return;
+    queue.draining = true;
+    try {
+      while (replyQueue.current === queue && queue.pending.length) {
+        const next = queue.pending.shift()!;
+        spokenSoFar.current.utterances.push(next);
+        const failed = await speaker.speak(next, { botId, messageId });
+        if (failed) break;
+      }
+    } finally {
+      queue.draining = false;
+    }
   }
 
   function replyStarts(messageId: string) {
@@ -342,7 +383,7 @@ export function CallView({
       unsubSpeech();
       unsubDictation();
       dictation.stop("cancel");
-      speaker.stop();
+      stopSpeaking();
     };
   }, [botId]);
 

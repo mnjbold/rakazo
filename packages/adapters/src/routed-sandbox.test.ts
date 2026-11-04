@@ -21,12 +21,12 @@ describe("RoutedSandbox", () => {
   it("routes selected computers to Box and drops a mismatched provider ref", async () => {
     const docker = new FakeSandboxProvider();
     const box = new FakeSandboxProvider();
-    vi.spyOn(box, "describe").mockReturnValue({ ...box.describe(), id: "box" });
+    vi.spyOn(box, "describe").mockReturnValue({ ...box.describe(), id: "boxd" });
     const provision = vi.spyOn(box, "provision");
     const routed = new RoutedSandbox(
       new Map([
         ["docker", docker],
-        ["box", box],
+        ["boxd", box],
       ]),
     );
     await routed.provision(
@@ -35,7 +35,7 @@ describe("RoutedSandbox", () => {
         homePath: "/tmp/home",
         providerKind: "docker",
         providerRef: "old",
-        desiredProviderKind: "box",
+        desiredProviderKind: "boxd",
       },
       context,
     );
@@ -49,7 +49,7 @@ describe("RoutedSandbox", () => {
     const routed = new RoutedSandbox(new Map([["docker", new FakeSandboxProvider()]]));
     await expect(
       routed.provision(
-        { botId: "bot", homePath: "/tmp/home", desiredProviderKind: "box" },
+        { botId: "bot", homePath: "/tmp/home", desiredProviderKind: "boxd" },
         context,
       ),
     ).rejects.toThrow(/not configured/);
