@@ -46,7 +46,7 @@ describe("createBotImageDrafter", () => {
     const result = await draft(actor, { mimeType: "image/png", contentBase64: PNG });
     expect(result).toMatchObject({
       name: "Harbor Scout",
-      color: "#06B6D4::shape_7",
+      color: "#1CC3B0::shape_7",
       routines: [{ name: "Arrivals", cron: "0 * * * *" }],
     });
     expect(run.mock.calls[0]?.[0].currentTurnImages?.[0]?.mimeType).toBe("image/png");

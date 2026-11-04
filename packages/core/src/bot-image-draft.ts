@@ -42,8 +42,12 @@ function line(value: unknown, max: number): string {
 export function botImageDraftAvatar(color: unknown, shape: unknown): string {
   const wanted = typeof color === "string" ? color.trim().toLowerCase() : "";
   const hex =
-    BOT_COLOR_LIST.find((entry) => entry.id === wanted || entry.hex.toLowerCase() === wanted)
-      ?.hex ?? DEFAULT_BOT_AVATAR_COLOR;
+    BOT_COLOR_LIST.find(
+      (entry) =>
+        entry.id === wanted ||
+        entry.hex.toLowerCase() === wanted ||
+        entry.previousHex?.toLowerCase() === wanted,
+    )?.hex ?? DEFAULT_BOT_AVATAR_COLOR;
   const shapeKey = typeof shape === "string" ? shape.trim().toLowerCase() : "";
   const shapeIndex = Math.max(
     0,

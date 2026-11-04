@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { ORPCError } from "@orpc/server";
 import { runContinueJob } from "@rakazo/adapter-kit";
-import type { getBotSecretMetadata } from "@rakazo/adapters";
 import {
   archiveBot,
   checkpointAndStopComputer,
@@ -10,7 +9,6 @@ import {
   forgetPageShareSecrets,
   hasActiveComputerControl,
   isSecretAlreadySaved,
-  listBotSecretMetadata,
   listVaultItems,
   loadReplyQuality,
   newVaultItemName,

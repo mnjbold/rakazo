@@ -416,7 +416,7 @@ describe("setup", () => {
     const ui = await boot(null, { lang: "es", dir: "ltr", messages: ES_MESSAGES });
     expect(document.documentElement.lang).toBe("es");
     expect(document.documentElement.dir).toBe("ltr");
-    expect(document.querySelector("h1")?.textContent).toBe("Te damos la bienvenida a Rakazo");
+    expect(document.querySelector("h1")?.textContent).toBe("Te damos la bienvenida a JEWL");
     expect(document.querySelector('label[for="mode-new"]')?.textContent?.trim()).toBe(
       "Esta computadora",
     );
@@ -424,7 +424,7 @@ describe("setup", () => {
       "Rakazo Cloud",
     );
     expect(element("quit").textContent).toBe("Salir");
-    expect(element("quit").title).toBe("Salir de Rakazo");
+    expect(element("quit").title).toBe("Salir de JEWL");
     expect(element("stack-details").getAttribute("aria-label")).toBe("Detalles técnicos");
     expect(element<HTMLTextAreaElement>("server-headers").placeholder).toBe("Nombre: valor");
     expect(element("continue").textContent).toBe("Continuar");
@@ -437,13 +437,13 @@ describe("setup", () => {
     expect(element("status").textContent).toBe("Comprobando…");
     ui.resolveCheck({ ok: true, url: "https://one.example" });
     await flush();
-    expect(element("status").textContent).toBe("Rakazo respondió en https://one.example.");
+    expect(element("status").textContent).toBe("JEWL respondió en https://one.example.");
 
     selectMode("new");
     submitForm();
     ui.startResult.resolve({ ...stackState("pulling"), layerBytes: { layer: 2.5e6 } });
     await flush();
-    expect(element("stack-phase").textContent).toBe("Descargando Rakazo…");
+    expect(element("stack-phase").textContent).toBe("Descargando JEWL…");
     expect(element("stack-detail").textContent).toBe("3 MB descargados");
   });
 });

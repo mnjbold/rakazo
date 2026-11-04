@@ -4800,6 +4800,7 @@ describe("clearThread", () => {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValue({ ...event(0), type: "thread.cleared" }),
       },
+      chatSession: { deleteMany: vi.fn() },
       bot: { update: vi.fn() },
     };
     const prisma = {

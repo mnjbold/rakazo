@@ -1139,6 +1139,9 @@ describe("transcribeInboundVoice", () => {
   });
 
   it("returns null when the owner has no default voice credential", async () => {
+    // No server-wide fallback key either, so there is truly no voice credential.
+    vi.stubEnv("TELNYX_API_KEY", "");
+    vi.stubEnv("MINIMAX_API_KEY", "");
     const create = vi.spyOn(adapters, "createVoiceProvider").mockReturnValue({} as never);
 
     await expect(
@@ -1148,6 +1151,7 @@ describe("transcribeInboundVoice", () => {
       }),
     ).resolves.toBeNull();
     expect(create).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
   });
 
   it("returns null when the provider does not transcribe", async () => {

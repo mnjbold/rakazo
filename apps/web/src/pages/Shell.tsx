@@ -3,6 +3,7 @@ import type {
   AgentSkillCatalogEntry,
   Bot,
   ChatSession,
+  LiveInterruption,
   SpaceMemoryConfig,
   ThreadMessage,
   VoiceStatus,
@@ -10,6 +11,7 @@ import type {
 import { DEFAULT_NEW_BOT_AVATAR_SET } from "@rakazo/contracts";
 import {
   answerableAskMessageIds,
+  callClientNonce,
   channelMessageSender,
   chatUserBubbleColors,
   dismissableAskMessageIds,
@@ -27,6 +29,7 @@ import { useIsMobile } from "@rakazo/ui-web/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { Lock, Monitor, Moon, Plug, Plus, ScrollText, SquarePen, Sun, Users } from "lucide-react";
 import {
+  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -37,6 +40,11 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useParams } from "react-router-dom";
+
+// JEWL Live talk: the floating hands-free voice bar (Kokoro / VoiceStudio / MiniMax via the
+// server's live voice route). It runs alongside upstream's phone-style call card.
+const CallView = lazy(() => import("./CallView").then((module) => ({ default: module.CallView })));
+
 import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
 import { CallCard, CallReturnBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
@@ -130,6 +138,7 @@ function SpaceShell() {
   const { botId, groupId } = useParams();
   const [shellSpaceId] = useState(selectedSpaceId);
   const [rpc] = useState(() => createSpaceRpc(shellSpaceId));
+  const [liveCallId, setLiveCallId] = useState<string | null>(null);
   const session = authClient.useSession();
   const userId = session.data?.user.id;
   // Held from the first render, so Cmd/Ctrl+N works before the sidebar has data.
@@ -1157,6 +1166,47 @@ function SpaceShell() {
               rpc={rpc}
             />
           )}
+          {liveCallId && active && !inGroup ? (
+            <Suspense fallback={null}>
+              <CallView
+                botId={active.id}
+                botName={active.name}
+                botColor={active.color}
+                transcribe={Boolean(voiceStatus?.transcribe)}
+                snapshot={activeSnapshot}
+                screen={null}
+                onSend={async (text: string, interruption?: LiveInterruption) => {
+                  await rpc.threads.send({
+                    botId: active.id,
+                    text,
+                    clientNonce: callClientNonce(liveCallId),
+                    live: true,
+                    interruption,
+                  });
+                  await refreshThread(active.id);
+                }}
+                onFollowUp={async (text: string, interruption?: LiveInterruption) => {
+                  await rpc.threads.followUp({
+                    botId: active.id,
+                    text,
+                    live: true,
+                    interruption,
+                    clientNonce: callClientNonce(liveCallId),
+                  });
+                  await refreshThread(active.id);
+                }}
+                onAnswer={composer.answerMessage}
+                onOpenComputer={() => setPanel("computer")}
+                onOpenSettings={() => openSettings("voice")}
+                onClose={() => {
+                  void rpc.threads
+                    .endCall({ botId: active.id, callId: liveCallId })
+                    .catch(() => undefined);
+                  setLiveCallId(null);
+                }}
+              />
+            </Suspense>
+          ) : null}
         </div>
         {active || activeGroup ? (
           // Let messages continue behind the composer's rounded top corners.
@@ -1201,6 +1251,17 @@ function SpaceShell() {
               onRemoveAttachment={composer.removeAttachment}
               onSend={composer.sendMessage}
               onStop={stopRun}
+              onLive={
+                !inGroup && active
+                  ? () => {
+                      if (!voiceStatus?.ready) {
+                        openSettings("voice");
+                        return;
+                      }
+                      setLiveCallId(newClientId());
+                    }
+                  : undefined
+              }
               phoneCallsEnabled={bootstrapMe?.phoneCallsEnabled === true}
               dictationTranscribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
               artifactTarget={transcriptArtifactTarget}

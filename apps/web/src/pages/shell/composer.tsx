@@ -18,7 +18,7 @@ import {
   updateComposerMentionBindings,
 } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
-import { ArrowUp, Box, Paperclip, Plus, Settings, Square, X } from "lucide-react";
+import { ArrowUp, AudioLines, Box, Paperclip, Plus, Settings, Square, X } from "lucide-react";
 import type { ClipboardEvent, ComponentProps, DragEvent, RefObject } from "react";
 import {
   memo,
@@ -86,6 +86,7 @@ const ComposerBody = memo(function Composer({
   onRemoveAttachment,
   onSend,
   onStop,
+  onLive,
   phoneCallsEnabled,
   dictationTranscribe,
   replyTarget,
@@ -125,6 +126,8 @@ const ComposerBody = memo(function Composer({
     imageHandling?: "file",
   ) => Promise<boolean>;
   onStop: () => Promise<void>;
+  /** JEWL Live talk: opens the floating hands-free voice bar for this bot. */
+  onLive?: () => void;
   phoneCallsEnabled?: boolean;
   /** Hold-to-talk falls back to the voice provider's transcription; undefined while unknown. */
   dictationTranscribe?: boolean;
@@ -951,6 +954,19 @@ const ComposerBody = memo(function Composer({
               {phoneCallsEnabled && draft.trim().length === 0 ? (
                 <HoldToTalkControls talk={talk} disabled={disabled || onCall} />
               ) : null}
+              {onLive ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t`Live talk`}
+                  title={t`Live talk`}
+                  disabled={disabled || onCall}
+                  onClick={onLive}
+                  className="size-8 shrink-0 rounded-full text-foreground/75"
+                >
+                  <AudioLines size={16} strokeWidth={1.8} />
+                </Button>
+              ) : null}
               <Button
                 size="icon"
                 aria-label={t`Send`}
@@ -975,6 +991,19 @@ const ComposerBody = memo(function Composer({
             <>
               {phoneCallsEnabled && draft.trim().length === 0 ? (
                 <HoldToTalkControls talk={talk} disabled={disabled || onCall} />
+              ) : null}
+              {onLive ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={t`Live talk`}
+                  title={t`Live talk`}
+                  disabled={disabled || onCall}
+                  onClick={onLive}
+                  className="size-8 shrink-0 rounded-full text-foreground/75"
+                >
+                  <AudioLines size={16} strokeWidth={1.8} />
+                </Button>
               ) : null}
               <Button
                 size="icon"

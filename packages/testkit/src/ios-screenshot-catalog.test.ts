@@ -13,6 +13,7 @@ const catalogDir = path.join(mobileDir, "e2e", "ios-screenshots");
 /** Screens the catalog cannot reach yet, and why. Capture one and remove it here. */
 const UNCOVERED: Record<string, string> = {
   "integration-setup": "redirects to Integrations",
+  "bot-templates": "JEWL-only screen; not in the iOS screenshot catalog yet",
   share: "Android only: iOS has no share extension yet",
 };
 

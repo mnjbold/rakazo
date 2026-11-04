@@ -731,7 +731,7 @@ describe("production backup deployment and archive behavior", () => {
       custom ? { RAKAZO_DEPLOY_DIR: deployment } : {},
     );
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("Verified Rakazo backup");
+    expect(result.stdout).toContain("Verified JEWL backup");
     expect(result.stderr).toContain("not encrypted");
     expect(readdirSync(result.stdout.trim().split("written to ")[1]!).sort()).toEqual([
       "SHA256SUMS",

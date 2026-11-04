@@ -1599,7 +1599,10 @@ describe("userTurnInstructions", () => {
         agentSkillsLine: undefined,
         taughtSkillsLine: undefined,
         followUpsOffered,
-      }).filter(Boolean)[1];
+      })
+        .filter(Boolean)
+        // Fork guidance lines come first; the tool line starts with the computer instruction.
+        .find((line) => line?.startsWith(computerInstruction));
     const offered = toolLine(true);
     expect(offered).toContain(
       "(not reminders — those are schedule_*). Do not wait to be asked about open loops.",

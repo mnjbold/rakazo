@@ -24,7 +24,7 @@ describe("parseBotImageDraft", () => {
     expect(draft).toEqual({
       name: "Recruiter",
       instructions: "You screen applicants.",
-      color: "#10B981::shape_7",
+      color: "#00C972::shape_7",
       routines: [{ name: "Inbox", prompt: "Check new applications.", cron: "0 9 * * 1-5" }],
     });
     expect(BotImageDraftSchema.safeParse(draft).success).toBe(true);
@@ -57,7 +57,7 @@ describe("parseBotImageDraft", () => {
 
 describe("botImageDraftAvatar", () => {
   it("accepts palette hex, falls back for unknown colors and shapes", () => {
-    expect(botImageDraftAvatar("#3b82f6", "wedge")).toBe("#3B82F6::shape_1");
+    expect(botImageDraftAvatar("#3b82f6", "wedge")).toBe("#2A92FE::shape_1");
     expect(botImageDraftAvatar("chartreuse", "star")).toBe(`${DEFAULT_BOT_AVATAR_COLOR}::shape_0`);
     expect(botImageDraftAvatar(undefined, 3)).toBe(`${DEFAULT_BOT_AVATAR_COLOR}::shape_0`);
   });
