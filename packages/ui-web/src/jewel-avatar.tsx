@@ -1,5 +1,5 @@
 import type { BotAttention, BotColorDef, BotMood, JewelCut } from "@rakazo/core";
-import { avatarIdentitySeed, JEWEL_VIEWBOX, jewelCut } from "@rakazo/core";
+import { avatarIdentitySeed, botEyeInk, JEWEL_VIEWBOX, jewelCut } from "@rakazo/core";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "./lib/utils.js";
@@ -179,7 +179,7 @@ export function JewelAvatar({
             cx="24"
             cy="24"
             r="22"
-            stroke={colorDef.light}
+            stroke={colorDef.hex}
             strokeWidth="2.6"
             strokeLinecap="round"
             strokeDasharray="40 98"
@@ -189,7 +189,7 @@ export function JewelAvatar({
       {mood === "needs_you" ? (
         <span
           className="rakazo-jewel-pulse pointer-events-none absolute inset-0 rounded-full border-2"
-          style={{ borderColor: colorDef.light }}
+          style={{ borderColor: colorDef.hex }}
         />
       ) : null}
       <svg
@@ -244,7 +244,7 @@ function JewelBody({
       <polygon
         points={cut.outline}
         fill={colorDef.hex}
-        stroke={colorDef.dark}
+        stroke={colorDef.previousHex ?? colorDef.hex}
         strokeWidth={2}
         strokeLinejoin="round"
       />
@@ -276,7 +276,7 @@ function JewelBody({
         <polyline
           points={`${cut.eyes.rightX + 10},-30 ${cut.eyes.rightX + 4},-16 ${cut.eyes.rightX + 9},-8 ${cut.eyes.rightX + 3},4`}
           fill="none"
-          stroke={colorDef.dark}
+          stroke={colorDef.previousHex ?? colorDef.hex}
           strokeWidth={1.6}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -294,7 +294,11 @@ function JewelBody({
       />
       <g className="rakazo-jewel-gaze">
         <g className="rakazo-jewel-face">
-          <JewelEyes cut={cut} mood={mood} color={colorDef.eyeColor} />
+          <JewelEyes
+            cut={cut}
+            mood={mood}
+            color={botEyeInk(colorDef.hex, { background: "#0A0A0A", foreground: "#FFFFFF" })}
+          />
         </g>
       </g>
       {mood === "happy" ? (
@@ -329,7 +333,7 @@ function JewelBody({
           y={-34}
           fontSize={16}
           fontWeight={700}
-          fill={colorDef.light}
+          fill={colorDef.hex}
         >
           z
         </text>

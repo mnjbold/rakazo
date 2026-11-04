@@ -1,6 +1,7 @@
 import { ALTERNATIVES, ALTERNATIVES_HUB } from "./alternatives";
 import { GROK_ALTERNATIVE_H1 } from "./grok-alternative";
 import { OPENCLAW_H1 } from "./guide";
+import { SANDBOXES, SANDBOXES_HUB } from "./sandboxes";
 
 export type OgPage = {
   id: string;
@@ -40,13 +41,19 @@ export function ogPages(): OgPage[] {
       kicker: "Comparison",
       title: page.h1,
     })),
-    { id: "grok-bot-alternative", kicker: "Comparison", title: GROK_ALTERNATIVE_H1 },
+    { id: "grok-bot-alternative", kicker: "Alternatives", title: GROK_ALTERNATIVE_H1 },
     { id: "openclaw-alternative", kicker: "Comparison", title: OPENCLAW_H1 },
     {
       id: "self-hosted-ai-agent",
       kicker: "Guide",
       title: "Self-hosted AI agent",
     },
+    { id: "sandboxes", kicker: "Comparison", title: SANDBOXES_HUB.h1 },
+    ...SANDBOXES.map((sandbox) => ({
+      id: `sandbox-${sandbox.slug}`,
+      kicker: "Bot computers",
+      title: sandbox.h1,
+    })),
     ...BLOG_OG,
   ];
 }

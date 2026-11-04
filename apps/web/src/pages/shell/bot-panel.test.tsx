@@ -38,6 +38,10 @@ vi.mock("@lingui/react/macro", () => {
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
 });
 vi.mock("@rakazo/ui-web", () => ({
+  SectionHeading: ({
+    variant: _variant,
+    ...props
+  }: ComponentProps<"h3"> & { variant?: string }) => <h3 {...props} />,
   Button: ({
     variant: _variant,
     size: _size,
@@ -265,6 +269,7 @@ it("shows the profile and the Advanced tab's controls", async () => {
   expect([...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual([
     "Computer",
     "Routines",
+    "Pages",
     "Advanced",
   ]);
   expect(
@@ -284,7 +289,7 @@ it("shows the profile and the Advanced tab's controls", async () => {
     memoryScope: "Memory scope",
     voice: "Voice",
     readAloud: "Read replies aloud",
-    fleetManagement: "Manage the bots it creates",
+    fleetManagement: "Manage other bots",
   };
   const controls = [...advanced.querySelectorAll("h3, span, label, div")].flatMap((node) =>
     Object.entries(labels)

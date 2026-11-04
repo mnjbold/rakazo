@@ -1,8 +1,9 @@
 import type { ConnectorCall, ConnectorTool } from "@rakazo/adapter-kit";
-import { BOT_INSTRUCTIONS_MAX_LENGTH } from "@rakazo/contracts";
+import { BOT_INSTRUCTIONS_MAX_LENGTH, BotSecretAuth } from "@rakazo/contracts";
 import { redactSecrets } from "@rakazo/core";
 import { prepareAgentConnectionResponse } from "./agent-connections.js";
 import type { FleetCardSummary } from "./approval-ask.js";
+import type { TerminatingToolResult } from "./approval-effect.js";
 import {
   approvalReplayPathError,
   approvalReplayResourceError,
@@ -16,13 +17,26 @@ import {
   catalogApprovalMatchesLiveRoute,
   catalogApprovalRequest,
 } from "./approval-effect.js";
+import { listVaultItems } from "./bot-secrets.js";
 import { validCloudAgentArgs } from "./cloud-agent-tools.js";
 import { sanitizeConnectorError } from "./connector-safety.js";
 import { isFleetApprovalTool, prepareFleetRequest } from "./fleet-tools.js";
 import { assertConnectorToolArgs, CATALOG_EXECUTE } from "./lazy-tool-catalog.js";
 import { paidRequestEffect, restorePaidRequest } from "./paid-request.js";
+import type { PurchaseApproval } from "./purchase-gate.js";
+import {
+  detectPurchase,
+  PURCHASE_CHECKED_TOOLS,
+  purchaseApprovalOf,
+  purchaseCardSummary,
+} from "./purchase-gate.js";
 import type { RunContext } from "./run-context.js";
-import { isRunTainted } from "./run-context.js";
+import {
+  isRunTainted,
+  neverAsks,
+  OWN_INSTRUCTIONS_BASELINE_UNKNOWN_ERROR,
+  refuseOwnerSettingsChange,
+} from "./run-context.js";
 import {
   approvalReplayEffectToolName,
   CATALOG_APPROVAL_TOOL,
@@ -31,7 +45,11 @@ import {
 import { fleetPrepareDeps } from "./run-model.js";
 import { BUILTIN_AGENT_TOOL_NAMES, FLEET_WRITE_TOOL_NAMES_SET } from "./run-tool-selection.js";
 import { USER_COMPUTER_TOOLS } from "./run-tools-user-computer.js";
+import { SCHEDULE_TOOL_NAMES } from "./schedule-tools.js";
+import { SKILL_TOOL_NAMES } from "./skill-tools.js";
 import { argumentGiven } from "./update-bot-patch.js";
+import type { VaultCardUse } from "./vault-card-use.js";
+import { cardUseSummary, requestedCardUse, vaultCardUseOf } from "./vault-card-use.js";
 
 /** A tool call resolved to the tool it runs and the exact request an approval covers. */
 export interface ToolRequest {
@@ -49,11 +67,18 @@ export interface ToolRequest {
   approvedEffectKey: string | undefined;
   replayEffectToolName: string;
   fleetSummary: FleetCardSummary | undefined;
-  /** The owner must approve this call whatever the space's rules say. */
-  ownerApproval: boolean;
+  /** Gated like a consequential action, even when the tool alone is not. */
+  heldForApproval: boolean;
+  /** This page tool call completes a purchase, which a person approves each time. */
+  purchase: PurchaseApproval | undefined;
+  /** This page tool call types a saved card into a checkout, which a person approves each time. */
+  cardUse: VaultCardUse | undefined;
 }
 
 type ToolError = { error: string };
+
+/** A prepare-step refusal: a plain error, or a result that ends the turn on a repeat. */
+type PrepareRefusal = ToolError | TerminatingToolResult;
 
 /**
  * Resolve catalog and bound connector routes, and line the call up with the next approved
@@ -118,6 +143,7 @@ export async function resolveToolRequest(
                 connectorId: resolved.tool.route.connectorId,
                 resourceId: resolved.tool.route.resourceId,
                 resourceRevision: resolved.tool.route.resourceRevision,
+                connectionId: resolved.tool.route.connectionId,
                 toolName: resolved.tool.route.toolName,
               }
             : undefined,
@@ -145,6 +171,7 @@ export async function resolveToolRequest(
         connectorId: connectorCall.route.connectorId,
         resourceId: connectorCall.route.resourceId,
         resourceRevision: connectorCall.route.resourceRevision,
+        connectionId: connectorCall.route.connectionId,
         toolName: connectorCall.route.toolName,
       },
       args,
@@ -165,6 +192,7 @@ export async function resolveToolRequest(
           connectorId: connectorCall.route.connectorId,
           resourceId: connectorCall.route.resourceId,
           resourceRevision: connectorCall.route.resourceRevision,
+          connectionId: connectorCall.route.connectionId,
           toolName: connectorCall.route.toolName,
         }
       : undefined;
@@ -259,7 +287,9 @@ export async function resolveToolRequest(
     approvedEffectKey,
     replayEffectToolName,
     fleetSummary: undefined,
-    ownerApproval: false,
+    heldForApproval: false,
+    purchase: undefined,
+    cardUse: undefined,
   };
 }
 
@@ -267,49 +297,27 @@ export async function resolveToolRequest(
  * Check bot-management and instruction-proposal preconditions, and canonicalize the
  * requests whose approval card shows resolved names. Updates the request in place.
  */
-// Runs whose prompt someone other than the owner wrote; their text stays in the chat's history.
-const OUTSIDE_RUN_TRIGGERS = [
-  "webhook",
-  "messaging",
-  "bot_message",
-  "spawn",
-  "cloud_agent",
-  "tickets",
-];
-
-/** Earlier outside text in the chat can steer this run even when the run itself took in none. */
-async function threadHasOutsideHistory(
-  prisma: RunContext["deps"]["prisma"],
-  threadId: string,
-  botId: string,
-): Promise<boolean> {
-  const [message, run] = await Promise.all([
-    prisma.message.findFirst({
-      where: {
-        threadId,
-        OR: [
-          { role: "bot", botId: { not: botId } },
-          { blocks: { array_contains: [{ kind: "channel_message" }] } },
-          { blocks: { array_contains: [{ kind: "bot_message_received" }] } },
-        ],
-      },
-      select: { id: true },
-    }),
-    prisma.run.findFirst({
-      where: { threadId, trigger: { in: OUTSIDE_RUN_TRIGGERS } },
-      select: { id: true },
-    }),
-  ]);
-  return Boolean(message || run);
-}
-
 export async function prepareToolRequest(
   ctx: RunContext,
   request: ToolRequest,
-): Promise<ToolError | undefined> {
+): Promise<PrepareRefusal | undefined> {
   const { deps, run, bot } = ctx;
   const { name, executionId, nextApprovedTool } = request;
   let { args } = request;
+  if (
+    (SCHEDULE_TOOL_NAMES.has(name) || SKILL_TOOL_NAMES.has(name)) &&
+    (ctx.source.messagingChannelRun ||
+      (await deps.prisma.steeringMessage.findFirst({
+        where: {
+          runId: ctx.runId,
+          claimedAt: { not: null },
+          message: { blocks: { array_contains: [{ kind: "channel_message" }] } },
+        },
+        select: { id: true },
+      })))
+  ) {
+    return { error: "This tool is unavailable after a shared-channel message." };
+  }
   // Before the gate, so a run that may never reach the user's computer shows no approval card.
   if (USER_COMPUTER_TOOLS.has(name)) {
     if (!ctx.source.userComputerOwner || !deps.userDevices)
@@ -332,7 +340,7 @@ export async function prepareToolRequest(
     if (!live?.fleetManagement) return { error: "This tool is disabled for this bot." };
     if (!ctx.source.ownerStartedRun)
       return { error: "Bot management tools need a run you started." };
-    if (fleetWrite && (await ctx.trust.receivedOutsideMessage()))
+    if (fleetWrite && !(await neverAsks(ctx)) && (await ctx.trust.receivedOutsideMessage()))
       return {
         error:
           "Changes to the bots you manage are blocked for the rest of this run because it received a channel or webhook message.",
@@ -374,6 +382,78 @@ export async function prepareToolRequest(
       return { error: "connection request is no longer pending" };
     }
   }
+  if (PURCHASE_CHECKED_TOOLS.has(name)) {
+    // The approval is written here from what the page says; a model-supplied one is dropped, and an
+    // approved replay keeps the one the user saw.
+    const { purchaseApproval: given, cardApproval: givenCard, ...rest } = args;
+    const approved = nextApprovedTool === name ? purchaseApprovalOf(given) : undefined;
+    args = approved ? { ...rest, purchaseApproval: given } : rest;
+    // A saved card is typed only into the checkout a person approved: the approval names the card
+    // and the site, and a replay keeps the one the user saw.
+    const wantedCard = name === "browser_act" ? requestedCardUse(rest.actions) : undefined;
+    if (wantedCard && "error" in wantedCard) return wantedCard;
+    if (wantedCard) {
+      const approvedCard = nextApprovedTool === name ? vaultCardUseOf(givenCard) : undefined;
+      if (
+        approvedCard &&
+        (approvedCard.card !== wantedCard.card || approvedCard.site !== wantedCard.site)
+      )
+        return {
+          error:
+            "This types a saved card the user has not approved, so nothing was typed. Call the tool again with only that card; that asks the user.",
+        };
+      let cardUse = approvedCard;
+      if (!cardUse) {
+        const [item] = await listVaultItems(deps.prisma, deps.secretStore, run, wantedCard.card);
+        if (BotSecretAuth.safeParse(item?.auth).data?.type !== "card")
+          return { error: "No card is saved under this name. Check list_secrets." };
+        cardUse = { ...wantedCard, title: item!.title, savedAt: item!.updatedAt.toISOString() };
+      }
+      args = { ...args, cardApproval: cardUse };
+      request.cardUse = cardUse;
+      request.fleetSummary = cardUseSummary(cardUse);
+    }
+    // A desktop press has no check on the page right before it, as a browser_act click does: one the user
+    // approved goes ahead only while the page still shows what the card did. A card that named nothing
+    // (the check failed) has nothing to compare.
+    if (
+      name === "computer_act" &&
+      approved &&
+      (approved.site || approved.label || approved.amount)
+    ) {
+      const now = await detectPurchase(ctx, name, rest);
+      if (
+        !now ||
+        now.site !== approved.site ||
+        now.label !== approved.label ||
+        now.amount !== approved.amount
+      )
+        return {
+          error:
+            "The page changed since the user approved this purchase, so nothing was pressed. Look at the screen and try again.",
+        };
+    }
+    const purchase = approved ?? (await detectPurchase(ctx, name, rest));
+    // An approval given for something else never covers a purchase: the call is made again and asks.
+    if (purchase && !approved && nextApprovedTool === name)
+      return {
+        error:
+          "This would complete a purchase, which the user has not approved, so nothing was pressed. Call the tool again with only that step; that asks the user.",
+      };
+    if (purchase) {
+      args = { ...args, purchaseApproval: purchase };
+      // The person approved paying at a site this run typed the approved card or pay token into: the
+      // click still carries the approval to the page, with no card. Spent on the first purchase click there.
+      if (approved || request.cardUse || !ctx.state.walletHosts.delete(purchase.site)) {
+        request.purchase = purchase;
+        request.fleetSummary = request.cardUse
+          ? cardUseSummary(request.cardUse, purchase)
+          : purchaseCardSummary(purchase);
+      }
+    }
+    if (purchase || request.cardUse || given !== undefined || givenCard !== undefined)
+      request.effectRequest = args;
+  }
   request.args = args;
   if (name === "respond_agent_connection" || name === "update_bot" || isFleetApprovalTool(name))
     request.effectRequest = args;
@@ -389,28 +469,30 @@ const OWN_FIELDS = new Set([
   "name",
   "description",
   "instructions",
+  "instructions_offset",
+  "instructionsOffset",
   "color",
   "artifact_id",
   "use_attached_image",
   "notifyOnFinish",
+  "dailyCheckIns",
   "notify_on_finish",
   "bot_id",
 ]);
 
 /**
- * `update_bot` on this bot itself. Instructions from the owner's own words are written at once;
- * another run the owner set up holds them for the owner's approval, and outside runs cannot
- * change them.
+ * `update_bot` on this bot itself. Under Never ask instructions are written at once; otherwise
+ * they go through approval like any other action, and outside runs cannot change them.
  */
 async function prepareOwnBotUpdate(
   ctx: RunContext,
   request: ToolRequest,
-): Promise<ToolError | undefined> {
-  const { deps, run, bot } = ctx;
+): Promise<PrepareRefusal | undefined> {
+  const { run } = ctx;
   const { executionId, nextApprovedTool } = request;
   if (nextApprovedTool === "update_bot") {
     // The approved replay runs the stored request.
-    request.ownerApproval = typeof request.args.previousInstructions === "string";
+    request.heldForApproval = typeof request.args.previousInstructions === "string";
     return undefined;
   }
   const { previousInstructions: _previous, reason: _reason, ...args } = request.args;
@@ -420,17 +502,18 @@ async function prepareOwnBotUpdate(
   );
   if (settingsOnly.length)
     return { error: `Only the owner can change ${settingsOnly.join(", ")}, in Settings.` };
+  const unguarded = await neverAsks(ctx);
   if (OWNER_SETTINGS.some((key) => argumentGiven(args[key]))) {
-    if (!ctx.source.ownerStartedRun || isSubagentToolExecution(executionId))
+    if (isSubagentToolExecution(executionId) || (!unguarded && !ctx.source.ownerStartedRun))
       return {
         error:
           "Only the owner can change your model, thinking, voice or read-aloud, from their own chat.",
       };
-    if (await isRunTainted(ctx))
-      return {
-        error:
-          "Model, thinking, voice and read-aloud changes are blocked for the rest of this run because it read outside content.",
-      };
+    if (!unguarded && (await isRunTainted(ctx)))
+      return refuseOwnerSettingsChange(
+        ctx,
+        "Model, thinking, voice and read-aloud changes are blocked for the rest of this run because it read outside content.",
+      );
   }
   if (!argumentGiven(args.instructions)) return undefined;
   if (isSubagentToolExecution(executionId)) return { error: "Helpers cannot set instructions." };
@@ -440,27 +523,23 @@ async function prepareOwnBotUpdate(
   if (redactSecrets(instructions, ctx.secrets) !== instructions)
     return { error: "Instructions cannot contain credentials." };
   request.args = { ...args, instructions };
-  // Only the owner's own words may become instructions unseen: no outside message, and no
-  // outside tool result in this attempt's context, restored or new. The creation intro has
-  // no tools that read outside content, and answering its question clears the checkpoint.
-  const ownWords =
-    !(await ctx.trust.receivedOutsideMessage()) &&
-    (run.trigger === "created" || (ctx.source.ownerStartedRun && !ctx.state.tainted)) &&
-    !(await threadHasOutsideHistory(deps.prisma, run.threadId, bot.id));
-  if (ownWords) return undefined;
-  if (run.trigger !== "routine" && !ctx.source.ownerStartedRun)
+  if (unguarded) return undefined;
+  if (!["created", "routine"].includes(run.trigger) && !ctx.source.ownerStartedRun)
     return { error: "Instruction changes are blocked for runs someone else started." };
   if (Object.keys(args).some((key) => key !== "instructions"))
     return { error: "Change your instructions in their own update_bot call." };
-  const current = await deps.prisma.bot.findUniqueOrThrow({
-    where: { id: bot.id },
-    select: { instructions: true },
-  });
+  // An older checkpoint predates the baseline; this attempt must not guess.
+  if (ctx.state.ownInstructionsBaseline === undefined)
+    return { error: OWN_INSTRUCTIONS_BASELINE_UNKNOWN_ERROR };
   request.args = {
     instructions,
     reason: "Set in chat",
-    previousInstructions: current.instructions,
+    // The text the model worked from, not a fresh read: a change that landed since the
+    // attempt started conflicts at approval instead of being overwritten.
+    previousInstructions: ctx.state.ownInstructionsBaseline,
+    // Provenance the approved replay checks; requests stored before the baseline lack it.
+    previousInstructionsFromBaseline: true,
   };
-  request.ownerApproval = true;
+  request.heldForApproval = true;
   return undefined;
 }

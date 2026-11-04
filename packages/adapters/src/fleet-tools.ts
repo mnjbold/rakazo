@@ -14,12 +14,7 @@ import {
   TimeZoneSchema,
   UpdateGroupInput,
 } from "@rakazo/contracts";
-import {
-  CARD_TITLE_ESCAPED_CHARACTERS,
-  ONCE_ROUTINE_CRON,
-  redactSecrets,
-  toolRequiresExplicitApproval,
-} from "@rakazo/core";
+import { CARD_TITLE_ESCAPED_CHARACTERS, ONCE_ROUTINE_CRON, redactSecrets } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   commitBotUpdate,
@@ -51,17 +46,14 @@ import {
 import type { UpdateBotPatch } from "./update-bot-patch.js";
 import { argumentGiven, parseUpdateBotPatch } from "./update-bot-patch.js";
 
-/** The fleet writes that pause for the owner's card. */
+/** The fleet writes resolved up front so an approval card can show what will run. */
 export type FleetApprovalToolName = Exclude<
   (typeof FLEET_WRITE_TOOL_NAMES)[number],
   "organize_bot"
 >;
 
 export function isFleetApprovalTool(name: string): name is FleetApprovalToolName {
-  return (
-    (FLEET_WRITE_TOOL_NAMES as readonly string[]).includes(name) &&
-    toolRequiresExplicitApproval(name)
-  );
+  return name !== "organize_bot" && (FLEET_WRITE_TOOL_NAMES as readonly string[]).includes(name);
 }
 
 /** All scope comes from the run; no tool argument may name a space or user. */
@@ -339,7 +331,8 @@ async function prepareChildRoutine(
   if (hidden) return refuse(hidden);
   const namedRoutine = CreateRoutineInput.shape.name.safeParse(name);
   if (!namedRoutine.success) return refuse(`name: ${issueMessage(namedRoutine.error)}`);
-  const timezone = text(args.timezone) ?? (await userTimeZone(deps.prisma, run.userId));
+  const namedTimezone = text(args.timezone);
+  const timezone = namedTimezone ?? (await userTimeZone(deps.prisma, run.userId));
   if (!TimeZoneSchema.safeParse(timezone).success) {
     return refuse(`Unknown timezone "${timezone}". Use an IANA name like Europe/Paris.`);
   }
@@ -371,6 +364,10 @@ async function prepareChildRoutine(
       name,
       prompt,
       timezone,
+      // A zone the bot did not name is the account's, re-read when the approved routine
+      // is created, so a zone change between approval and creation does not strand the
+      // routine in the old zone.
+      ...(namedTimezone === undefined ? { timezoneFromAccount: true } : {}),
       // A one-shot keeps its absolute time so a delay is not measured again at approval,
       // and a delayed repeat keeps its first run.
       schedule: resolved.oneShot
@@ -472,7 +469,7 @@ export type FleetListing = {
   groups: FleetGroup[];
   sections: string[];
   truncated: boolean;
-  /** With `bot_id` of a bot the caller created: what an instruction edit must start from. */
+  /** With `bot_id`: what an instruction edit must start from. */
   bot?: { id: string; name: string; instructions: string; instructionsVersion: string };
 };
 
@@ -795,7 +792,7 @@ export async function updateFleetGroup(
 const CHILD_CHANGED = "child changed; read it again with list_fleet";
 const ALREADY_WROTE_INSTRUCTIONS = "You already changed this bot's instructions in this run.";
 
-/** `update_bot` with `bot_id`: the profile fields of a bot the caller created. */
+/** `update_bot` with `bot_id`: the profile fields of another bot in the space. */
 export async function updateChildBot(
   deps: Pick<FleetDeps, "prisma" | "events"> & { runSecrets: readonly string[] },
   run: FleetRun,
@@ -808,6 +805,7 @@ export async function updateChildBot(
     return { error: "Change another bot's instructions with set_child_instructions." };
   }
   const profile = {
+    dailyCheckIns: argumentGiven(args.dailyCheckIns) ? args.dailyCheckIns : undefined,
     name: argumentGiven(args.name) ? args.name : undefined,
     description: argumentGiven(args.description) ? args.description : undefined,
     notifyOnFinish: argumentGiven(args.notifyOnFinish)
@@ -1010,6 +1008,14 @@ export async function createChildRoutine(
   const runAt = text(schedule.runAt);
   const cron = runAt ? ONCE_ROUTINE_CRON : text(schedule.cron);
   if (!cron) return { error: "The approved routine is incomplete." };
+  // A zone that came from the account is re-read under the account lock at creation,
+  // not replayed from the approval. The identical-routine lookup filters on the
+  // account's current zone for such routines — the move keeps them on it — instead of
+  // the approval's zone, which would miss a routine created or moved since, or no zone
+  // at all, which would also match an unrelated pinned routine.
+  const pinnedTimezone = canonical.timezoneFromAccount === true ? undefined : timezone;
+  const replayTimezone =
+    pinnedTimezone === undefined ? await userTimeZone(deps.prisma, run.userId) : pinnedTimezone;
   const existing = await deps.prisma.routine.findFirst({
     where: {
       spaceId: run.spaceId,
@@ -1018,7 +1024,7 @@ export async function createChildRoutine(
       threadId: child.thread.id,
       name,
       prompt,
-      timezone,
+      timezone: replayTimezone,
       crons: { equals: [cron] },
       active: true,
       ...(runAt ? { nextRunAt: new Date(runAt) } : {}),
@@ -1045,7 +1051,7 @@ export async function createChildRoutine(
     target: { botId: child.id, threadId: child.thread.id },
     name,
     prompt,
-    timezone,
+    ...(pinnedTimezone === undefined ? {} : { timezone: pinnedTimezone }),
     schedule,
   });
   return "error" in created ? created : { ...created, ...target };
@@ -1227,7 +1233,7 @@ function singleLine(value: string): string {
 const CARD_TITLE_ESCAPED = new RegExp(CARD_TITLE_ESCAPED_CHARACTERS, "g");
 
 /** A name in a card title, which renders as Markdown: one line, and no links or emphasis. */
-function cardName(value: string): string {
+export function cardName(value: string): string {
   return singleLine(value).replace(CARD_TITLE_ESCAPED, "\\$&");
 }
 
@@ -1347,6 +1353,7 @@ export async function updateOwnBotFromTool(
       description: true,
       color: true,
       notifyOnFinish: true,
+      dailyCheckIns: true,
     },
   });
   try {
@@ -1372,5 +1379,6 @@ export async function updateOwnBotFromTool(
     description: updated.description,
     avatar: updated.color.startsWith("data:image/") ? "image" : updated.color,
     notifyOnFinish: updated.notifyOnFinish,
+    dailyCheckIns: updated.dailyCheckIns,
   };
 }

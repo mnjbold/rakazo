@@ -272,3 +272,23 @@ it("enables Box routing only when the server has an operator Box key", async () 
     ),
   ).rejects.toThrow(/cannot be selected|not configured/);
 });
+
+it("starts even when the saved computer settings cannot be read", async () => {
+  const sandbox = await createRunSandbox("docker", {
+    prisma: {
+      deploymentSettings: {
+        findUnique: vi.fn(async () => ({
+          computerProvider: "wuying",
+          computerProviderCipher: "c",
+        })),
+      },
+    } as unknown as PrismaClient,
+    secrets: {
+      load: async () => {
+        throw new Error("secret store unavailable");
+      },
+      onChange: () => () => {},
+    },
+  });
+  expect(sandbox.describe().id).toBe("docker");
+});

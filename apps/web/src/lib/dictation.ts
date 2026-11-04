@@ -183,6 +183,8 @@ export class Dictation {
   /** Live mic loudness 0..1 while the recorder's silence detector runs; 0 otherwise. Poll it, don't subscribe. */
   level = 0;
   private onFinal: ((text: string) => void) | null = null;
+  /** Mode of the running session: an endpoint turn reports back even without words. */
+  private mode: DictationMode | null = null;
 
   subscribe(fn: (s: DictationSnapshot) => void): () => void {
     this.watchers.add(fn);
@@ -234,6 +236,7 @@ export class Dictation {
     }
     this.chunks = [];
     this.onFinal = null;
+    this.mode = null;
     if (this.snapshot.status !== "idle" || this.snapshot.error) this.set(IDLE);
   }
 
@@ -248,6 +251,7 @@ export class Dictation {
     const mine = this.token;
     const spaceId = selectedSpaceId();
     this.onFinal = opts.onFinal;
+    this.mode = opts.mode;
     this.set({ status: "listening", transcript: "" });
     const { endpointMs = ENDPOINT_SILENCE_MS } = opts;
     const endpoint = typeof endpointMs === "function" ? endpointMs : () => endpointMs;
@@ -559,12 +563,7 @@ export class Dictation {
     const blob = new Blob(this.chunks, { type: this.chunks[0]?.type || "audio/webm" });
     this.chunks = [];
     if (!blob.size) {
-      const prefix = normalizedTranscript(this.snapshot.transcript);
-      if (!prefix) {
-        this.set(IDLE);
-        return;
-      }
-      this.finish(prefix, mine);
+      this.finish(normalizedTranscript(this.snapshot.transcript), mine);
       return;
     }
     this.set({ status: "transcribing", transcript: this.snapshot.transcript });
@@ -648,9 +647,14 @@ export class Dictation {
     if (this.token !== mine) return;
     const trimmed = text.trim();
     const onFinal = this.onFinal;
+    const mode = this.mode;
     this.stop("submit");
     if (error) this.set({ ...IDLE, error });
     if (trimmed) onFinal?.(trimmed);
+    // An endpoint session ends with the attempt, words or not. Report the empty turn
+    // too, so a caller holding the microphone open starts the next attempt; hold mode
+    // watches for idle itself.
+    else if (mode === "endpoint") onFinal?.("");
   }
 }
 

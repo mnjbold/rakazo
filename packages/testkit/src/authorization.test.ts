@@ -347,11 +347,17 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["computer/updates"],
       ["computer/releaseInterrupted"],
       ["computer/dismissUpdate"],
+      ["computer/dismissDiskWarning", { botId: "missing-bot" }],
       ["computer/downloadFile"],
       ["computer/uploadFile"],
       ["computer/terminalUrl"],
       ["computer/commands"],
+      ["computerProvider/get"],
+      ["computerProvider/update", { provider: "default" }],
+      ["computerProvider/account/get"],
+      ["computerProvider/account/update", { provider: "default" }],
       ["memory/list", {}],
+      ["memory/budget", { botId: "missing-bot" }],
       ["memory/update", { documentId: "missing-memory", content: "Nope" }],
       ["memory/exportMarkdown", {}],
       ["memory/remove"],
@@ -406,13 +412,8 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["connections/rename"],
       ["connections/tools"],
       ["approvalRules/list"],
-      [
-        "approvalRules/preview",
-        { id: "missing-rule", effect: "remove", sample: { tools: [{ name: "send_email" }] } },
-      ],
       ["approvalRules/set", { effect: "deny", matchKind: "tool", matchValue: "gmail_send_email" }],
       ["approvalRules/remove", { id: "missing-rule" }],
-      ["approvalRules/preview"],
       ["artifacts/list", { botId: "missing-bot" }],
       ["artifacts/listSpace"],
       ["artifacts/listVersions"],
@@ -420,10 +421,27 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["artifacts/get"],
       ["artifacts/getById"],
       ["artifacts/remove"],
+      ["pages/list"],
+      ["pages/get"],
+      ["pages/rename"],
+      ["pages/setVisibility"],
+      ["pages/pin"],
+      ["pages/remove"],
       ["usage/list"],
       ["usage/summary"],
       ["export/bot", { botId: "missing-bot" }],
       ["export/accountToken"],
+      ["notifications/subscribe"],
+      ["notifications/subscribeCalls"],
+      ["notifications/declineIncomingCall", { callId: "00000000-0000-4000-8000-000000000001" }],
+      [
+        "notifications/registerCallPush",
+        {
+          deviceId: "00000000-0000-4000-8000-000000000002",
+          platform: "android",
+          expoToken: "ExponentPushToken[not-real]",
+        },
+      ],
       ["notifications/registerPush", { token: "ExponentPushToken[not-real]" }],
       ["notifications/unregisterPush"],
       ["search/query", { q: "anything" }],
@@ -447,7 +465,12 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["billing/setMonthlyCredits"],
       ["billing/checkout"],
       ["billing/portal"],
+      ["billing/endTrial"],
+      ["billing/switchToYearly"],
       ["billing/claimReferral"],
+      ["accessGrants/list"],
+      ["accessGrants/create"],
+      ["accessGrants/revoke"],
       ["preferences/update"],
       ["preferences/adoptTimezone"],
       ["bootstrap"],
@@ -475,6 +498,7 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["mcp/servers/update"],
       ["mcp/servers/remove"],
       ["mcp/servers/test"],
+      ["mcp/servers/agents"],
       ["mcp/assignments/list"],
       ["mcp/assignments/all"],
       ["mcp/assignments/approve"],
@@ -1149,22 +1173,6 @@ describeWithDatabase("API authorization and resource isolation", () => {
     expect(await rpc<Array<{ id: string }>>(app, member, "approvalRules/list")).toEqual([
       expect.objectContaining({ id: memberRule.id }),
     ]);
-
-    const candidate = {
-      scope: "account",
-      id: ownerRule.id,
-      effect: "deny",
-      sample: { tools: [{ name: "destination.write" }] },
-    };
-    expect(await rpc(app, owner, "approvalRules/preview", candidate)).toEqual({
-      before: "always_allow",
-      after: "deny",
-    });
-    const foreignPreview = await raw(app, member, "approvalRules/preview", candidate);
-    expect(foreignPreview.status).toBe(404);
-    expect(
-      await rpc<Array<{ id: string; effect: string }>>(app, owner, "approvalRules/list"),
-    ).toEqual([expect.objectContaining({ id: ownerRule.id, effect: "always_allow" })]);
 
     await rpc(app, member, "approvalRules/remove", { id: ownerRule.id });
     expect(

@@ -18,6 +18,7 @@ import { QUEUE_HOLDING_RUN_STATUSES, withAbort } from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  clearEndedExecutionRunBinding,
   createGroupRepos,
   createThreadMessageInTransaction,
   recordComputerRunEnd,
@@ -26,7 +27,9 @@ import {
 import { getLogger } from "@rakazo/logging";
 import { activeCodingAgent } from "./coding-agent-activity.js";
 import { expireComputerControl, hasActiveComputerControl } from "./computer-control.js";
+import { diskUpdate, measureComputerDisk } from "./computer-disk.js";
 import { screenLeaseIdForRun, toComputerRef } from "./computer-lifecycle.js";
+import { BrowserStillRunningError } from "./computer-screens.js";
 import { checkpointComputerWorkspace } from "./computer-workspace.js";
 import { HomeSaveConflictError } from "./home-object-store.js";
 import { sandboxAllowanceUsedUp } from "./sandbox-allowance.js";
@@ -334,6 +337,16 @@ export function computerMaxActiveMs(): number {
     : DEFAULT_COMPUTER_MAX_ACTIVE_MS;
 }
 
+/**
+ * Uptime cap for providers that do not bill while running, so one abandoned background command
+ * cannot hold a self-hosted computer and its memory for days. COMPUTER_MAX_ACTIVE_UNBILLED_MS
+ * configures it; unset, 0, or an invalid value leaves it off.
+ */
+export function unbilledComputerMaxActiveMs(): number {
+  const raw = Number(process.env.COMPUTER_MAX_ACTIVE_UNBILLED_MS?.trim() || 0);
+  return Number.isFinite(raw) && raw >= 60_000 ? raw : 0;
+}
+
 export function computerIdleSleepEnabled(): boolean {
   return process.env.SANDBOX_IDLE_MS?.trim() !== "0";
 }
@@ -368,13 +381,13 @@ function activeLimitReached(
   ref: ComputerRef,
   runningSince: Date | null | undefined,
 ): boolean {
-  const limit = computerMaxActiveMs();
-  return (
-    limit > 0 &&
-    sandbox.billsWhileRunning?.(ref) === true &&
-    runningSince != null &&
-    Date.now() - runningSince.getTime() >= limit
-  );
+  // Electron owns a native computer's lifetime.
+  if (ref.kind === "desktop") return false;
+  const limit =
+    sandbox.billsWhileRunning?.(ref) === true
+      ? computerMaxActiveMs()
+      : unbilledComputerMaxActiveMs();
+  return limit > 0 && runningSince != null && Date.now() - runningSince.getTime() >= limit;
 }
 
 export async function touchRunningComputer(
@@ -423,7 +436,21 @@ export async function sleepComputerIfIdle(
   if (computer.kind === "desktop") return;
 
   if (computer.controlBotId && computer.controlLeaseId && !hasActiveComputerControl(computer)) {
-    await expireComputerControl(deps, computer.id, computer.controlLeaseId);
+    try {
+      await expireComputerControl(deps, computer.id, computer.controlLeaseId);
+    } catch (error) {
+      scheduleComputerSleep(deps.jobs, computer.id, undefined, rateLimitEnds(error));
+      if (deferSleep(error, computer)) return;
+      throw error;
+    }
+    computer = await loadComputer(deps.prisma, computerId);
+    if (!computer?.providerRef || !mayNeedSleep(computer)) return;
+  }
+  if (computer.executionRunId) {
+    // A legacy binding a pre-lease release left behind. Both suspension claims below
+    // require it null, and a stranded one names a run nothing will clean up, so the
+    // computer could never sleep. Runs that may still execute are left to their owner.
+    await clearEndedExecutionRunBinding(deps.prisma, computer.id);
     computer = await loadComputer(deps.prisma, computerId);
     if (!computer?.providerRef || !mayNeedSleep(computer)) return;
   }
@@ -448,7 +475,7 @@ export async function sleepComputerIfIdle(
   // when they next need it. A user in control is left alone: control leases expire on their
   // own, and that release resumes the waiting run.
   // Otherwise a run waiting for takeover holds an unbilled computer for TAKEOVER_IDLE_GRACE_MS.
-  // Once its organization has spent the month's allowance, nothing but a user still in control,
+  // Once its organization has spent this period's allowance, nothing but a user still in control,
   // not even a working coding agent, holds the computer up.
   const activeControl = hasActiveComputerControl(computer);
   const allowanceUsed = !activeControl && (await sandboxAllowanceUsedUp(deps, computer));
@@ -519,6 +546,11 @@ export async function sleepComputerIfIdle(
     updatedAt: checkpointedAt,
   };
 
+  // Read beside the save so the warning and the next run's note show what the last run left,
+  // including when the save fails because build output outgrew it.
+  const disk = measureComputerDisk(deps.sandbox, ref, ctx).then((measured) =>
+    measured ? diskUpdate(measured) : {},
+  );
   let damaged = false;
   try {
     const revision = await checkpointComputerWorkspace(
@@ -543,7 +575,7 @@ export async function sleepComputerIfIdle(
     if (saved.count !== 1) {
       await deps.prisma.computer.updateMany({
         where: suspensionClaim,
-        data: { state: "running" },
+        data: { ...(await disk), state: "running" },
       });
       scheduleComputerSleep(deps.jobs, computerId);
       return;
@@ -581,7 +613,7 @@ export async function sleepComputerIfIdle(
     } else {
       await deps.prisma.computer.updateMany({
         where: suspensionClaim,
-        data: { state: "running" },
+        data: { ...(await disk), state: "running" },
       });
       scheduleComputerSleep(deps.jobs, computerId, undefined, rateLimitEnds(error));
       if (deferSleep(error, computer)) {
@@ -606,7 +638,7 @@ export async function sleepComputerIfIdle(
   if (activeAfterCheckpoint || takeoverAfterCheckpoint || backgroundAfterCheckpoint) {
     await deps.prisma.computer.updateMany({
       where: suspensionClaim,
-      data: { state: "running" },
+      data: { ...(await disk), state: "running" },
     });
     scheduleComputerSleep(
       deps.jobs,
@@ -623,7 +655,7 @@ export async function sleepComputerIfIdle(
   ) {
     await deps.prisma.computer.updateMany({
       where: suspensionClaim,
-      data: { state: "running" },
+      data: { ...(await disk), state: "running" },
     });
     scheduleComputerSleep(deps.jobs, computerId);
     return;
@@ -636,7 +668,7 @@ export async function sleepComputerIfIdle(
   } catch (error) {
     await deps.prisma.computer.updateMany({
       where: suspensionClaim,
-      data: { state: "running" },
+      data: { ...(await disk), state: "running" },
     });
     scheduleComputerSleep(deps.jobs, computerId, undefined, rateLimitEnds(error));
     if (deferSleep(error, computer)) {
@@ -648,6 +680,7 @@ export async function sleepComputerIfIdle(
   const suspended = await deps.prisma.computer.updateMany({
     where: suspensionClaim,
     data: {
+      ...(await disk),
       state: "suspended",
       runningSince: null,
       controlHolder: "none",
@@ -886,7 +919,9 @@ export function sleepDeferReason(error: unknown): string | undefined {
             : "too_many_files"
           : error instanceof HomeSaveConflictError
             ? "saved_elsewhere"
-            : undefined;
+            : error instanceof BrowserStillRunningError
+              ? "browser_running"
+              : undefined;
 }
 
 /**
@@ -944,6 +979,7 @@ function loadComputer(prisma: PrismaClient, computerId: string) {
       controlLeaseId: true,
       controlLeaseExpiresAt: true,
       controlBotId: true,
+      executionRunId: true,
       runningSince: true,
       homeRevisionAt: true,
       updatedAt: true,
@@ -1027,23 +1063,33 @@ async function hasActiveBackgroundWork(
       return !isSandboxGoneError(error) && !isSandboxDamagedError(error);
     }
   }
-  let exitCode: number | undefined;
-  let stdout = "";
   try {
-    for await (const event of sandbox.execute(
-      computer,
-      {
-        argv: ["bash", "-c", BACKGROUND_WORK_PROBE, "rakazo-background-probe", computerId],
-        timeoutMs: 10_000,
-      },
-      context,
-    )) {
-      if (event.type === "stdout") stdout += event.data;
-      if (event.type === "exit") exitCode = event.code;
-    }
+    return (await probeBackgroundWork(sandbox, computer, computerId, context)) !== "idle";
   } catch (error) {
     return !isSandboxGoneError(error) && !isSandboxDamagedError(error);
   }
+}
+
+/** The Linux marker probe, for providers without their own inspectBackgroundWork. */
+export async function probeBackgroundWork(
+  sandbox: Pick<SandboxProvider, "execute">,
+  computer: ComputerRef,
+  computerId: string,
+  context: AdapterContext,
+): Promise<"active" | "idle"> {
+  let exitCode: number | undefined;
+  let stdout = "";
+  for await (const event of sandbox.execute(
+    computer,
+    {
+      argv: ["bash", "-c", BACKGROUND_WORK_PROBE, "rakazo-background-probe", computerId],
+      timeoutMs: 10_000,
+    },
+    context,
+  )) {
+    if (event.type === "stdout") stdout += event.data;
+    if (event.type === "exit") exitCode = event.code;
+  }
   // Only the probe's explicit idle result permits suspension; unsupported or failed probes retry.
-  return exitCode !== 1 || stdout.trim() !== BACKGROUND_WORK_IDLE_SENTINEL;
+  return exitCode === 1 && stdout.trim() === BACKGROUND_WORK_IDLE_SENTINEL ? "idle" : "active";
 }

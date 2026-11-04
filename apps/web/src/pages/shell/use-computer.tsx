@@ -28,7 +28,7 @@ import {
   probeScreen,
   probeScreenStatus,
   SCREEN_FRAME_LOAD_TIMEOUT_MS,
-  sameWuyingScreen,
+  sameEmbeddedComputerScreen,
   screenFrameError,
   screenFrameMessage,
   screenFrameStarted,
@@ -330,7 +330,8 @@ export function useComputerState({
           if (
             screen.url?.startsWith("wuying:") &&
             (screenAwaitsRetry.current ||
-              (current === liveWuyingUrl.current && sameWuyingScreen(current, screen.url)))
+              (current === liveWuyingUrl.current &&
+                sameEmbeddedComputerScreen(current, screen.url)))
           )
             return current;
           return screen.url;
@@ -515,7 +516,9 @@ export function useComputerControls({
       await refreshComputerFor(targetBotId);
     } catch (error) {
       if (!stillThisBoot() || !stillThisBot()) return;
-      setComputerError(errorText(error, t`Could not take control`));
+      setComputerError(
+        errorText(error, takeControl ? t`Could not take control` : t`Computer failed to boot`),
+      );
       setComputerErrorFromScreen(false);
       throw error;
     } finally {
@@ -602,7 +605,8 @@ export function useComputerControls({
   useEffect(() => {
     if (!computerOpen) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setComputerOpen(false);
+      if (event.key === "Escape" && !event.isComposing && event.keyCode !== 229)
+        setComputerOpen(false);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

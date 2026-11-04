@@ -3,7 +3,8 @@ import { GeminiLiveSession } from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import { getLogger } from "@rakazo/logging";
 import type { Context, Hono } from "hono";
-import { loadDefaultVoiceCredential, type VoiceDeps } from "./voice.js";
+import type { VoiceDeps } from "./voice.js";
+import { loadDefaultVoiceCredential } from "./voice.js";
 
 export function mountLiveVoiceRoute(
   app: Hono,

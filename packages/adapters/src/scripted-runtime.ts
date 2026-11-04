@@ -53,8 +53,9 @@ export class ScriptedAgentRuntime implements AgentRuntime {
           ? steering.map((item) => item.historyText ?? item.text).join("\n")
           : undefined;
       const prompt = steeredPrompt ?? request.prompt;
-      // A peer's wake hangs on the peer's words, not on the quoted message it replies to.
-      const hangMs = hangDuration(peerMessage(prompt)?.text ?? prompt);
+      // A run hangs on its own words: a peer's wake on the peer's text, a reply without the
+      // message it quotes.
+      const hangMs = hangDuration(peerMessage(prompt)?.text ?? prompt.replace(REPLY_CONTEXT, ""));
       if (hangMs !== undefined) {
         // Long-running work happens on the computer, which starts it like any real run would.
         yield {
@@ -192,14 +193,41 @@ function earlierChatsScript(request: AgentRunRequest): AgentRunRequest["script"]
   return [{ assistant: text ? `earlier chats: ${text}` : "no earlier chats.", complete: true }];
 }
 
+/** A JSON object written in a message, or undefined for anything else, malformed text included. */
+function jsonObject(text: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(text);
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function inferScript(
   prompt: string,
   resumeFromCheckpoint?: string,
 ): NonNullable<AgentRunRequest["script"]> {
-  // A bot-message wake embeds the sender's name and id around the peer's words, and a
-  // generated id can contain a journey keyword by chance ("crm" inside a cuid), so the
-  // recipient's branches key on the words alone — as hangDuration already does.
-  const lower = (peerMessage(prompt)?.text ?? prompt).toLowerCase();
+  // A bot-message wake embeds the sender's name and id around the peer's words, and an
+  // ordinary reply opens with the quoted target; a generated id can contain a journey
+  // keyword by chance ("crm" inside a cuid), so the branches key on the words alone.
+  const words = peerMessage(prompt)?.text ?? prompt.replace(REPLY_CONTEXT, "");
+  const lower = words.toLowerCase();
+  // In a group the words open with the mention that picked this bot.
+  const page = /^(?:@\S+\s+)?call save_page with (.+?)(?:\nthen say ([\s\S]+))?$/s.exec(
+    words.trim(),
+  );
+  const pageArgs = page ? jsonObject(page[1]!) : undefined;
+  if (page && pageArgs) {
+    return [
+      {
+        assistant: page[2],
+        toolCalls: [{ name: "save_page", args: pageArgs }],
+        complete: true,
+      },
+    ];
+  }
   if (lower.includes("can you check my gmail inbox?")) {
     return [
       {
@@ -421,6 +449,27 @@ export function inferScript(
       },
     ];
   }
+  // The site is not in the message, so the owner did not name it and the call asks.
+  const paidRequest = /paid request card(?: on (\w+))?/.exec(lower);
+  if (paidRequest) {
+    const url = `https://api.${paidRequest[1] ?? "example"}.test/quote`;
+    return [
+      {
+        assistant: "i will call that paid api.",
+        toolCalls: [
+          {
+            name: "paid_request",
+            args: {
+              url,
+              method: "GET",
+              reason:
+                "The owner asked for a live price quote from this paid API, which answers only after a small per-request payment.",
+            },
+          },
+        ],
+      },
+    ];
+  }
   if (lower.includes("mcp approval card")) {
     return [
       {
@@ -481,7 +530,6 @@ code-b
         ask: hasChoices
           ? {
               text: "Which city should I use?",
-              detail: "Tap one option.",
               actions: [
                 { id: "choice-1", label: "Berlin" },
                 { id: "choice-2", label: "Seoul" },

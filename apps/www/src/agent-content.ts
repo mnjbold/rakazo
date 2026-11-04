@@ -1,4 +1,6 @@
 import { ALTERNATIVES, alternativeMarkdown } from "./alternatives";
+import { SANDBOXES, sandboxesHubMarkdown, sandboxMarkdown, sandboxPath } from "./sandboxes";
+import { BRAND_COLORS, BRAND_LOGOS } from "./brand";
 import { GROK_ALTERNATIVE_MARKDOWN } from "./grok-alternative";
 import { OPENCLAW_MARKDOWN, SELF_HOST_MARKDOWN } from "./guide";
 import {
@@ -8,7 +10,9 @@ import {
   getHomeCopy,
 } from "./i18n/home";
 import { roundupMarkdown } from "./roundup";
-import { APP_URL, GITHUB_URL, PLUGIN_SUBMISSIONS_URL } from "./site";
+// Relative source path: the edge middleware bundles this file and cannot resolve workspace packages.
+import { ANDROID_APP_STORE_URL } from "../../../packages/contracts/src/client-build.js";
+import { APP_URL, GITHUB_URL, IOS_APP_URL, PLUGIN_SUBMISSIONS_URL } from "./site";
 
 export const AGENT_DISCOVERY_LINKS =
   '</llms.txt>; rel="describedby"; type="text/plain", </.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/ai-catalog+json"';
@@ -79,9 +83,13 @@ ${home.cta.copy}
 - [Alternatives](https://rakazo.com/alternatives/)
 - [Docs](https://rakazo.com/docs/)
 - [Integrations](https://rakazo.com/integrations/)
+- [Sandboxes for AI agents](https://rakazo.com/sandboxes/)
 - [Blog](https://rakazo.com/blog/)
-- [Open source Grok Bot alternative](https://rakazo.com/grok-bot-alternative/)
+- [Grok Bot alternatives](https://rakazo.com/grok-bot-alternative/)
+- [Pricing](https://rakazo.com/pricing/): free to self-host, or hosted with your own model or Rakazo credits.
+- [Download](https://rakazo.com/download/): desktop, mobile, and web apps.
 - [About](https://rakazo.com/about/)
+- [Brand](https://rakazo.com/brand/)
 - [Support](https://rakazo.com/support/)
 - [Privacy](https://rakazo.com/privacy/)
 - [Terms](https://rakazo.com/terms/)
@@ -100,6 +108,18 @@ Rakazo targets the web, macOS, Windows, Linux, iOS, and Android. The source is a
 - [Self-hosting guide](https://rakazo.com/self-hosted-ai-agent/)
 - [Full self-hosting reference](https://github.com/elie222/rakazo/blob/main/docs/self-host.md)
 - [Support](https://rakazo.com/support/)
+`;
+
+export const DOWNLOAD_MARKDOWN = `# Download Rakazo
+
+- [macOS](https://rakazo.com/api/download?platform=mac)
+- [Windows](https://rakazo.com/api/download?platform=windows)
+- [Linux](https://rakazo.com/api/download?platform=linux)
+- [iPhone](${IOS_APP_URL})
+- [Android](${ANDROID_APP_STORE_URL})
+- [Web](${APP_URL})
+
+The apps also connect to a self-hosted server. See the [self-hosting guide](https://rakazo.com/self-hosted-ai-agent/).
 `;
 
 export const SUPPORT_MARKDOWN = `# Rakazo support
@@ -170,8 +190,11 @@ Rakazo Cloud at https://app.rakazo.com is in beta. Self-hosting is also availabl
 - [Website](https://rakazo.com/): product overview, supported models, and common questions.
 - [Website Markdown](https://rakazo.com/index.md): the English product overview as Markdown.
 - [Alternatives](https://rakazo.com/alternatives/)
-- [Open source Grok Bot alternative](https://rakazo.com/grok-bot-alternative/)
+- [Grok Bot alternatives](https://rakazo.com/grok-bot-alternative/)
+- [Pricing](https://rakazo.com/pricing/): free to self-host, or hosted with your own model or Rakazo credits.
+- [Download](https://rakazo.com/download/): desktop, mobile, and web apps.
 - [About](https://rakazo.com/about/)
+- [Brand](https://rakazo.com/brand/)
 - [Source](https://github.com/elie222/rakazo)
 - [Self-hosting guide](https://rakazo.com/self-hosted-ai-agent/): requirements, Docker install, source setup, and desktop and mobile connections.
 - [Self-hosting Markdown](https://rakazo.com/self-hosted-ai-agent.md): the setup guide with language-tagged code examples.
@@ -179,6 +202,7 @@ Rakazo Cloud at https://app.rakazo.com is in beta. Self-hosting is also availabl
 - [OpenClaw comparison](https://rakazo.com/openclaw-alternative/)
 - [Docs](https://rakazo.com/docs/): getting started, using Rakazo, and self-hosting. Each page has a Markdown version.
 - [Integrations](https://rakazo.com/integrations/): every app a bot can connect to. [Markdown list](https://rakazo.com/integrations.md); each app page has a Markdown version with its actions.
+- [Sandboxes for AI agents](https://rakazo.com/sandboxes/): where bot computers can run, compared, with a page per provider. Each page has a Markdown version.
 - [Submit a plugin](https://rakazo.com/plugins/submit/): list a plugin in the Rakazo marketplace. [Markdown with the API](https://rakazo.com/plugins/submit.md).
 - [Blog](https://rakazo.com/blog/)
 - [Releases](https://github.com/elie222/rakazo/releases)
@@ -186,6 +210,25 @@ Rakazo Cloud at https://app.rakazo.com is in beta. Self-hosting is also availabl
 - [Privacy](https://rakazo.com/privacy/)
 - [Terms](https://rakazo.com/terms/)
 - [Sitemap](https://rakazo.com/sitemap-index.xml)
+`;
+
+export const BRAND_MARKDOWN = `# Rakazo brand
+
+Logos and colors for writing about Rakazo.
+
+## Logos
+
+${BRAND_LOGOS.map((logo) => `- [${logo.name}](https://rakazo.com${logo.file}): ${logo.format}`).join("\n")}
+
+## Colors
+
+${BRAND_COLORS.map((color) => `- ${color.name}: \`${color.hex}\``).join("\n")}
+
+## Usage
+
+Write Rakazo with a capital R in text. The wordmark is lowercase. Do not alter the mascot or imply an endorsement.
+
+For press, email hello@rakazo.com.
 `;
 
 export const PLUGIN_SUBMIT_MARKDOWN = `# Submit a plugin to Rakazo
@@ -233,6 +276,8 @@ The requested Rakazo page does not exist.
 const MARKDOWN_DOCUMENTS = new Map<string, string>([
   ["/", HOME_MARKDOWN],
   ["/about", ABOUT_MARKDOWN],
+  ["/brand", BRAND_MARKDOWN],
+  ["/download", DOWNLOAD_MARKDOWN],
   ["/openclaw-alternative", OPENCLAW_MARKDOWN],
   ["/grok-bot-alternative", GROK_ALTERNATIVE_MARKDOWN],
   ["/privacy", PRIVACY_MARKDOWN],
@@ -241,6 +286,10 @@ const MARKDOWN_DOCUMENTS = new Map<string, string>([
   ["/plugins/submit", PLUGIN_SUBMIT_MARKDOWN],
   ["/alternatives", roundupMarkdown()],
   ...ALTERNATIVES.map((page) => [`/${page.slug}`, alternativeMarkdown(page)] as const),
+  ["/sandboxes", sandboxesHubMarkdown()],
+  ...SANDBOXES.map(
+    (sandbox) => [sandboxPath(sandbox.slug).slice(0, -1), sandboxMarkdown(sandbox)] as const,
+  ),
   ["/terms", TERMS_MARKDOWN],
 ]);
 

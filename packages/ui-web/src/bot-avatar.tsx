@@ -1,27 +1,39 @@
 import type { BotAvatarSet } from "@rakazo/contracts";
-import type { BotAttention, BotColorDef, BotMood, LogoAvatarActivity } from "@rakazo/core";
+import type {
+  AvatarEyes,
+  BotAttention,
+  BotColorDef,
+  BotMood,
+  LogoAvatarActivity,
+} from "@rakazo/core";
 import {
+  ACTIVE_RUN_STATUSES,
+  avatarEyeRects,
   avatarIdentitySeed,
   BOT_AVATAR_COLORS,
   BOT_COLOR_LIST,
+  botEyeTone,
   DEFAULT_BOT_AVATAR_COLOR,
   deriveBotMood,
   JEWL_MARK,
+  ORGANIC_AVATAR_EYES,
+  ORGANIC_AVATAR_VIEWBOX,
+  organicAvatarEyeTilt,
   organicAvatarPath,
   PRODUCT_NAME,
   resolvePersonaColorDef,
-  SHIPPED_BOT_AVATAR_CENTER,
+  SHIPPED_BOT_AVATAR_EYES,
   SHIPPED_BOT_AVATAR_SHAPE_KEYS,
   SHIPPED_BOT_AVATAR_SHAPES,
   SHIPPED_BOT_AVATAR_VIEWBOX,
   shippedBotAvatarShapePath,
 } from "@rakazo/core";
-import { tokens } from "@rakazo/ui-tokens";
 import type { ComponentProps, CSSProperties } from "react";
-import { memo, useId, useMemo, useSyncExternalStore } from "react";
+import { memo, useEffect, useId, useMemo, useSyncExternalStore } from "react";
 import type { AvatarStyle } from "./avatar-style.js";
 import { useAvatarStyle } from "./avatar-style.js";
 import { useBotAvatarActivity } from "./bot-avatar-activity.js";
+import { useAvatarMotionVisibility } from "./hooks/use-avatar-motion-visibility.js";
 import { JewelAvatar } from "./jewel-avatar.js";
 import { cn } from "./lib/utils.js";
 import { LogoAvatar } from "./logo-avatar.js";
@@ -33,7 +45,6 @@ export { BOT_AVATAR_COLORS, BOT_COLOR_LIST, DEFAULT_BOT_AVATAR_COLOR, resolvePer
 export const BOT_SHAPES = SHIPPED_BOT_AVATAR_SHAPES;
 export const SHIPPED_SHAPE_KEYS = SHIPPED_BOT_AVATAR_SHAPE_KEYS;
 const VIEWBOX = SHIPPED_BOT_AVATAR_VIEWBOX;
-const CENTER = SHIPPED_BOT_AVATAR_CENTER;
 
 export const BOT_MASCOT_SHAPES = SHIPPED_SHAPE_KEYS.map(
   (k) => BOT_SHAPES[k] ?? FALLBACK_SHAPE_PATH,
@@ -226,7 +237,7 @@ export const BotAvatar = memo(function BotAvatar({
           inset: 0,
           width: size,
           height: size,
-          filter: `drop-shadow(0 0 1.5px ${colorDef.light})`,
+          filter: `drop-shadow(0 0 1.5px ${colorDef.hex})`,
         }}
         viewBox="0 0 48 48"
         fill="none"
@@ -245,8 +256,8 @@ export const BotAvatar = memo(function BotAvatar({
         <defs>
           <linearGradient id={`${id}-ring`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-            <stop offset="60%" stopColor={colorDef.light} stopOpacity="0.9" />
-            <stop offset="100%" stopColor={colorDef.light} stopOpacity="0" />
+            <stop offset="60%" stopColor={colorDef.hex} stopOpacity="0.9" />
+            <stop offset="100%" stopColor={colorDef.hex} stopOpacity="0" />
           </linearGradient>
         </defs>
       </svg>
@@ -264,21 +275,14 @@ export const BotAvatar = memo(function BotAvatar({
           width: size,
           height: size,
           filter: isWorking
-            ? `drop-shadow(0 0 2px ${colorDef.light})`
+            ? `drop-shadow(0 0 2px ${colorDef.hex})`
             : "drop-shadow(0 2px 4px rgba(0,0,0,0.45))",
         }}
       >
-        <defs>
-          <linearGradient id={`bot-ink-${id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={colorDef.light} />
-            <stop offset="100%" stopColor={colorDef.dark} />
-          </linearGradient>
-        </defs>
         <g>
-          <path d={shippedBotAvatarShapePath(parsed.shapeIndex)} fill={`url(#bot-ink-${id})`} />
-          <g fill={colorDef.eyeColor} className="bot-character-eyes">
-            <ellipse cx={CENTER - 29} cy={CENTER - 8} rx={10} ry={7} />
-            <ellipse cx={CENTER + 29} cy={CENTER - 8} rx={10} ry={7} />
+          <path d={shippedBotAvatarShapePath(parsed.shapeIndex)} fill={colorDef.hex} />
+          <g className={cn("bot-character-eyes", eyeFill(colorDef.hex))}>
+            <BarEyes eyes={SHIPPED_BOT_AVATAR_EYES} />
           </g>
         </g>
       </svg>
@@ -333,6 +337,12 @@ function OrganicAvatar({
     reducedMotionSnapshot,
     () => false,
   );
+  const { ref, visible } = useAvatarMotionVisibility(!reducedMotion);
+  useEffect(() => {
+    // jsdom has no SMIL clock, so these are optional.
+    if (visible) ref.current?.unpauseAnimations?.();
+    else ref.current?.pauseAnimations?.();
+  }, [ref, visible]);
   const seed = avatarIdentitySeed(identity || color || DEFAULT_BOT_AVATAR_COLOR);
   const duration = `${4.8 + (seed % 24) / 10}s`;
   const shapeA = organicAvatarPath(seed);
@@ -340,10 +350,12 @@ function OrganicAvatar({
 
   const picture = (
     <svg
-      viewBox="-60 -60 120 120"
+      ref={ref}
+      viewBox={ORGANIC_AVATAR_VIEWBOX}
       aria-hidden="true"
       className={cn("rakazo-organic-avatar overflow-visible select-none", className)}
       data-working={isWorking}
+      data-paused={!visible}
       data-shape-family={seed % 10}
       data-eye-pattern={seed % 4}
       style={{
@@ -379,12 +391,11 @@ function OrganicAvatar({
             ) : null}
           </path>
         ))}
-        <g transform={`rotate(${(seed % 9) - 4})`}>
+        <g transform={`rotate(${organicAvatarEyeTilt(seed)})`}>
           {(["idle", "working"] as const).map((mode) => (
             <g
               key={mode}
-              className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
-              fill={tokens.background}
+              className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode} ${eyeFill(color)}`}
             >
               <rect x="-14" y="-12" width="7" height="24" rx="3.5" />
               <rect x="7" y="-12" width="7" height="24" rx="3.5" />
@@ -401,6 +412,18 @@ function OrganicAvatar({
       <AttentionBadge attention={attention} size={size} />
     </span>
   );
+}
+
+function BarEyes({ eyes }: { eyes: AvatarEyes }) {
+  return avatarEyeRects(eyes).map((rect) => <rect key={rect.x} {...rect} />);
+}
+
+/** Eyes are cut-outs in the page color unless the body is nearly white or black. */
+function eyeFill(bodyHex: string): string {
+  const tone = botEyeTone(bodyHex);
+  if (tone === "dark") return "fill-foreground dark:fill-background";
+  if (tone === "light") return "fill-background dark:fill-foreground";
+  return "fill-background";
 }
 
 const reducedMotionMedia = "(prefers-reduced-motion: reduce)";
@@ -454,10 +477,9 @@ export function BotShapePreview({
         <BotAvatar color={color} identity={identity} size={32} />
       ) : (
         <svg viewBox={VIEWBOX} className="size-8 overflow-visible" aria-hidden="true">
-          <path d={shippedBotAvatarShapePath(shapeIndex)} fill={colorDef.light} />
-          <g fill={colorDef.eyeColor}>
-            <ellipse cx={CENTER - 29} cy={CENTER - 8} rx={10} ry={7} />
-            <ellipse cx={CENTER + 29} cy={CENTER - 8} rx={10} ry={7} />
+          <path d={shippedBotAvatarShapePath(shapeIndex)} fill={colorDef.hex} />
+          <g className={eyeFill(colorDef.hex)}>
+            <BarEyes eyes={SHIPPED_BOT_AVATAR_EYES} />
           </g>
         </svg>
       )}

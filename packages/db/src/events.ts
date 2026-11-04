@@ -1,8 +1,10 @@
 import type { ProductAnalytics, RealtimeFanout } from "@rakazo/adapter-kit";
 import type {
   BotSecretDestination,
+  ChatAlert,
   LoginFieldInput,
   MessageBlock,
+  OneTimeCodeTarget,
   ProductEvent,
 } from "@rakazo/contracts";
 import {
@@ -13,6 +15,7 @@ import {
   hasThinkingActivityMarker,
   loginAnswerValue,
   MessageBlock as MessageBlockSchema,
+  normalizeOneTimeCode,
   ThreadActivityPayloadSchema,
 } from "@rakazo/contracts";
 import {
@@ -25,11 +28,13 @@ import {
   isSecretAskBlock,
   messageBypassesTakeoverWait,
   messageReaction,
+  messageSteersRun,
   messagingChannelId,
   normalizeRunError,
   QUEUE_HOLDING_RUN_STATUSES,
   releasedTakeoverComputerBlocks,
   resolveAskChoice,
+  SITE_SENDING_TOOLS,
   STEERING_CONTINUATION_PROMPT,
   sanitizeJsonValue,
 } from "@rakazo/core";
@@ -38,8 +43,10 @@ import { approvalEffectKey } from "@rakazo/core/node/approval-effect-key";
 import { getLogger } from "@rakazo/logging";
 import { saveApprovalRule, storedBatchActions } from "./approval-settings.js";
 import { cancelRunsInTransaction } from "./cancel-runs.js";
+import { createChatAlerts } from "./chat-alerts.js";
 import type { Prisma, PrismaClient } from "./client.js";
 import { expireComputerExecutionLeases } from "./computers.js";
+import { contentEncryptionOf } from "./content-encryption.js";
 import {
   CrossSpaceCommunicationBlockedError,
   crossSpaceCommunicationAllowed,
@@ -59,6 +66,8 @@ import { RUN_TURN_CHECKPOINT_KIND } from "./run-turn-checkpoint.js";
 import { recordSecurityEvent } from "./security-events.js";
 import { withTransactionRetry } from "./transaction-retry.js";
 
+export const STRATEGIC_INITIATIVE_NONCE_PREFIX = "strategic-initiative";
+
 /** A one-time answer longer than a saved value may be. Nothing is stored or echoed. */
 export class AnswerTooLongError extends Error {
   constructor() {
@@ -70,6 +79,7 @@ export class AnswerTooLongError extends Error {
 const EVENT_BATCH_SIZE = 200;
 const PUSH_CATCH_UP_MS = 30_000;
 const POLL_ONLY_CATCH_UP_MS = 400;
+const INCOMING_CALL_POLL_MS = 3_000;
 
 export interface AppendEventInput {
   spaceId: string;
@@ -96,6 +106,14 @@ export function transientRunEventsWhere(): Prisma.EventWhereInput {
 }
 
 export interface ThreadEvents {
+  notifyIncomingCalls?(userId: string): Promise<void>;
+  followIncomingCalls?(userId: string, signal?: AbortSignal): AsyncGenerator<void>;
+  publishChatAlert?(userId: string, alert: ChatAlert): Promise<void>;
+  followChatAlerts?(
+    userId: string,
+    spaceId: string,
+    signal?: AbortSignal,
+  ): AsyncGenerator<ChatAlert>;
   answerRunInput(input: AnswerRunInput): Promise<boolean>;
   append(input: AppendEventInput): Promise<ProductEvent>;
   claimSteering(input: ClaimSteeringInput): Promise<ClaimedSteeringMessage[]>;
@@ -330,6 +348,8 @@ export interface RunSecretWriter {
   store(input: {
     botId: string;
     credential?: BotSecretDestination;
+    /** The site a code card was shown for. */
+    oneTimeCode?: OneTimeCodeTarget;
     /** False for a login card answered with "Save to Vault" off. */
     remember: boolean;
     runId: string;
@@ -349,7 +369,14 @@ export function createThreadEvents(
     analytics?: ProductAnalytics;
   } = {},
 ): ThreadEvents {
+  const chatAlerts = createChatAlerts(realtime);
   return {
+    publishChatAlert: chatAlerts.publish,
+    followChatAlerts: chatAlerts.follow,
+    notifyIncomingCalls: async (userId) => {
+      await realtime?.publish(`incoming-calls:${userId}`, "");
+    },
+    followIncomingCalls: (userId, signal) => followIncomingCallSignals(realtime, userId, signal),
     answerRunInput: (input) => answerRunInput(prisma, input, realtime, options.runSecretWriter),
     append: (input) => appendEvent(prisma, input, realtime, options.analytics),
     claimSteering: (input) => claimSteering(prisma, input),
@@ -380,7 +407,7 @@ export async function clearThread(
         ...(input.groupId ? { groupId: input.groupId } : { botId: input.botId }),
       },
       data: { unread: false },
-      select: { nextMessageSeq: true, historyCompactionGeneration: true },
+      select: { nextMessageSeq: true, historyCompactionGeneration: true, userId: true },
     });
     const activeRuns = await tx.run.findMany({
       where: {
@@ -395,14 +422,6 @@ export async function clearThread(
     const runIds = (await cancelRunsInTransaction(tx, activeRuns, now)).map((run) => run.id);
     // Expire as tombstones so a still-open provider screen claim cannot reset fencing to 1.
     await expireComputerExecutionLeases(tx, { runId: { in: runIds } });
-    await tx.computer.updateMany({
-      where: { executionRunId: { in: runIds } },
-      data: {
-        executionRunId: null,
-        executionBotId: null,
-        executionLeaseExpiresAt: null,
-      },
-    });
     await tx.message.deleteMany({ where: { threadId: input.threadId } });
     await tx.event.deleteMany({ where: { threadId: input.threadId } });
     // Archived chats and their summaries are conversation history too.
@@ -443,11 +462,35 @@ export async function clearThread(
     });
     return {
       event,
+      userId: thread.userId,
       cancelledRunIds: runIds,
       historyCompactionGeneration: thread.historyCompactionGeneration,
     };
   });
   await notifyRealtime(realtime, committed.event.threadId, committed.event.seq);
+  if (!input.groupId && committed.userId)
+    await realtime?.publish(`incoming-calls:${committed.userId}`, "").catch(() => undefined);
+  // Legacy execution bindings point at runs of pre-lease releases, which kept writing
+  // Computer.executionRunId. Clearing them inside the transaction reaches for the
+  // computer row while holding the thread row — the inverted half of a cycle with a
+  // concurrent finalizeComputerControlRelease, which locks the computer first and the
+  // thread second. This statement holds no other row, so it can wait out any holder.
+  // The clear is already committed: a failed sweep leaves a stale binding for the idle pass
+  // to clear, and must not report the clear itself as failed.
+  if (committed.cancelledRunIds.length > 0) {
+    await withTransactionRetry(() =>
+      prisma.computer.updateMany({
+        where: { executionRunId: { in: committed.cancelledRunIds } },
+        data: {
+          executionRunId: null,
+          executionBotId: null,
+          executionLeaseExpiresAt: null,
+        },
+      }),
+    ).catch((error: unknown) => {
+      getLogger().error("legacy computer binding sweep after thread clear", error);
+    });
+  }
   return {
     event: mapProductEvent(committed.event),
     cancelledRunIds: committed.cancelledRunIds,
@@ -522,15 +565,34 @@ export async function sendUserMessage(
                   in: [...QUEUE_HOLDING_RUN_STATUSES],
                 },
               },
-              select: { id: true, taskId: true, trigger: true, status: true },
+              select: {
+                id: true,
+                taskId: true,
+                trigger: true,
+                status: true,
+                sourceMessage: { select: { blocks: true } },
+              },
             })
           : [];
+      // A group text never ends the owner's paused app task: it waits for it like any other turn.
+      const fromGroup = hasChannelMessage(input.blocks);
+      const channelId = messagingChannelId(input.blocks);
+      const steersRun = (run: (typeof activeRuns)[number]) =>
+        messageSteersRun(
+          input.trigger,
+          run.trigger,
+          channelId,
+          messagingChannelId(run.sourceMessage?.blocks as MessageBlock[] | undefined),
+        );
       const holdingRuns = activeRuns.filter(
-        (run) => !messageBypassesTakeoverWait(run, input.trigger !== "webhook"),
+        (run) => !messageBypassesTakeoverWait(run, fromGroup || steersRun(run)),
       );
-      // Steer a conversational run when there is one; a routine, webhook, or intro turn only holds the queue.
+      // Prefer a run that can take this message, then preserve the conversational queue fallback.
       const busy =
-        holdingRuns.find((run) => isConversationalRun(run.trigger)) ?? holdingRuns[0] ?? null;
+        holdingRuns.find(steersRun) ??
+        holdingRuns.find((run) => isConversationalRun(run.trigger)) ??
+        holdingRuns[0] ??
+        null;
       let task = null;
       let run = null;
       if (createRun && !busy) {
@@ -571,7 +633,7 @@ export async function sendUserMessage(
           await tx.message.update({ where: { id: message.id }, data: { runId: run.id } });
         }
       } else if (createRun && busy) {
-        const held = input.trigger === "webhook" || !isConversationalRun(busy.trigger);
+        const held = !steersRun(busy);
         await tx.steeringMessage.create({
           data: {
             messageId: message.id,
@@ -812,6 +874,7 @@ async function commitAnswerRunInput(
       userId: true,
       checkpoint: true,
       trigger: true,
+      clientNonce: true,
       task: { select: { prompt: true } },
     },
   });
@@ -850,7 +913,18 @@ async function commitAnswerRunInput(
   )
     return null;
   if (secretAsk && !dismissed && !runSecretWriter) return null;
-  if (secretAsk && pendingAsk.credential && run.userId !== input.answeredByUserId) return null;
+  if (
+    secretAsk &&
+    (pendingAsk.credential || pendingAsk.oneTimeCode) &&
+    run.userId !== input.answeredByUserId
+  )
+    return null;
+  // A code is answered as the page will take it; anything that is not a code is not stored.
+  const code =
+    secretAsk && !dismissed && pendingAsk.oneTimeCode
+      ? normalizeOneTimeCode(input.answer)
+      : undefined;
+  if (secretAsk && !dismissed && pendingAsk.oneTimeCode && !code) return null;
   const loginAsk = secretAsk && !dismissed && pendingAsk.credential?.auth.type === "login";
   const login = loginAsk ? loginAnswerValue(pendingAsk.loginFields, input) : undefined;
   // Login fields belong only to a login card, which cannot be saved without them.
@@ -909,10 +983,13 @@ async function commitAnswerRunInput(
     }
   }
 
-  // Answering the creation intro's question tells the bot what it is for, so it resumes as
-  // the user's turn: with the conversation and every tool, to get going on that answer.
-  const resumedTrigger =
-    run.trigger === "created" && !approvalAsk && !secretAsk ? "user" : run.trigger;
+  // Answering the creation intro's or a daily check-in's question resumes as the user's
+  // turn: with the conversation and every tool, to get going on that answer.
+  const answersOpener =
+    run.trigger === "created" ||
+    (run.trigger === "routine" &&
+      Boolean(run.clientNonce?.startsWith(`${STRATEGIC_INITIATIVE_NONCE_PREFIX}:`)));
+  const resumedTrigger = answersOpener && !approvalAsk && !secretAsk ? "user" : run.trigger;
   const queued = await tx.run.updateMany({
     where: {
       id: input.runId,
@@ -978,8 +1055,8 @@ async function commitAnswerRunInput(
       where: { id: approvalEffect!.id },
       data: { status: allowed ? "approved" : "denied" },
     });
-    // "Always" on a fetch card allows that site, never every site the tool can reach, and on a
-    // batch allows each action in it, never every action the batch tool can run.
+    // "Always" on a card for a request to a site allows that site, never every site the tool can
+    // reach, and on a batch allows each action in it, never every action the batch tool can run.
     const site = alwaysAllowedSite(approvalEffect!);
     const tools = storedBatchActions(approvalEffect!.batchActions) ?? [approvalEffect!.kind];
     if (input.answer === "always" && (site || approvalEffect!.kind !== "web_fetch")) {
@@ -1008,11 +1085,12 @@ async function commitAnswerRunInput(
     await runSecretWriter!.store({
       botId: run.botId,
       credential: pendingAsk.credential,
+      oneTimeCode: pendingAsk.oneTimeCode,
       remember: input.remember !== false,
       runId: input.runId,
       userId: run.userId,
       spaceId: input.spaceId,
-      plaintext: login ? encodeLoginSecret(login) : input.answer,
+      plaintext: login ? encodeLoginSecret(login) : (code ?? input.answer),
       tx,
     });
     await tx.externalEffect.updateMany({
@@ -1058,7 +1136,6 @@ async function commitAnswerRunInput(
                 detail: instructionUpdateDiff(
                   pendingAsk.instructionUpdate.before,
                   editedInstructions,
-                  pendingAsk.instructionUpdate.reason,
                 ),
               }
             : {}),
@@ -1093,6 +1170,8 @@ export async function answerRunInput(
     prisma.$transaction(async (tx: Prisma.TransactionClient) =>
       commitAnswerRunInput(tx, input, writer),
     );
+  // Unwrapping space keys can wait on the key manager; keep that wait outside the transaction.
+  await contentEncryptionOf(prisma)?.ring.all(input.spaceId);
   // A dismissal has no secret to prepare.
   const committed =
     runSecretWriter?.withPrepared && !input.dismiss
@@ -1949,8 +2028,10 @@ export async function createPendingSteeringRun(
   });
   if (pending.length === 0) return null;
   // One origin per continuation so a group channel and the owner's private chat are not answered
-  // together. The app and the owner's direct line are one private conversation.
-  const origin = steeringOrigin(pending[0]!);
+  // together. The app and the owner's direct line are one private conversation, answered first.
+  const origin = pending.some((item) => steeringOrigin(item) === "private")
+    ? "private"
+    : steeringOrigin(pending[0]!);
   const batch = pending.filter((item) => steeringOrigin(item) === origin);
   const source = batch.at(-1)!;
   const modelPin = continuationModelPin(batch);
@@ -2208,6 +2289,32 @@ function mapProductEvent(event: {
   };
 }
 
+/** One account stream; signals carry no content, and a periodic re-read covers a missed publish. */
+async function* followIncomingCallSignals(
+  realtime: RealtimeFanout | undefined,
+  userId: string,
+  signal?: AbortSignal,
+): AsyncGenerator<void> {
+  const latch = new ChangeLatch();
+  const unsubscribe = await realtime
+    ?.subscribe(`incoming-calls:${userId}`, () => latch.notify())
+    .catch(() => undefined);
+  // Without fanout each wake re-reads every ringing request, so poll gently.
+  const catchUpMs = unsubscribe ? PUSH_CATCH_UP_MS : INCOMING_CALL_POLL_MS;
+  try {
+    let seen = latch.generation;
+    yield;
+    while (!signal?.aborted) {
+      await latch.waitForChange(seen, catchUpMs, signal);
+      if (signal?.aborted) return;
+      seen = latch.generation;
+      yield;
+    }
+  } finally {
+    await unsubscribe?.();
+  }
+}
+
 class ChangeLatch {
   generation = 0;
   private wake: (() => void) | undefined;
@@ -2290,7 +2397,7 @@ function alwaysAllowedSite(effect: {
   kind: string;
   request: Prisma.JsonValue;
 }): string | undefined {
-  if (effect.kind !== "web_fetch") return undefined;
+  if (!SITE_SENDING_TOOLS.has(effect.kind)) return undefined;
   const request = effect.request as { url?: unknown } | null;
   return typeof request?.url === "string" ? urlSite(request.url) : undefined;
 }

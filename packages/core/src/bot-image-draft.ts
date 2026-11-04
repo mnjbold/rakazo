@@ -1,10 +1,9 @@
+import type { ATTACHMENT_IMAGE_MIME_TYPES, BotImageDraft } from "@rakazo/contracts";
 import {
-  type ATTACHMENT_IMAGE_MIME_TYPES,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_IMAGE_DRAFT_MAX_ROUTINES,
   BOT_IMAGE_DRAFT_ROUTINE_PROMPT_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
-  type BotImageDraft,
   BotImageDraftSchema,
 } from "@rakazo/contracts";
 import { BOT_COLOR_LIST, DEFAULT_BOT_AVATAR_COLOR } from "./bot-avatar-colors.js";

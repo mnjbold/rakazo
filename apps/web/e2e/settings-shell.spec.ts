@@ -70,9 +70,7 @@ test("narrow settings reveals the active section and offers scroll controls", as
     await expect.poll(() => nav.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
     const header = settings.getByTestId("settings-header");
     const before = await header.boundingBox();
-    await settings
-      .getByRole("button", { name: "Delete account", exact: true })
-      .scrollIntoViewIfNeeded();
+    await settings.getByTestId("delete-account").scrollIntoViewIfNeeded();
     await expect
       .poll(() => settings.getByTestId("settings-scroll").evaluate((node) => node.scrollTop))
       .toBeGreaterThan(0);
@@ -101,7 +99,7 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await page.getByTestId("user-menu-trigger").click();
   const menu = page.locator('[data-slot="popover-content"]');
   await expect(menu.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Usage", exact: true })).toHaveCount(0);
   await expect(menu.getByRole("button", { name: "Log out", exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "settings-account-menu-lean");
   await page.keyboard.press("Escape");
@@ -114,8 +112,6 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   );
   await expect(settings.getByRole("heading", { name: "General", exact: true })).toBeVisible();
   await expect(settings.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
-  await expect(settings.getByTestId("response-streaming-toggle")).toBeHidden();
-  await settings.getByTestId("advanced-settings").locator("button[aria-expanded]").click();
   const streamReplies = settings.getByTestId("response-streaming-toggle");
   await expect(streamReplies).toBeVisible();
   await expect(streamReplies).not.toBeChecked();
@@ -144,7 +140,7 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await expect
     .poll(() => page.evaluate(() => window.localStorage.getItem("rakazo.responseStreaming")))
     .toBe("on");
-  const deleteAccount = settings.getByRole("button", { name: "Delete account", exact: true });
+  const deleteAccount = settings.getByTestId("delete-account");
   await deleteAccount.scrollIntoViewIfNeeded();
   await expect(deleteAccount).toBeVisible();
   await captureScreenshot(page, testInfo, "settings-general-delete-account");

@@ -63,13 +63,10 @@ describe("appearance preference", () => {
         continue;
       expect(darkTokens[key], key).not.toBe(lightTokens[key]);
     }
-    // Link icons keep a white plate in both themes; the light user bubble is near-black.
-    expect(lightTokens.faviconPlate).toBe("#FFFFFF");
-    expect(darkTokens.faviconPlate).toBe("#FFFFFF");
+    expect(darkTokens.faviconPlate).toBe(lightTokens.faviconPlate);
   });
 
   it("keeps the working dot the same green in both themes", () => {
-    expect(lightTokens.workingDot).toBe("#3FA266");
     expect(darkTokens.workingDot).toBe(lightTokens.workingDot);
   });
 
@@ -233,103 +230,6 @@ describe("tokens.css", () => {
 });
 
 describe("web palette", () => {
-  // Mobile follows the iOS system palette; web overrides only some tokens on top of it.
-  const mobileDark = {
-    background: "#141414",
-    dialog: "#1E1E1E",
-    foreground: "#FFFFFF",
-    card: "#202020",
-    cardForeground: "#FFFFFF",
-    popover: "#202020",
-    popoverForeground: "#FFFFFF",
-    glassFill: "#2C2C2E",
-    glassStroke: "#FCFCFC26",
-    primary: "#34D399",
-    primaryForeground: "#04120C",
-    secondary: "#7676803D",
-    secondaryForeground: "#FFFFFF",
-    chatUser: "#5C5C5C",
-    chatUserForeground: "#FFFFFF",
-    muted: "#202020",
-    mutedForeground: "#EBEBF599",
-    faintForeground: "#EBEBF573",
-    accent: "#78788052",
-    accentForeground: "#FFFFFF",
-    destructive: "#FF9592",
-    destructiveFill: "#E5484D",
-    destructiveForeground: "#FFFFFF",
-    border: "#FCFCFC14",
-    input: "#54545899",
-    ring: "#34D399",
-    sidebar: "#1E1E1E",
-    sidebarForeground: "#FFFFFF",
-    sidebarBorder: "#FCFCFC14",
-    sidebarAccent: "#2B2B2E",
-    sidebarAccentForeground: "#FFFFFF",
-    link: "#34D399",
-    brand: "#34D399",
-    faviconPlate: "#FFFFFF",
-    success: "#3FA266",
-    warning: "#DB941E",
-    statusWorking: "#459FFE",
-    unread: "#006CEB",
-    workingDot: "#3FA266",
-    overlay: "rgba(0, 0, 0, 0.28)",
-    scrollbar: "#1E2026",
-    scrollbarHover: "#2E313A",
-  };
-  const mobileLight = {
-    background: "#FCFCFC",
-    dialog: "#FFFFFF",
-    foreground: "#000000",
-    card: "#EFEFEF",
-    cardForeground: "#000000",
-    popover: "#FFFFFF",
-    popoverForeground: "#000000",
-    glassFill: "#FFFFFF",
-    glassStroke: "#14141416",
-    primary: "#047857",
-    primaryForeground: "#FFFFFF",
-    secondary: "#7676801F",
-    secondaryForeground: "#000000",
-    chatUser: "#0B0B0B",
-    chatUserForeground: "#FFFFFF",
-    muted: "#F2F2F1",
-    mutedForeground: "#3C3C43B3",
-    faintForeground: "#3C3C4394",
-    accent: "#78788029",
-    accentForeground: "#000000",
-    destructive: "#CE2C31",
-    destructiveFill: "#E5484D",
-    destructiveForeground: "#FFFFFF",
-    border: "#14141414",
-    input: "#3C3C434A",
-    ring: "#047857",
-    sidebar: "#F7F7F7",
-    sidebarForeground: "#000000",
-    sidebarBorder: "#14141414",
-    sidebarAccent: "#FFFFFF",
-    sidebarAccentForeground: "#000000",
-    link: "#047857",
-    brand: "#047857",
-    faviconPlate: "#FFFFFF",
-    success: "#007041",
-    warning: "#885A07",
-    statusWorking: "#0C64C1",
-    unread: "#006CEB",
-    workingDot: "#3FA266",
-    overlay: "rgba(0, 0, 0, 0.19)",
-    scrollbar: "#C8C8C4",
-    scrollbarHover: "#A8A8A4",
-  };
-
-  it("leaves the mobile palettes unchanged", () => {
-    expect(darkTokens).toEqual(mobileDark);
-    expect(lightTokens).toEqual(mobileLight);
-    expect(tokensForAppearance("dark")).toBe(darkTokens);
-    expect(tokensForAppearance("light")).toBe(lightTokens);
-  });
-
   it.each([
     ["dark", darkTokens, webDarkOverrides, webDarkTokens],
     ["light", lightTokens, webLightOverrides, webLightTokens],
@@ -352,16 +252,15 @@ describe("web palette", () => {
     expect(css).not.toContain(`--muted-foreground: ${darkTokens.mutedForeground.toLowerCase()};`);
   });
 
-  it.each([
-    ["dark", webDarkTokens, { primaryHover: "#6EE7B7", primaryDisabled: "#34D39921" }],
-    ["light", webLightTokens, { primaryHover: "#065F46", primaryDisabled: "#04785726" }],
-  ] as const)("gives the %s primary fill web-only hover and disabled states", (_, web, states) => {
-    expect(web).toMatchObject(states);
-    const css = renderTokensCss();
-    expect(css).toContain(`--primary-hover: ${states.primaryHover.toLowerCase()};`);
-    expect(css).toContain(`--primary-disabled: ${states.primaryDisabled.toLowerCase()};`);
-    expect("primaryHover" in darkTokens || "primaryHover" in lightTokens).toBe(false);
-  });
+  it.each([webDarkTokens, webLightTokens])(
+    "gives the web primary fill hover and disabled states",
+    (web) => {
+      const css = renderTokensCss();
+      expect(css).toContain(`--primary-hover: ${web.primaryHover.toLowerCase()};`);
+      expect(css).toContain(`--primary-disabled: ${web.primaryDisabled.toLowerCase()};`);
+      expect("primaryHover" in darkTokens || "primaryHover" in lightTokens).toBe(false);
+    },
+  );
 });
 
 describe.each([

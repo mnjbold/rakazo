@@ -75,7 +75,7 @@ function builtinParameters(tool: ConnectorTool) {
     });
   }
   if (tool.name === "remember") {
-    return Type.Object({ content: Type.String(), path: Type.String() });
+    return Type.Object({ content: Type.String(), old_text: Type.Optional(Type.String()) });
   }
   if (tool.name === "shell" || tool.name === "user_computer_shell") {
     return Type.Object({
@@ -106,10 +106,12 @@ function builtinParameters(tool: ConnectorTool) {
       name: Type.Optional(Type.String()),
       description: Type.Optional(Type.String()),
       instructions: Type.Optional(Type.String()),
+      instructions_offset: Type.Optional(Type.Integer({ minimum: 0 })),
       color: Type.Optional(Type.String()),
       artifact_id: Type.Optional(Type.String()),
       use_attached_image: Type.Optional(Type.Boolean()),
       notifyOnFinish: Type.Optional(Type.Boolean()),
+      dailyCheckIns: Type.Optional(Type.Boolean()),
       model: Type.Optional(Type.String()),
       thinkingLevel: Type.Optional(stringEnum(ThinkingLevelSchema.options, {})),
       readAloud: Type.Optional(Type.Boolean()),
@@ -217,6 +219,18 @@ export function jsonSchemaParameters(
       options,
     ) as unknown as ReturnType<typeof Type.Object>;
   }
+  // A property-less object (`{"type":"object"}`) describes a free-form object, and JSON Schema
+  // treats it identically to `{"type":"object","properties":{}}`. Grammar-constrained tool
+  // decoders do not: Fireworks reads the empty map as "no keys allowed" and emits `{}`, so a
+  // lazily loaded tool's `arguments` arrived empty. Emit the source schema unchanged (minus the
+  // map it never had) unless the object is explicitly closed.
+  if (
+    schema.properties == null &&
+    schema.additionalProperties == null &&
+    schema.patternProperties == null
+  ) {
+    return Type.Unsafe({ ...schema, ...options }) as unknown as ReturnType<typeof Type.Object>;
+  }
   const properties = (schema.properties ?? {}) as Record<string, unknown>;
   const required = new Set(Array.isArray(schema.required) ? schema.required.map(String) : []);
   const fields: Record<string, ReturnType<typeof Type.Optional>> = {};
@@ -226,12 +240,25 @@ export function jsonSchemaParameters(
       typeof Type.Optional
     >;
   }
+  // Nested fields can retain references to definitions on this object.
+  const objectOptions = {
+    ...(schema.$defs !== undefined ? { $defs: schema.$defs } : {}),
+    ...options,
+  };
   // Preserve closed objects (e.g. request_secret destination oneOf branches).
   // Type.Object defaults to open, which would let connectionId+replace match both
   // anyOf variants after conversion.
-  return schema.additionalProperties === false
-    ? Type.Object(fields, { ...options, additionalProperties: false })
-    : Type.Object(fields, options);
+  if (schema.additionalProperties === false) {
+    return Type.Object(fields, { ...objectOptions, additionalProperties: false });
+  }
+  // Several providers' constrained decoders read `{type: "object", properties: {}}` without
+  // `additionalProperties` as closed and can only emit `{}`, so declared open maps (Composio's
+  // COMPOSIO_MULTI_EXECUTE_TOOL `tools[].arguments`) must stay open on the wire. Typed values
+  // are sent as `true`: jsonField cannot express every value schema (`$ref`, patternProperties).
+  if (schema.additionalProperties != null) {
+    return Type.Object(fields, { ...objectOptions, additionalProperties: true });
+  }
+  return Type.Object(fields, objectOptions);
 }
 
 type FieldOptions = { description?: string };
@@ -349,8 +376,12 @@ export function prepareFleetArguments(
   for (const key of FLEET_FLAG_ARGS) {
     if (argumentGiven(raw[key])) out[key] = raw[key];
   }
+  if (argumentGiven(raw.dailyCheckIns)) out.dailyCheckIns = raw.dailyCheckIns;
   const notify = raw.notifyOnFinish ?? raw.notify_on_finish;
   if (argumentGiven(notify)) out.notifyOnFinish = notify;
+  // The read pager's offset is a number; the handler validates it.
+  if (toolName === "update_bot" && argumentGiven(raw.instructions_offset))
+    out.instructions_offset = raw.instructions_offset;
   return out;
 }
 
