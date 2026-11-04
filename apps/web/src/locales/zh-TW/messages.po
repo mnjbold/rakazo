@@ -159,6 +159,10 @@ msgstr "{botCount, plural, one {要刪除 {name} 及其 # 個機器人嗎？} ot
 msgid "{botName}’s computer"
 msgstr "{botName} 的電腦"
 
+#: src/pages/CallView.tsx
+msgid "{botName}'s screen"
+msgstr ""
+
 #: src/components/vault/VaultItemEditor.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} 是保留名稱，不能用作命令變數。請選擇其他名稱。"
@@ -219,6 +223,10 @@ msgstr ""
 msgid "{hours}h ago"
 msgstr "{hours} 小時前"
 
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "{label} QR code"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
 msgstr "{label}，空白"
@@ -261,6 +269,10 @@ msgstr "{name} 選項"
 #: src/lib/browser-notifications.ts
 msgid "{name} stopped"
 msgstr "{name} 已停止"
+
+#: src/pages/Welcome.tsx
+msgid "{PRODUCT_NAME} by <0>{PRODUCT_MAKER}</0> · forked from Rakazo"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -859,6 +871,10 @@ msgstr "外觀"
 msgid "Appearance: {label}"
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Application"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "Apply"
 msgstr "套用"
@@ -919,6 +935,7 @@ msgstr "已封存"
 msgid "Arguments"
 msgstr "參數"
 
+#: src/components/AppRail.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/Artifacts.tsx
 msgid "Artifacts"
@@ -1132,7 +1149,9 @@ msgstr "機器人的模型"
 msgid "Both"
 msgstr "兩者都有"
 
+#: src/components/AppRail.tsx
 #: src/pages/Artifacts.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Bots"
 msgstr "機器人"
 
@@ -1296,6 +1315,10 @@ msgstr ""
 msgid "Chat Completions"
 msgstr ""
 
+#: src/pages/shell/chat-sessions.tsx
+msgid "Chat history"
+msgstr ""
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
 msgstr "聊天設定"
@@ -1446,6 +1469,7 @@ msgstr "正在清空…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-sessions.tsx
 #: src/pages/WindowChrome.tsx
 msgid "Close"
 msgstr "關閉"
@@ -1465,6 +1489,10 @@ msgstr "關閉圖片預覽"
 #: src/pages/PluginsOverlay.tsx
 msgid "Close integrations"
 msgstr "關閉整合"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Close marketplace"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Close MCP servers"
@@ -1581,6 +1609,10 @@ msgstr "完成"
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "已完成"
+
+#: src/components/DokploySection.tsx
+msgid "Compose"
+msgstr ""
 
 #: src/pages/settings-nav.ts
 #: src/pages/shell/bot-panel.tsx
@@ -2071,6 +2103,7 @@ msgstr ""
 #: src/components/PasskeySettings.tsx
 #: src/lib/user-devices.ts
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Could not load"
 msgstr "無法載入"
 
@@ -2102,9 +2135,21 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr "無法載入憑證。"
 
+#: src/components/DokploySection.tsx
+msgid "Could not load deployments"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Could not load Dokploy status"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "無法載入整合"
+
+#: src/components/DokploySection.tsx
+msgid "Could not load logs"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -2134,6 +2179,7 @@ msgid "Could not load this artifact."
 msgstr "無法載入此成品。"
 
 #: src/pages/PeerMessagesOverlay.tsx
+#: src/pages/shell/chat-sessions.tsx
 msgid "Could not load this chat."
 msgstr "無法載入此對話。"
 
@@ -2323,8 +2369,13 @@ msgstr "無法傳送重設郵件"
 
 #: src/components/call/IncomingCall.tsx
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Could not send that"
 msgstr "無法傳送"
+
+#: src/components/ShareMenu.tsx
+msgid "Could not share"
+msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "Could not show the credential"
@@ -2332,6 +2383,10 @@ msgstr "無法顯示憑證"
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Could not sign in"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not start a new chat"
 msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
@@ -2478,8 +2533,8 @@ msgid "Create space"
 msgstr "建立空間"
 
 #: src/pages/Auth.tsx
-msgid "Create your Rakazo"
-msgstr "建立你的 Rakazo"
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Created"
@@ -2491,9 +2546,15 @@ msgstr "已建立"
 msgid "Creating…"
 msgstr "正在建立…"
 
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Credential"
 msgstr "憑證"
+
+#. placeholder {0}: item.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Credential for {0}"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Credential saved"
@@ -2694,6 +2755,10 @@ msgstr "拒絕"
 #. placeholder {0}: settings.defaultProvider
 #: src/components/ComputerProviderSettings.tsx
 msgid "Deployment default ({0})"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Deployments and rollback"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -3051,6 +3116,11 @@ msgstr "每月"
 msgid "Every week"
 msgstr "每週"
 
+#: src/components/ShareMenu.tsx
+#: src/pages/BotContextMenu.tsx
+msgid "Everyone"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Executor 權杖"
@@ -3113,6 +3183,7 @@ msgid "Extra high"
 msgstr "極高"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "失敗"
 
@@ -3254,6 +3325,10 @@ msgstr ""
 msgid "Full name"
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Full-stack Compose preview"
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "全螢幕"
@@ -3296,6 +3371,10 @@ msgstr "送朋友 {weeks} 週免費"
 msgid "Go home"
 msgstr "返回首頁"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Good"
+msgstr ""
+
 #: src/pages/AdminAccessPage.tsx
 msgid "Grant"
 msgstr ""
@@ -3321,14 +3400,17 @@ msgid "Group updates"
 msgstr "群組更新"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Hang up"
 msgstr "結束通話"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Hang up first, then enter the code on screen."
 msgstr "請先結束通話，再輸入螢幕上的驗證碼。"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Hang up, then enter the code on screen."
 msgstr "請結束通話，再輸入螢幕上的驗證碼。"
 
@@ -3359,6 +3441,10 @@ msgstr "標頭"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "試聽"
+
+#: src/pages/CallView.tsx
+msgid "Hearing you"
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
@@ -3518,9 +3604,22 @@ msgstr "輸入"
 msgid "Inputs"
 msgstr "輸入"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Install"
+msgstr ""
+
+#. placeholder {0}: item.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Install {0}"
+msgstr ""
+
 #: src/components/SidebarFooter.tsx
 msgid "Install update"
 msgstr "安裝更新"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Installed"
+msgstr ""
 
 #: src/components/McpServerHealthLine.tsx
 msgid "Installing…"
@@ -3568,6 +3667,10 @@ msgstr "整合服務網域"
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "整合"
+
+#: src/pages/CallView.tsx
+msgid "Interrupt"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -3695,6 +3798,10 @@ msgstr "淺色"
 msgid "Link"
 msgstr ""
 
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "Link {label}"
+msgstr ""
+
 #: src/components/pages/PublicPageShell.tsx
 #: src/components/pages/SharePopover.tsx
 msgid "Link copied"
@@ -3712,13 +3819,31 @@ msgstr "關聯 SSO"
 msgid "List view"
 msgstr "清單檢視"
 
+#: src/pages/CallView.tsx
+msgid "Listen again"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Listening"
 msgstr "聆聽中"
 
 #: src/components/composer/HoldToTalk.tsx
+#: src/pages/CallView.tsx
 msgid "Listening…"
 msgstr "聆聽中…"
+
+#: src/pages/CallView.tsx
+msgid "Live call with {botName}"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Live talk"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Load deployments"
+msgstr ""
 
 #: src/pages/shell/transcript.tsx
 msgid "Load earlier messages"
@@ -3774,6 +3899,7 @@ msgstr "正在載入語音供應商…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/chat-sessions.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "載入中…"
@@ -3797,6 +3923,10 @@ msgstr ""
 
 #: src/components/vault/kinds.tsx
 msgid "Logins"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Logs"
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -3869,6 +3999,11 @@ msgstr "Markdown 表格"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Marketing"
+msgstr ""
+
+#: src/pages/MarketplaceOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Marketplace"
 msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -4008,6 +4143,7 @@ msgstr "訊息"
 
 #: src/lib/call-session.ts
 #: src/lib/dictation.ts
+#: src/pages/CallView.tsx
 msgid "Microphone failed"
 msgstr "麥克風失敗"
 
@@ -4045,6 +4181,10 @@ msgstr "分鐘"
 #: src/components/call/VoiceChatCard.tsx
 msgid "Missed call"
 msgstr "未接來電"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Mixed"
+msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Mode"
@@ -4147,10 +4287,12 @@ msgid "Move up"
 msgstr "上移"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Mute"
 msgstr "靜音"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Muted"
 msgstr "已靜音"
 
@@ -4217,6 +4359,14 @@ msgstr "需要輸入"
 msgid "Needs takeover"
 msgstr "需要接管"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/shell/computer-overlay.tsx
 #: src/pages/shell/message-view.tsx
@@ -4248,6 +4398,10 @@ msgstr "新增機器人"
 
 #: src/components/VaultSettings.tsx
 msgid "New card"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "New chat"
 msgstr ""
 
 #: src/components/ComputerProviderSettings.tsx
@@ -4488,6 +4642,10 @@ msgstr "無法正常工作"
 msgid "Nothing remembered yet"
 msgstr "尚無記憶"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Nothing shared yet"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Notifications"
 msgstr "通知"
@@ -4577,6 +4735,10 @@ msgstr "開啟"
 msgid "Open {0}"
 msgstr "開啟 {0}"
 
+#: src/pages/CallView.tsx
+msgid "Open {botName}'s computer"
+msgstr ""
+
 #: src/pages/shell/import-setup-card.tsx
 msgid "Open {name}"
 msgstr "開啟 {name}"
@@ -4656,6 +4818,10 @@ msgstr "選填"
 #: src/pages/McpServersOverlay.tsx
 msgid "Optional header value"
 msgstr "選填標頭值"
+
+#: src/pages/Auth.tsx
+msgid "or"
+msgstr ""
 
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
@@ -4899,6 +5065,7 @@ msgid "Plugin submissions"
 msgstr ""
 
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Plugins"
 msgstr ""
 
@@ -4914,6 +5081,7 @@ msgstr "POST 到"
 msgid "Preferences"
 msgstr "偏好設定"
 
+#: src/components/DokploySection.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Preview"
@@ -4923,6 +5091,14 @@ msgstr ""
 #: src/components/ArtifactFileCard.tsx
 msgid "Preview {0}"
 msgstr "預覽 {0}"
+
+#: src/components/DokploySection.tsx
+msgid "Preview failed"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Preview full stack"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Preview isn't available for this file type — download it to view it."
@@ -4943,6 +5119,10 @@ msgstr "優先順序"
 #: src/pages/shell/bot-panel.tsx
 msgid "Private"
 msgstr "私人"
+
+#: src/components/DokploySection.tsx
+msgid "Private service"
+msgstr ""
 
 #: src/pages/shell/bot-picker.tsx
 msgid "Private workspace with its own bots and groups."
@@ -5185,7 +5365,9 @@ msgstr "移除"
 
 #. placeholder {0}: attachment.file.name
 #. placeholder {0}: device.name
+#. placeholder {0}: row.name
 #: src/components/ComputerDeviceSettings.tsx
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "移除 {0}"
@@ -5301,6 +5483,10 @@ msgstr "回覆"
 msgid "Reply cancelled"
 msgstr "已取消回覆"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Reply quality"
+msgstr ""
+
 #. placeholder {0}: replyNameRef.current
 #: src/pages/shell/composer.tsx
 msgid "Replying to {0}"
@@ -5400,6 +5586,7 @@ msgstr "重試"
 
 #: src/App.tsx
 #: src/pages/PeerMessagesOverlay.tsx
+#: src/pages/shell/chat-sessions.tsx
 msgid "Retry now"
 msgstr "立即重試"
 
@@ -5407,12 +5594,15 @@ msgstr "立即重試"
 msgid "Retry screen"
 msgstr "重新連線螢幕"
 
+#: src/pages/McpOAuthCallback.tsx
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
+
 #. placeholder {0}: call.botName
 #: src/components/call/CallCard.tsx
 msgid "Return to call with {0}"
 msgstr "返回與 {0} 的通話"
 
-#: src/pages/McpOAuthCallback.tsx
 #: src/pages/SlackInstallCallback.tsx
 msgid "Return to Rakazo"
 msgstr "返回 Rakazo"
@@ -5421,6 +5611,10 @@ msgstr "返回 Rakazo"
 msgid "Review provider settings and test again."
 msgstr "請檢查供應商設定並重新測試。"
 
+#: src/components/DokploySection.tsx
+msgid "Review required before any Dokploy change."
+msgstr ""
+
 #: src/pages/AdminAccessPage.tsx
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Revoke"
@@ -5428,6 +5622,18 @@ msgstr "撤銷授權"
 
 #: src/pages/AdminAccessPage.tsx
 msgid "Revoked"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback failed"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback to the selected deployment?"
 msgstr ""
 
 #: src/components/ComputerProviderSettings.tsx
@@ -5582,8 +5788,13 @@ msgid "Saving…"
 msgstr "正在儲存…"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Say yes or no, or answer in a sentence."
 msgstr "回答是或否，或一句話說明。"
+
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "Scan in {label} › Linked devices."
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Schedule delayed"
@@ -5664,6 +5875,10 @@ msgstr "搜尋：{0}"
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "正在搜尋…"
+
+#: src/components/AppRail.tsx
+msgid "Sections"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5753,6 +5968,14 @@ msgstr "伺服器名稱"
 msgid "Server URL"
 msgstr "伺服器 URL"
 
+#: src/components/DokploySection.tsx
+msgid "Service name"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -5797,6 +6020,7 @@ msgstr "形狀 {0}"
 
 #: src/components/pages/PagesList.tsx
 #: src/components/pages/SharePopover.tsx
+#: src/components/ShareMenu.tsx
 msgid "Share"
 msgstr "分享"
 
@@ -5804,11 +6028,21 @@ msgstr "分享"
 msgid "Share “{title}”"
 msgstr "分享「{title}」"
 
+#. placeholder {0}: open.name
+#: src/pages/KnowledgeSection.tsx
+msgid "Share {0}"
+msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Share as template"
+msgstr ""
+
 #: src/components/pages/SharePopover.tsx
 msgid "Share, anyone with the link can view"
 msgstr "共用，任何擁有連結的人都能檢視"
 
 #: src/components/pages/PagesList.tsx
+#: src/components/ShareMenu.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -5831,10 +6065,15 @@ msgstr "顯示全部"
 msgid "Show bots"
 msgstr "顯示機器人"
 
+#: src/components/ClampedText.tsx
+msgid "Show less"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr "顯示清單"
 
+#: src/components/ClampedText.tsx
 #: src/components/pages/PagesList.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -5868,6 +6107,7 @@ msgstr "側邊欄密度"
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Welcome.tsx
 msgid "Sign in"
 msgstr "登入"
 
@@ -5887,12 +6127,16 @@ msgid "Sign in at <0>{0}</0>, then paste the code here."
 msgstr "在 <0>{0}</0> 登入，然後將代碼貼到這裡。"
 
 #: src/pages/Auth.tsx
-msgid "Sign in to Rakazo"
-msgstr "登入 Rakazo"
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "請登入現有帳號以關聯 SSO"
+
+#: src/pages/Auth.tsx
+msgid "Sign in with Google"
+msgstr ""
 
 #: src/components/PasskeySignIn.tsx
 msgid "Sign in with passkey"
@@ -5903,6 +6147,7 @@ msgid "Sign in with the subscription, or test the API key instead."
 msgstr "請使用訂閱登入，或改為測試 API 金鑰。"
 
 #: src/pages/Auth.tsx
+#: src/pages/Welcome.tsx
 msgid "Sign up"
 msgstr "註冊"
 
@@ -5927,6 +6172,7 @@ msgstr "技能 {position}"
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/components/SidebarFooter.tsx
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Skills"
@@ -5973,6 +6219,10 @@ msgstr ""
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "部分設定不會匯入"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Something went wrong"
+msgstr ""
 
 #: src/App.tsx
 #: src/lib/user-error.ts
@@ -6025,6 +6275,7 @@ msgid "Speak this reply"
 msgstr "朗讀這條回覆"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Speaking"
 msgstr "說話中"
 
@@ -6039,6 +6290,15 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO 暫時不可用，請重試。"
+
+#: src/components/DokploySection.tsx
+msgid "Staging domain"
+msgstr ""
+
+#. placeholder {0}: status.projectName
+#: src/components/DokploySection.tsx
+msgid "Staging only: {0}, 2 CPU, 4 GB memory, 20 GB disk."
+msgstr ""
 
 #: src/components/GitHubStarPrompt.tsx
 msgid "Star on GitHub"
@@ -6403,6 +6663,10 @@ msgstr "此操作無法復原。"
 msgid "This cannot be undone."
 msgstr "此操作無法復原。"
 
+#: src/pages/shell/chat-sessions.tsx
+msgid "This chat is view-only"
+msgstr ""
+
 #: src/pages/HostComputerPrompt.tsx
 msgid "this computer"
 msgstr "這臺電腦"
@@ -6506,6 +6770,11 @@ msgstr "此伺服器已連線。請先中斷再重新授權。"
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "This server's tool result does not fit the model. Turn off Keep tool results whole for that server, or choose another model."
+msgstr ""
+
+#: src/components/ShareMenu.tsx
+#: src/pages/BotContextMenu.tsx
+msgid "This space"
 msgstr ""
 
 #: src/pages/model-settings/connection-controls.tsx
@@ -6766,6 +7035,10 @@ msgstr "緊急"
 msgid "Usage"
 msgstr "用量"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Use"
+msgstr ""
+
 #. Switches the saved timezone to this device's, e.g. 'Use Pacific/Auckland'
 #. placeholder {0}: deviceTimezone.replaceAll("_", " ")
 #: src/pages/AccountSettingsOverlay.tsx
@@ -6816,6 +7089,11 @@ msgstr "使用 Rakazo 額度"
 #: src/pages/model-settings/space-bots-model.tsx
 msgid "Use space default"
 msgstr "使用空間預設模型"
+
+#. placeholder {0}: template.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Use template {0}"
+msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Use up to 512 letters, digits, _ or -."
@@ -6905,6 +7183,10 @@ msgstr "語音"
 
 #: src/lib/tts.ts
 msgid "Voice request timed out."
+msgstr ""
+
+#: src/pages/CallView.tsx
+msgid "Voice settings"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -7036,6 +7318,7 @@ msgid "Work"
 msgstr "工作"
 
 #: src/pages/ActivityList.tsx
+#: src/pages/CallView.tsx
 msgid "Working"
 msgstr "工作中"
 
@@ -7073,6 +7356,7 @@ msgstr "昨天"
 
 #: src/components/pages/SharePopover.tsx
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/CallView.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/message-view.tsx
 #: src/pages/shell/shell-sidebar.tsx
@@ -7155,6 +7439,10 @@ msgstr ""
 #: src/components/ModelCredits.tsx
 msgid "Your subscription or API key"
 msgstr "你的訂閱或 API 金鑰"
+
+#: src/pages/Welcome.tsx
+msgid "Your team of always-on agents<0/>that you can give real work to."
+msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Your trial ends and your card is charged {price} today."

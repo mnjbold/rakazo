@@ -158,6 +158,10 @@ msgstr "{botCount, plural, other {{name}과(와) 봇 #개를 삭제할까요?}}"
 msgid "{botName}’s computer"
 msgstr "{botName}의 컴퓨터"
 
+#: src/pages/CallView.tsx
+msgid "{botName}'s screen"
+msgstr ""
+
 #: src/components/vault/VaultItemEditor.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable}은(는) 예약되어 있어 명령 변수로 사용할 수 없습니다. 다른 이름을 선택하세요."
@@ -218,6 +222,10 @@ msgstr ""
 msgid "{hours}h ago"
 msgstr "{hours}시간 전"
 
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "{label} QR code"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
 msgstr "{label}, 비어 있음"
@@ -260,6 +268,10 @@ msgstr "{name} 옵션"
 #: src/lib/browser-notifications.ts
 msgid "{name} stopped"
 msgstr "{name} 중지됨"
+
+#: src/pages/Welcome.tsx
+msgid "{PRODUCT_NAME} by <0>{PRODUCT_MAKER}</0> · forked from Rakazo"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -858,6 +870,10 @@ msgstr "모양"
 msgid "Appearance: {label}"
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Application"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "Apply"
 msgstr "적용"
@@ -918,6 +934,7 @@ msgstr "보관됨"
 msgid "Arguments"
 msgstr "인자"
 
+#: src/components/AppRail.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/Artifacts.tsx
 msgid "Artifacts"
@@ -1131,7 +1148,9 @@ msgstr "봇의 모델"
 msgid "Both"
 msgstr ""
 
+#: src/components/AppRail.tsx
 #: src/pages/Artifacts.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Bots"
 msgstr ""
 
@@ -1295,6 +1314,10 @@ msgstr ""
 msgid "Chat Completions"
 msgstr ""
 
+#: src/pages/shell/chat-sessions.tsx
+msgid "Chat history"
+msgstr ""
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
 msgstr "채팅 설정"
@@ -1445,6 +1468,7 @@ msgstr "비우는 중…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-sessions.tsx
 #: src/pages/WindowChrome.tsx
 msgid "Close"
 msgstr "닫기"
@@ -1464,6 +1488,10 @@ msgstr "이미지 미리보기 닫기"
 #: src/pages/PluginsOverlay.tsx
 msgid "Close integrations"
 msgstr "앱·도구 연동 닫기"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Close marketplace"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Close MCP servers"
@@ -1580,6 +1608,10 @@ msgstr "완료"
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "완료"
+
+#: src/components/DokploySection.tsx
+msgid "Compose"
+msgstr ""
 
 #: src/pages/settings-nav.ts
 #: src/pages/shell/bot-panel.tsx
@@ -2070,6 +2102,7 @@ msgstr ""
 #: src/components/PasskeySettings.tsx
 #: src/lib/user-devices.ts
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Could not load"
 msgstr "불러올 수 없음"
 
@@ -2101,9 +2134,21 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Could not load deployments"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Could not load Dokploy status"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "연동 목록을 불러오지 못했습니다."
+
+#: src/components/DokploySection.tsx
+msgid "Could not load logs"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -2133,6 +2178,7 @@ msgid "Could not load this artifact."
 msgstr ""
 
 #: src/pages/PeerMessagesOverlay.tsx
+#: src/pages/shell/chat-sessions.tsx
 msgid "Could not load this chat."
 msgstr "이 채팅을 불러오지 못했습니다."
 
@@ -2322,8 +2368,13 @@ msgstr "재설정 이메일을 보낼 수 없습니다"
 
 #: src/components/call/IncomingCall.tsx
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Could not send that"
 msgstr "메시지를 보내지 못했습니다."
+
+#: src/components/ShareMenu.tsx
+msgid "Could not share"
+msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "Could not show the credential"
@@ -2331,6 +2382,10 @@ msgstr "자격 증명을 표시할 수 없습니다"
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Could not sign in"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not start a new chat"
 msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
@@ -2477,8 +2532,8 @@ msgid "Create space"
 msgstr "스페이스 만들기"
 
 #: src/pages/Auth.tsx
-msgid "Create your Rakazo"
-msgstr "Rakazo 계정 만들기"
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Created"
@@ -2490,9 +2545,15 @@ msgstr "생성됨"
 msgid "Creating…"
 msgstr "만드는 중…"
 
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Credential"
 msgstr "인증 정보"
+
+#. placeholder {0}: item.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Credential for {0}"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Credential saved"
@@ -2693,6 +2754,10 @@ msgstr "거부"
 #. placeholder {0}: settings.defaultProvider
 #: src/components/ComputerProviderSettings.tsx
 msgid "Deployment default ({0})"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Deployments and rollback"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -3050,6 +3115,11 @@ msgstr "매월"
 msgid "Every week"
 msgstr "매주"
 
+#: src/components/ShareMenu.tsx
+#: src/pages/BotContextMenu.tsx
+msgid "Everyone"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Executor 토큰"
@@ -3112,6 +3182,7 @@ msgid "Extra high"
 msgstr "매우 높음"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "실패"
 
@@ -3253,6 +3324,10 @@ msgstr ""
 msgid "Full name"
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Full-stack Compose preview"
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "전체 화면"
@@ -3295,6 +3370,10 @@ msgstr "친구에게 {weeks}주 무료 선물하기"
 msgid "Go home"
 msgstr "홈으로"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Good"
+msgstr ""
+
 #: src/pages/AdminAccessPage.tsx
 msgid "Grant"
 msgstr ""
@@ -3320,14 +3399,17 @@ msgid "Group updates"
 msgstr ""
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Hang up"
 msgstr "통화 종료"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Hang up first, then enter the code on screen."
 msgstr "먼저 전화를 끊은 다음 화면에 표시된 코드를 입력하세요."
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Hang up, then enter the code on screen."
 msgstr "전화를 끊은 다음 화면에 표시된 코드를 입력하세요."
 
@@ -3358,6 +3440,10 @@ msgstr "헤더"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "샘플 듣기"
+
+#: src/pages/CallView.tsx
+msgid "Hearing you"
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
@@ -3517,9 +3603,22 @@ msgstr "입력"
 msgid "Inputs"
 msgstr "입력값"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Install"
+msgstr ""
+
+#. placeholder {0}: item.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Install {0}"
+msgstr ""
+
 #: src/components/SidebarFooter.tsx
 msgid "Install update"
 msgstr "업데이트 설치"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Installed"
+msgstr ""
 
 #: src/components/McpServerHealthLine.tsx
 msgid "Installing…"
@@ -3567,6 +3666,10 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "앱·도구 연동"
+
+#: src/pages/CallView.tsx
+msgid "Interrupt"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -3694,6 +3797,10 @@ msgstr "라이트"
 msgid "Link"
 msgstr ""
 
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "Link {label}"
+msgstr ""
+
 #: src/components/pages/PublicPageShell.tsx
 #: src/components/pages/SharePopover.tsx
 msgid "Link copied"
@@ -3711,12 +3818,30 @@ msgstr "SSO 연결"
 msgid "List view"
 msgstr ""
 
+#: src/pages/CallView.tsx
+msgid "Listen again"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Listening"
 msgstr ""
 
 #: src/components/composer/HoldToTalk.tsx
+#: src/pages/CallView.tsx
 msgid "Listening…"
+msgstr ""
+
+#: src/pages/CallView.tsx
+msgid "Live call with {botName}"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Live talk"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Load deployments"
 msgstr ""
 
 #: src/pages/shell/transcript.tsx
@@ -3773,6 +3898,7 @@ msgstr "음성 서비스를 불러오는 중…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/chat-sessions.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "불러오는 중…"
@@ -3796,6 +3922,10 @@ msgstr ""
 
 #: src/components/vault/kinds.tsx
 msgid "Logins"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Logs"
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -3868,6 +3998,11 @@ msgstr "Markdown 표"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Marketing"
+msgstr ""
+
+#: src/pages/MarketplaceOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Marketplace"
 msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -4007,6 +4142,7 @@ msgstr "메시징"
 
 #: src/lib/call-session.ts
 #: src/lib/dictation.ts
+#: src/pages/CallView.tsx
 msgid "Microphone failed"
 msgstr "마이크를 사용할 수 없습니다."
 
@@ -4043,6 +4179,10 @@ msgstr "분"
 
 #: src/components/call/VoiceChatCard.tsx
 msgid "Missed call"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Mixed"
 msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
@@ -4146,10 +4286,12 @@ msgid "Move up"
 msgstr "위로 이동"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Mute"
 msgstr "음소거"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Muted"
 msgstr ""
 
@@ -4216,6 +4358,14 @@ msgstr "입력 필요"
 msgid "Needs takeover"
 msgstr "인수 필요"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/shell/computer-overlay.tsx
 #: src/pages/shell/message-view.tsx
@@ -4247,6 +4397,10 @@ msgstr "새 Bot 만들기"
 
 #: src/components/VaultSettings.tsx
 msgid "New card"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "New chat"
 msgstr ""
 
 #: src/components/ComputerProviderSettings.tsx
@@ -4487,6 +4641,10 @@ msgstr "작동하지 않음"
 msgid "Nothing remembered yet"
 msgstr "아직 기억한 내용이 없습니다"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Nothing shared yet"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Notifications"
 msgstr "알림"
@@ -4576,6 +4734,10 @@ msgstr "열기"
 msgid "Open {0}"
 msgstr "{0} 열기"
 
+#: src/pages/CallView.tsx
+msgid "Open {botName}'s computer"
+msgstr ""
+
 #: src/pages/shell/import-setup-card.tsx
 msgid "Open {name}"
 msgstr "{name} 열기"
@@ -4655,6 +4817,10 @@ msgstr "선택 사항"
 #: src/pages/McpServersOverlay.tsx
 msgid "Optional header value"
 msgstr "선택 사항인 헤더 값"
+
+#: src/pages/Auth.tsx
+msgid "or"
+msgstr ""
 
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
@@ -4898,6 +5064,7 @@ msgid "Plugin submissions"
 msgstr ""
 
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Plugins"
 msgstr ""
 
@@ -4913,6 +5080,7 @@ msgstr "POST 대상"
 msgid "Preferences"
 msgstr "환경설정"
 
+#: src/components/DokploySection.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Preview"
@@ -4922,6 +5090,14 @@ msgstr ""
 #: src/components/ArtifactFileCard.tsx
 msgid "Preview {0}"
 msgstr "{0} 미리보기"
+
+#: src/components/DokploySection.tsx
+msgid "Preview failed"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Preview full stack"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Preview isn't available for this file type — download it to view it."
@@ -4942,6 +5118,10 @@ msgstr ""
 #: src/pages/shell/bot-panel.tsx
 msgid "Private"
 msgstr "Bot 전용"
+
+#: src/components/DokploySection.tsx
+msgid "Private service"
+msgstr ""
 
 #: src/pages/shell/bot-picker.tsx
 msgid "Private workspace with its own bots and groups."
@@ -5184,7 +5364,9 @@ msgstr "삭제"
 
 #. placeholder {0}: attachment.file.name
 #. placeholder {0}: device.name
+#. placeholder {0}: row.name
 #: src/components/ComputerDeviceSettings.tsx
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "{0} 삭제"
@@ -5300,6 +5482,10 @@ msgstr "답장"
 msgid "Reply cancelled"
 msgstr ""
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Reply quality"
+msgstr ""
+
 #. placeholder {0}: replyNameRef.current
 #: src/pages/shell/composer.tsx
 msgid "Replying to {0}"
@@ -5399,6 +5585,7 @@ msgstr "다시 시도"
 
 #: src/App.tsx
 #: src/pages/PeerMessagesOverlay.tsx
+#: src/pages/shell/chat-sessions.tsx
 msgid "Retry now"
 msgstr "지금 다시 시도"
 
@@ -5406,12 +5593,15 @@ msgstr "지금 다시 시도"
 msgid "Retry screen"
 msgstr ""
 
+#: src/pages/McpOAuthCallback.tsx
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
+
 #. placeholder {0}: call.botName
 #: src/components/call/CallCard.tsx
 msgid "Return to call with {0}"
 msgstr ""
 
-#: src/pages/McpOAuthCallback.tsx
 #: src/pages/SlackInstallCallback.tsx
 msgid "Return to Rakazo"
 msgstr "Rakazo로 돌아가기"
@@ -5420,6 +5610,10 @@ msgstr "Rakazo로 돌아가기"
 msgid "Review provider settings and test again."
 msgstr "서비스 설정을 확인한 뒤 다시 테스트하세요."
 
+#: src/components/DokploySection.tsx
+msgid "Review required before any Dokploy change."
+msgstr ""
+
 #: src/pages/AdminAccessPage.tsx
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Revoke"
@@ -5427,6 +5621,18 @@ msgstr "연결 해제"
 
 #: src/pages/AdminAccessPage.tsx
 msgid "Revoked"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback failed"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback to the selected deployment?"
 msgstr ""
 
 #: src/components/ComputerProviderSettings.tsx
@@ -5581,8 +5787,13 @@ msgid "Saving…"
 msgstr "저장 중…"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Say yes or no, or answer in a sentence."
 msgstr "예 또는 아니요로 답하거나 문장으로 답해 주세요."
+
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "Scan in {label} › Linked devices."
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Schedule delayed"
@@ -5663,6 +5874,10 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "검색 중…"
+
+#: src/components/AppRail.tsx
+msgid "Sections"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5752,6 +5967,14 @@ msgstr "서버 이름"
 msgid "Server URL"
 msgstr "서버 URL"
 
+#: src/components/DokploySection.tsx
+msgid "Service name"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -5796,6 +6019,7 @@ msgstr ""
 
 #: src/components/pages/PagesList.tsx
 #: src/components/pages/SharePopover.tsx
+#: src/components/ShareMenu.tsx
 msgid "Share"
 msgstr "공유"
 
@@ -5803,11 +6027,21 @@ msgstr "공유"
 msgid "Share “{title}”"
 msgstr "“{title}” 공유"
 
+#. placeholder {0}: open.name
+#: src/pages/KnowledgeSection.tsx
+msgid "Share {0}"
+msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Share as template"
+msgstr ""
+
 #: src/components/pages/SharePopover.tsx
 msgid "Share, anyone with the link can view"
 msgstr "공유, 링크가 있는 누구나 볼 수 있음"
 
 #: src/components/pages/PagesList.tsx
+#: src/components/ShareMenu.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -5830,10 +6064,15 @@ msgstr ""
 msgid "Show bots"
 msgstr ""
 
+#: src/components/ClampedText.tsx
+msgid "Show less"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr ""
 
+#: src/components/ClampedText.tsx
 #: src/components/pages/PagesList.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -5867,6 +6106,7 @@ msgstr ""
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Welcome.tsx
 msgid "Sign in"
 msgstr "로그인"
 
@@ -5886,12 +6126,16 @@ msgid "Sign in at <0>{0}</0>, then paste the code here."
 msgstr "<0>{0}</0>에서 로그인한 다음 코드를 여기에 붙여넣으세요."
 
 #: src/pages/Auth.tsx
-msgid "Sign in to Rakazo"
-msgstr "Rakazo 로그인"
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "SSO를 연결하려면 기존 계정에 로그인하세요"
+
+#: src/pages/Auth.tsx
+msgid "Sign in with Google"
+msgstr ""
 
 #: src/components/PasskeySignIn.tsx
 msgid "Sign in with passkey"
@@ -5902,6 +6146,7 @@ msgid "Sign in with the subscription, or test the API key instead."
 msgstr "구독으로 로그인하거나 대신 API 키를 테스트하세요."
 
 #: src/pages/Auth.tsx
+#: src/pages/Welcome.tsx
 msgid "Sign up"
 msgstr "가입하기"
 
@@ -5926,6 +6171,7 @@ msgstr "스킬 {position}"
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/components/SidebarFooter.tsx
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Skills"
@@ -5972,6 +6218,10 @@ msgstr ""
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "일부 설정은 가져오지 않습니다"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Something went wrong"
+msgstr ""
 
 #: src/App.tsx
 #: src/lib/user-error.ts
@@ -6024,6 +6274,7 @@ msgid "Speak this reply"
 msgstr "이 답변 읽기"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Speaking"
 msgstr ""
 
@@ -6038,6 +6289,15 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO를 일시적으로 사용할 수 없습니다. 다시 시도하세요."
+
+#: src/components/DokploySection.tsx
+msgid "Staging domain"
+msgstr ""
+
+#. placeholder {0}: status.projectName
+#: src/components/DokploySection.tsx
+msgid "Staging only: {0}, 2 CPU, 4 GB memory, 20 GB disk."
+msgstr ""
 
 #: src/components/GitHubStarPrompt.tsx
 msgid "Star on GitHub"
@@ -6402,6 +6662,10 @@ msgstr "되돌릴 수 없습니다."
 msgid "This cannot be undone."
 msgstr "이 작업은 되돌릴 수 없습니다."
 
+#: src/pages/shell/chat-sessions.tsx
+msgid "This chat is view-only"
+msgstr ""
+
 #: src/pages/HostComputerPrompt.tsx
 msgid "this computer"
 msgstr "이 컴퓨터"
@@ -6505,6 +6769,11 @@ msgstr "이 서버는 이미 연결되어 있습니다. 다시 인증하려면 �
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "This server's tool result does not fit the model. Turn off Keep tool results whole for that server, or choose another model."
+msgstr ""
+
+#: src/components/ShareMenu.tsx
+#: src/pages/BotContextMenu.tsx
+msgid "This space"
 msgstr ""
 
 #: src/pages/model-settings/connection-controls.tsx
@@ -6765,6 +7034,10 @@ msgstr ""
 msgid "Usage"
 msgstr "사용량"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Use"
+msgstr ""
+
 #. Switches the saved timezone to this device's, e.g. 'Use Pacific/Auckland'
 #. placeholder {0}: deviceTimezone.replaceAll("_", " ")
 #: src/pages/AccountSettingsOverlay.tsx
@@ -6814,6 +7087,11 @@ msgstr ""
 
 #: src/pages/model-settings/space-bots-model.tsx
 msgid "Use space default"
+msgstr ""
+
+#. placeholder {0}: template.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Use template {0}"
 msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
@@ -6904,6 +7182,10 @@ msgstr "음성"
 
 #: src/lib/tts.ts
 msgid "Voice request timed out."
+msgstr ""
+
+#: src/pages/CallView.tsx
+msgid "Voice settings"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -7035,6 +7317,7 @@ msgid "Work"
 msgstr ""
 
 #: src/pages/ActivityList.tsx
+#: src/pages/CallView.tsx
 msgid "Working"
 msgstr "작업 중"
 
@@ -7072,6 +7355,7 @@ msgstr "어제"
 
 #: src/components/pages/SharePopover.tsx
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/CallView.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/message-view.tsx
 #: src/pages/shell/shell-sidebar.tsx
@@ -7153,6 +7437,10 @@ msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Your subscription or API key"
+msgstr ""
+
+#: src/pages/Welcome.tsx
+msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr ""
 
 #: src/components/ModelCredits.tsx

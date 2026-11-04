@@ -158,6 +158,10 @@ msgstr "{botCount, plural, one {Удалить {name} и # бота?} few {Уд�
 msgid "{botName}’s computer"
 msgstr "Компьютер {botName}"
 
+#: src/pages/CallView.tsx
+msgid "{botName}'s screen"
+msgstr ""
+
 #: src/components/vault/VaultItemEditor.tsx
 msgid "{commandVariable} is reserved and cannot be used as a command variable. Choose another name."
 msgstr "{commandVariable} зарезервирована и не может использоваться как переменная команды. Выберите другое имя."
@@ -218,6 +222,10 @@ msgstr ""
 msgid "{hours}h ago"
 msgstr "{hours} ч назад"
 
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "{label} QR code"
+msgstr ""
+
 #: src/components/markdown-copy.tsx
 msgid "{label}, empty"
 msgstr "{label}, пусто"
@@ -260,6 +268,10 @@ msgstr "Параметры {name}"
 #: src/lib/browser-notifications.ts
 msgid "{name} stopped"
 msgstr "{name}: остановлено"
+
+#: src/pages/Welcome.tsx
+msgid "{PRODUCT_NAME} by <0>{PRODUCT_MAKER}</0> · forked from Rakazo"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
@@ -858,6 +870,10 @@ msgstr "Внешний вид"
 msgid "Appearance: {label}"
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Application"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "Apply"
 msgstr "Применить"
@@ -918,6 +934,7 @@ msgstr "В архиве"
 msgid "Arguments"
 msgstr "Аргументы"
 
+#: src/components/AppRail.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/Artifacts.tsx
 msgid "Artifacts"
@@ -1131,7 +1148,9 @@ msgstr "Модель бота"
 msgid "Both"
 msgstr ""
 
+#: src/components/AppRail.tsx
 #: src/pages/Artifacts.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Bots"
 msgstr ""
 
@@ -1295,6 +1314,10 @@ msgstr ""
 msgid "Chat Completions"
 msgstr ""
 
+#: src/pages/shell/chat-sessions.tsx
+msgid "Chat history"
+msgstr ""
+
 #: src/pages/shell/composer-mentions.tsx
 msgid "Chat Settings"
 msgstr "Настройки чата"
@@ -1445,6 +1468,7 @@ msgstr "Очистка…"
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-sessions.tsx
 #: src/pages/WindowChrome.tsx
 msgid "Close"
 msgstr "Закрыть"
@@ -1464,6 +1488,10 @@ msgstr "Закрыть предварительный просмотр изоб�
 #: src/pages/PluginsOverlay.tsx
 msgid "Close integrations"
 msgstr "Закрыть интеграции"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Close marketplace"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Close MCP servers"
@@ -1580,6 +1608,10 @@ msgstr "Завершить"
 #: src/components/SubagentCard.tsx
 msgid "Completed"
 msgstr "Завершено"
+
+#: src/components/DokploySection.tsx
+msgid "Compose"
+msgstr ""
 
 #: src/pages/settings-nav.ts
 #: src/pages/shell/bot-panel.tsx
@@ -2070,6 +2102,7 @@ msgstr ""
 #: src/components/PasskeySettings.tsx
 #: src/lib/user-devices.ts
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Could not load"
 msgstr "Не удалось загрузить"
 
@@ -2101,9 +2134,21 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Could not load deployments"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Could not load Dokploy status"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
 msgstr "Не удалось загрузить интеграции"
+
+#: src/components/DokploySection.tsx
+msgid "Could not load logs"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -2133,6 +2178,7 @@ msgid "Could not load this artifact."
 msgstr ""
 
 #: src/pages/PeerMessagesOverlay.tsx
+#: src/pages/shell/chat-sessions.tsx
 msgid "Could not load this chat."
 msgstr "Не удалось загрузить этот чат."
 
@@ -2322,8 +2368,13 @@ msgstr "Не удалось отправить электронное письм
 
 #: src/components/call/IncomingCall.tsx
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Could not send that"
 msgstr "Не удалось отправить это"
+
+#: src/components/ShareMenu.tsx
+msgid "Could not share"
+msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "Could not show the credential"
@@ -2331,6 +2382,10 @@ msgstr "Не удалось показать учётные данные"
 
 #: src/components/integrations/plugin-marketplace.tsx
 msgid "Could not sign in"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not start a new chat"
 msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
@@ -2477,8 +2532,8 @@ msgid "Create space"
 msgstr "Создайте пространство"
 
 #: src/pages/Auth.tsx
-msgid "Create your Rakazo"
-msgstr "Создайте свой Rakazo"
+msgid "Create your {PRODUCT_NAME}"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Created"
@@ -2490,9 +2545,15 @@ msgstr "Создано"
 msgid "Creating…"
 msgstr "Создание…"
 
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Credential"
 msgstr "Учётные данные"
+
+#. placeholder {0}: item.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Credential for {0}"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Credential saved"
@@ -2693,6 +2754,10 @@ msgstr "Запретить"
 #. placeholder {0}: settings.defaultProvider
 #: src/components/ComputerProviderSettings.tsx
 msgid "Deployment default ({0})"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Deployments and rollback"
 msgstr ""
 
 #: src/pages/Board.tsx
@@ -3050,6 +3115,11 @@ msgstr "Каждый месяц"
 msgid "Every week"
 msgstr "Каждую неделю"
 
+#: src/components/ShareMenu.tsx
+#: src/pages/BotContextMenu.tsx
+msgid "Everyone"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Токен Executor"
@@ -3112,6 +3182,7 @@ msgid "Extra high"
 msgstr "Очень высокий"
 
 #: src/components/CloudAgentCard.tsx
+#: src/lib/roster-status.ts
 msgid "failed"
 msgstr "неуспешный"
 
@@ -3253,6 +3324,10 @@ msgstr ""
 msgid "Full name"
 msgstr ""
 
+#: src/components/DokploySection.tsx
+msgid "Full-stack Compose preview"
+msgstr ""
+
 #: src/pages/WindowChrome.tsx
 msgid "Fullscreen"
 msgstr "Полноэкранный"
@@ -3295,6 +3370,10 @@ msgstr "Подарите другу {weeks} недели бесплатно"
 msgid "Go home"
 msgstr "На главную"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Good"
+msgstr ""
+
 #: src/pages/AdminAccessPage.tsx
 msgid "Grant"
 msgstr ""
@@ -3320,14 +3399,17 @@ msgid "Group updates"
 msgstr "Обновления группы"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Hang up"
 msgstr "Завершить звонок"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Hang up first, then enter the code on screen."
 msgstr "Сначала повесьте трубку, затем введите код на экране."
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Hang up, then enter the code on screen."
 msgstr "Повесьте трубку, затем введите код на экране."
 
@@ -3358,6 +3440,10 @@ msgstr "Заголовки"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "Прослушать образец"
+
+#: src/pages/CallView.tsx
+msgid "Hearing you"
+msgstr ""
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
@@ -3517,9 +3603,22 @@ msgstr "Ввод"
 msgid "Inputs"
 msgstr "Входы"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Install"
+msgstr ""
+
+#. placeholder {0}: item.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Install {0}"
+msgstr ""
+
 #: src/components/SidebarFooter.tsx
 msgid "Install update"
 msgstr "Установить обновление"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Installed"
+msgstr ""
 
 #: src/components/McpServerHealthLine.tsx
 msgid "Installing…"
@@ -3567,6 +3666,10 @@ msgstr "Домен интеграции"
 #: src/pages/PluginsOverlay.tsx
 msgid "Integrations"
 msgstr "Интеграции"
+
+#: src/pages/CallView.tsx
+msgid "Interrupt"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -3694,6 +3797,10 @@ msgstr "Светлая"
 msgid "Link"
 msgstr ""
 
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "Link {label}"
+msgstr ""
+
 #: src/components/pages/PublicPageShell.tsx
 #: src/components/pages/SharePopover.tsx
 msgid "Link copied"
@@ -3711,13 +3818,31 @@ msgstr "Привязать SSO"
 msgid "List view"
 msgstr ""
 
+#: src/pages/CallView.tsx
+msgid "Listen again"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Listening"
 msgstr "Прослушивание"
 
 #: src/components/composer/HoldToTalk.tsx
+#: src/pages/CallView.tsx
 msgid "Listening…"
 msgstr "Слушаю…"
+
+#: src/pages/CallView.tsx
+msgid "Live call with {botName}"
+msgstr ""
+
+#: src/pages/shell/composer.tsx
+msgid "Live talk"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Load deployments"
+msgstr ""
 
 #: src/pages/shell/transcript.tsx
 msgid "Load earlier messages"
@@ -3773,6 +3898,7 @@ msgstr "Загрузка поставщиков голосовой связи…
 #: src/pages/PeerMessagesOverlay.tsx
 #: src/pages/PluginSubmissionsPanel.tsx
 #: src/pages/RoutineRunHistory.tsx
+#: src/pages/shell/chat-sessions.tsx
 #: src/pages/shell/transcript.tsx
 msgid "Loading…"
 msgstr "Загрузка…"
@@ -3796,6 +3922,10 @@ msgstr ""
 
 #: src/components/vault/kinds.tsx
 msgid "Logins"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Logs"
 msgstr ""
 
 #: src/pages/shell/agent-import.tsx
@@ -3868,6 +3998,11 @@ msgstr "Таблица Markdown"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Marketing"
+msgstr ""
+
+#: src/pages/MarketplaceOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Marketplace"
 msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
@@ -4007,6 +4142,7 @@ msgstr "Обмен сообщениями"
 
 #: src/lib/call-session.ts
 #: src/lib/dictation.ts
+#: src/pages/CallView.tsx
 msgid "Microphone failed"
 msgstr "Ошибка микрофона"
 
@@ -4044,6 +4180,10 @@ msgstr "минуты"
 #: src/components/call/VoiceChatCard.tsx
 msgid "Missed call"
 msgstr "Пропущенный звонок"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Mixed"
+msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Mode"
@@ -4146,10 +4286,12 @@ msgid "Move up"
 msgstr "Переместить вверх"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Mute"
 msgstr "Выключить микрофон"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Muted"
 msgstr "микрофон выключен"
 
@@ -4216,6 +4358,14 @@ msgstr "Требуется ввод данных"
 msgid "Needs takeover"
 msgstr "Требуется передача управления"
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Needs work"
+msgstr ""
+
+#: src/lib/roster-status.ts
+msgid "needs you"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/shell/computer-overlay.tsx
 #: src/pages/shell/message-view.tsx
@@ -4247,6 +4397,10 @@ msgstr "Новый бот"
 
 #: src/components/VaultSettings.tsx
 msgid "New card"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "New chat"
 msgstr ""
 
 #: src/components/ComputerProviderSettings.tsx
@@ -4487,6 +4641,10 @@ msgstr "Не работает"
 msgid "Nothing remembered yet"
 msgstr "Пока ничего не запомнено"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Nothing shared yet"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Notifications"
 msgstr "Уведомления"
@@ -4576,6 +4734,10 @@ msgstr "Открыть"
 msgid "Open {0}"
 msgstr "Открыть {0}"
 
+#: src/pages/CallView.tsx
+msgid "Open {botName}'s computer"
+msgstr ""
+
 #: src/pages/shell/import-setup-card.tsx
 msgid "Open {name}"
 msgstr "Открыть {name}"
@@ -4655,6 +4817,10 @@ msgstr "Необязательно"
 #: src/pages/McpServersOverlay.tsx
 msgid "Optional header value"
 msgstr "Необязательное значение заголовка"
+
+#: src/pages/Auth.tsx
+msgid "or"
+msgstr ""
 
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
@@ -4898,6 +5064,7 @@ msgid "Plugin submissions"
 msgstr ""
 
 #: src/components/integrations/skills-dialog.tsx
+#: src/pages/MarketplaceOverlay.tsx
 msgid "Plugins"
 msgstr ""
 
@@ -4913,6 +5080,7 @@ msgstr "ОТПРАВИТЬ в"
 msgid "Preferences"
 msgstr "Предпочтения"
 
+#: src/components/DokploySection.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Preview"
@@ -4922,6 +5090,14 @@ msgstr ""
 #: src/components/ArtifactFileCard.tsx
 msgid "Preview {0}"
 msgstr "Предварительный просмотр {0}"
+
+#: src/components/DokploySection.tsx
+msgid "Preview failed"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Preview full stack"
+msgstr ""
 
 #: src/pages/Artifacts.tsx
 msgid "Preview isn't available for this file type — download it to view it."
@@ -4942,6 +5118,10 @@ msgstr ""
 #: src/pages/shell/bot-panel.tsx
 msgid "Private"
 msgstr "Личный"
+
+#: src/components/DokploySection.tsx
+msgid "Private service"
+msgstr ""
 
 #: src/pages/shell/bot-picker.tsx
 msgid "Private workspace with its own bots and groups."
@@ -5184,7 +5364,9 @@ msgstr "Удалить"
 
 #. placeholder {0}: attachment.file.name
 #. placeholder {0}: device.name
+#. placeholder {0}: row.name
 #: src/components/ComputerDeviceSettings.tsx
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "Удалить {0}"
@@ -5300,6 +5482,10 @@ msgstr "Ответить"
 msgid "Reply cancelled"
 msgstr ""
 
+#: src/pages/shell/bot-panel.tsx
+msgid "Reply quality"
+msgstr ""
+
 #. placeholder {0}: replyNameRef.current
 #: src/pages/shell/composer.tsx
 msgid "Replying to {0}"
@@ -5399,6 +5585,7 @@ msgstr "Повторить"
 
 #: src/App.tsx
 #: src/pages/PeerMessagesOverlay.tsx
+#: src/pages/shell/chat-sessions.tsx
 msgid "Retry now"
 msgstr "Повторить попытку сейчас"
 
@@ -5406,12 +5593,15 @@ msgstr "Повторить попытку сейчас"
 msgid "Retry screen"
 msgstr "Повторить загрузку экрана"
 
+#: src/pages/McpOAuthCallback.tsx
+msgid "Return to {PRODUCT_NAME}"
+msgstr ""
+
 #. placeholder {0}: call.botName
 #: src/components/call/CallCard.tsx
 msgid "Return to call with {0}"
 msgstr "Вернуться к звонку с {0}"
 
-#: src/pages/McpOAuthCallback.tsx
 #: src/pages/SlackInstallCallback.tsx
 msgid "Return to Rakazo"
 msgstr "Вернуться в Rakazo"
@@ -5420,6 +5610,10 @@ msgstr "Вернуться в Rakazo"
 msgid "Review provider settings and test again."
 msgstr "Проверьте настройки поставщика и повторите тест."
 
+#: src/components/DokploySection.tsx
+msgid "Review required before any Dokploy change."
+msgstr ""
+
 #: src/pages/AdminAccessPage.tsx
 #: src/pages/MessagingSettingsPanel.tsx
 msgid "Revoke"
@@ -5427,6 +5621,18 @@ msgstr "Отозвать"
 
 #: src/pages/AdminAccessPage.tsx
 msgid "Revoked"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback failed"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Rollback to the selected deployment?"
 msgstr ""
 
 #: src/components/ComputerProviderSettings.tsx
@@ -5581,8 +5787,13 @@ msgid "Saving…"
 msgstr "Сохранение…"
 
 #: src/lib/call-session.ts
+#: src/pages/CallView.tsx
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Скажите «да» или «нет» или ответьте предложением."
+
+#: src/pages/MessagingSettingsPanel.tsx
+msgid "Scan in {label} › Linked devices."
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Schedule delayed"
@@ -5663,6 +5874,10 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "Поиск…"
+
+#: src/components/AppRail.tsx
+msgid "Sections"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Security"
@@ -5752,6 +5967,14 @@ msgstr "Имя сервера"
 msgid "Server URL"
 msgstr "URL-адрес сервера"
 
+#: src/components/DokploySection.tsx
+msgid "Service name"
+msgstr ""
+
+#: src/components/DokploySection.tsx
+msgid "Set DOKPLOY_URL and DOKPLOY_API_KEY on the server to enable operations."
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 #: src/components/SidebarFooter.tsx
 #: src/pages/MessagingSettingsPanel.tsx
@@ -5796,6 +6019,7 @@ msgstr ""
 
 #: src/components/pages/PagesList.tsx
 #: src/components/pages/SharePopover.tsx
+#: src/components/ShareMenu.tsx
 msgid "Share"
 msgstr "Поделиться"
 
@@ -5803,11 +6027,21 @@ msgstr "Поделиться"
 msgid "Share “{title}”"
 msgstr "Поделиться «{title}»"
 
+#. placeholder {0}: open.name
+#: src/pages/KnowledgeSection.tsx
+msgid "Share {0}"
+msgstr ""
+
+#: src/pages/BotContextMenu.tsx
+msgid "Share as template"
+msgstr ""
+
 #: src/components/pages/SharePopover.tsx
 msgid "Share, anyone with the link can view"
 msgstr "Поделиться, по ссылке может смотреть любой"
 
 #: src/components/pages/PagesList.tsx
+#: src/components/ShareMenu.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -5830,10 +6064,15 @@ msgstr ""
 msgid "Show bots"
 msgstr "Показать ботов"
 
+#: src/components/ClampedText.tsx
+msgid "Show less"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "Show list"
 msgstr ""
 
+#: src/components/ClampedText.tsx
 #: src/components/pages/PagesList.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -5867,6 +6106,7 @@ msgstr ""
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Welcome.tsx
 msgid "Sign in"
 msgstr "Войти"
 
@@ -5886,12 +6126,16 @@ msgid "Sign in at <0>{0}</0>, then paste the code here."
 msgstr "Войдите на <0>{0}</0>, затем вставьте код сюда."
 
 #: src/pages/Auth.tsx
-msgid "Sign in to Rakazo"
-msgstr "Войти в Rakazo"
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
 msgstr "Войдите в существующий аккаунт, чтобы привязать SSO"
+
+#: src/pages/Auth.tsx
+msgid "Sign in with Google"
+msgstr ""
 
 #: src/components/PasskeySignIn.tsx
 msgid "Sign in with passkey"
@@ -5902,6 +6146,7 @@ msgid "Sign in with the subscription, or test the API key instead."
 msgstr "Войдите по подписке или протестируйте API-ключ."
 
 #: src/pages/Auth.tsx
+#: src/pages/Welcome.tsx
 msgid "Sign up"
 msgstr "Зарегистрироваться"
 
@@ -5926,6 +6171,7 @@ msgstr "Навык {position}"
 #: src/components/integrations/plugin-marketplace.tsx
 #: src/components/integrations/skills-dialog.tsx
 #: src/components/SidebarFooter.tsx
+#: src/pages/MarketplaceOverlay.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 msgid "Skills"
@@ -5972,6 +6218,10 @@ msgstr ""
 #: src/pages/shell/agent-import.tsx
 msgid "Some settings are not imported"
 msgstr "Некоторые настройки не импортируются"
+
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Something went wrong"
+msgstr ""
 
 #: src/App.tsx
 #: src/lib/user-error.ts
@@ -6024,6 +6274,7 @@ msgid "Speak this reply"
 msgstr "Озвучить этот ответ"
 
 #: src/components/call/CallCard.tsx
+#: src/pages/CallView.tsx
 msgid "Speaking"
 msgstr "говорит"
 
@@ -6038,6 +6289,15 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO временно недоступен. Попробуйте снова."
+
+#: src/components/DokploySection.tsx
+msgid "Staging domain"
+msgstr ""
+
+#. placeholder {0}: status.projectName
+#: src/components/DokploySection.tsx
+msgid "Staging only: {0}, 2 CPU, 4 GB memory, 20 GB disk."
+msgstr ""
 
 #: src/components/GitHubStarPrompt.tsx
 msgid "Star on GitHub"
@@ -6402,6 +6662,10 @@ msgstr "Это действие нельзя отменить."
 msgid "This cannot be undone."
 msgstr "Это невозможно отменить."
 
+#: src/pages/shell/chat-sessions.tsx
+msgid "This chat is view-only"
+msgstr ""
+
 #: src/pages/HostComputerPrompt.tsx
 msgid "this computer"
 msgstr "этот компьютер"
@@ -6505,6 +6769,11 @@ msgstr "Этот сервер уже подключен. Сначала откл
 #. js-lingui-explicit-id
 #: src/lib/run-error.ts
 msgid "This server's tool result does not fit the model. Turn off Keep tool results whole for that server, or choose another model."
+msgstr ""
+
+#: src/components/ShareMenu.tsx
+#: src/pages/BotContextMenu.tsx
+msgid "This space"
 msgstr ""
 
 #: src/pages/model-settings/connection-controls.tsx
@@ -6765,6 +7034,10 @@ msgstr ""
 msgid "Usage"
 msgstr "Использование"
 
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Use"
+msgstr ""
+
 #. Switches the saved timezone to this device's, e.g. 'Use Pacific/Auckland'
 #. placeholder {0}: deviceTimezone.replaceAll("_", " ")
 #: src/pages/AccountSettingsOverlay.tsx
@@ -6814,6 +7087,11 @@ msgstr ""
 
 #: src/pages/model-settings/space-bots-model.tsx
 msgid "Use space default"
+msgstr ""
+
+#. placeholder {0}: template.name
+#: src/pages/MarketplaceOverlay.tsx
+msgid "Use template {0}"
 msgstr ""
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
@@ -6904,6 +7182,10 @@ msgstr "Голос"
 
 #: src/lib/tts.ts
 msgid "Voice request timed out."
+msgstr ""
+
+#: src/pages/CallView.tsx
+msgid "Voice settings"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -7035,6 +7317,7 @@ msgid "Work"
 msgstr ""
 
 #: src/pages/ActivityList.tsx
+#: src/pages/CallView.tsx
 msgid "Working"
 msgstr "Выполняется"
 
@@ -7072,6 +7355,7 @@ msgstr "Вчера"
 
 #: src/components/pages/SharePopover.tsx
 #: src/pages/AccountSettingsOverlay.tsx
+#: src/pages/CallView.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/message-view.tsx
 #: src/pages/shell/shell-sidebar.tsx
@@ -7153,6 +7437,10 @@ msgstr ""
 
 #: src/components/ModelCredits.tsx
 msgid "Your subscription or API key"
+msgstr ""
+
+#: src/pages/Welcome.tsx
+msgid "Your team of always-on agents<0/>that you can give real work to."
 msgstr ""
 
 #: src/components/ModelCredits.tsx
